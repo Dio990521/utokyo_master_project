@@ -40,11 +40,7 @@ class ClickEnv(gym.Env):
         # action space: [dx, dy, dz, press/release]
         # dx/dy/dz: [-1, 0, 1]
         # press: 1; release: 0
-        self.action_space = spaces.Box(
-            low=np.array([-1, -1, -1, 0]),
-            high=np.array([1, 1, 1, 1]),
-            dtype=np.int8
-        )
+        self.action_space = spaces.Discrete(54)
         self.observation_space = spaces.Box(
             low=0,
             high=255,
@@ -62,7 +58,7 @@ class ClickEnv(gym.Env):
         if self.window is None:
             return np.zeros((self.height, self.width, 3), dtype=np.uint8)
         obs = pygame.surfarray.array3d(self.window)
-        obs = np.transpose(obs, (1, 0, 2))  #(w, h, c)->(h, w, c)
+        #obs = np.transpose(obs, (1, 0, 2))  #(w, h, c)->(h, w, c)
         return obs.copy()
 
     def reset(self, seed=None, options=None):
