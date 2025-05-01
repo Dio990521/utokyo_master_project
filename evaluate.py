@@ -1,40 +1,35 @@
 import numpy as np
 import pygame
+import matplotlib.pyplot as plt
 
+from stable_baselines3 import PPO
+import gymnasium as gym
 from envs.mouse_click.click_env import ClickEnv
 
 env = ClickEnv(
     config={
     "render_mode": "human",
-    "play_mode": True
 })
 
+print(env.render_mode)
 obs, _ = env.reset()
 env.render()
-pressing = 0
-running = True
+done = False
+model = PPO.load("ppo_click_env.zip")
 
-while running:
+for i in range(50):
     env.render()
-
-    current_mouse_pos = pygame.mouse.get_pos()
-    env.cursor = current_mouse_pos
-
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             break
 
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            pressing = 1
-        elif event.type == pygame.MOUSEBUTTONUP:
-            pressing = 0
-
-    action = np.array([0,0,0,pressing])
-
+    action, _ = model.predict(obs, deterministic=True)
     obs, reward, done, truncated, info = env.step(action)
-    print(f"Action: {action} -> Reward: {reward}, HP: {env.hp}, Score: {env.score}")
-
+    plt.imshow(obs)
+    plt.title("Observation")
+    plt.axis("off")
+    plt.show()
     if done:
         print(f"Game Over: {info.get('result')}")
         obs, _ = env.reset()
