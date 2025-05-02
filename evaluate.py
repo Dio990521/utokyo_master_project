@@ -17,19 +17,19 @@ env.render()
 done = False
 model = PPO.load("ppo_click_env.zip")
 
-for i in range(50):
+while not done:
     env.render()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
             break
 
-    action, _ = model.predict(obs, deterministic=True)
+    action, _ = model.predict(obs, deterministic=False)
     obs, reward, done, truncated, info = env.step(action)
-    plt.imshow(obs)
-    plt.title("Observation")
-    plt.axis("off")
-    plt.show()
+    # plt.imshow(obs)
+    # plt.title("Observation")
+    # plt.axis("off")
+    # plt.show()
     if done:
         print(f"Game Over: {info.get('result')}")
         obs, _ = env.reset()
