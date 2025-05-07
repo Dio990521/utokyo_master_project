@@ -12,6 +12,7 @@ class BaseEnv(gym.Env):
         self.max_hp = config.get("hp", 100)
         self.play_mode = config.get("play_mode", False)
         self.render_mode = config.get("render_mode", None)
+        self.max_steps = config.get("max_step", 1000)
         self.window = None
         self.surface = None
         self.mode = config.get("mode", "play")

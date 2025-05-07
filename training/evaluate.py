@@ -15,7 +15,7 @@ print(env.render_mode)
 obs, _ = env.reset()
 env.render()
 done = False
-model = PPO.load("ppo_click_env.zip")
+model = PPO.load("ppo_click_env_1.zip")
 
 while not done:
     env.render()
