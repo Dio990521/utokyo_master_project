@@ -33,7 +33,10 @@ class ClickEnv(BaseEnv):
         self.reward_fail = config.get("reward_fail", -1)
 
         self.hp = self.max_hp
-        self.score = 0
+        self.clicked_targets = 0
+        self.click_times = 0
+        self.distance_reward = 0
+        self.cossim_reward = 0
         self.target_pos = self._random_position()
 
     def _random_position(self):
@@ -59,8 +62,11 @@ class ClickEnv(BaseEnv):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.hp = self.max_hp
-        self.score = 0
+        self.clicked_targets = 0
         self.step_count = 0
+        self.click_times = 0
+        self.distance_reward = 0
+        self.cossim_reward = 0
         self.target_pos = self._random_position()
         return self._get_obs(), {}
 
@@ -69,7 +75,7 @@ class ClickEnv(BaseEnv):
             dx, dy, dz, press = id_to_action(action)
         else:
             dx, dy, dz, press = action
-
+        self.click_times += press
         # update the cursor
         if not self.play_mode:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width - 1)
@@ -83,6 +89,10 @@ class ClickEnv(BaseEnv):
         if self.step_count >= self.max_steps:
             done = True
         #print("reward", reward, "done", done, "step", self.step_count)
+        info = {"click_times": self.click_times,
+                "distance_reward": self.distance_reward,
+                "cossim_reward": self.cossim_reward}
+
         return self._get_obs(), reward, done, False, info
 
     def calculate_reward(self, dx, dy, dist, press, info):
@@ -90,7 +100,7 @@ class ClickEnv(BaseEnv):
         done = False
         if dist <= self.target_radius and press == 1:
             reward += self.reward_hit
-            self.score += 1
+            self.clicked_targets += 1
             self.target_pos = self._random_position()
         elif dist > self.target_radius and press == 1:
             reward += self.reward_miss
@@ -98,22 +108,25 @@ class ClickEnv(BaseEnv):
 
         if self.hp <= 0:
             done = True
-            reward += self.reward_fail
-            info["result"] = "Game Over"
-        elif self.score >= self.total_targets:
-            done = True
-            reward += self.reward_success * (self.score / self.total_targets)
-            info["result"] = "Success"
-        # max_distance = np.linalg.norm(np.array([self.width, self.height]))
-        # normalized_dist = dist / max_distance
-        # distance_reward = (1 - normalized_dist) * 0.1
-        #
-        # d_target = np.array([self.target_pos[0] - self.cursor[0], self.target_pos[1] - self.cursor[1]])
-        # d_move = np.array([dx, dy])
-        # cosine_sim = cosine_similarity(d_target, d_move)
-        # a = 0.8
-        # beta = 0.2
-        # reward += a * max(0, cosine_sim) + beta * distance_reward
+            if self.clicked_targets == 0:
+                reward += self.reward_fail
+                info["result"] = "Game Over"
+            else:
+                reward += self.reward_success * (self.clicked_targets / self.total_targets)
+                info["result"] = "Complete"
+        max_distance = np.linalg.norm(np.array([self.width, self.height]))
+        normalized_dist = dist / max_distance
+        distance_reward = (1 - normalized_dist) * 0.1
+
+
+        d_target = np.array([self.target_pos[0] - self.cursor[0], self.target_pos[1] - self.cursor[1]])
+        d_move = np.array([dx, dy])
+        cosine_sim = cosine_similarity(d_target, d_move)
+        a = 0.8
+        beta = 0.2
+        reward += a * cosine_sim + beta * distance_reward
+        self.distance_reward += beta * distance_reward
+        self.cossim_reward += a * cosine_sim
         return reward, done
 
     def render(self):
@@ -140,7 +153,7 @@ class ClickEnv(BaseEnv):
         # Draw status text
         font = pygame.font.SysFont("Arial", 24)
         surface.blit(font.render(f"HP: {self.hp}", True, (0, 0, 0)), (10, 10))
-        surface.blit(font.render(f"Score: {self.score}/{self.total_targets}", True, (0, 0, 0)), (10, 30))
+        surface.blit(font.render(f"Score: {self.clicked_targets}/{self.total_targets}", True, (0, 0, 0)), (10, 30))
 
         if self.render_mode == "human":
             pygame.display.flip()

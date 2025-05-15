@@ -12,7 +12,7 @@ class BaseEnv(gym.Env):
         self.max_hp = config.get("hp", 100)
         self.play_mode = config.get("play_mode", False)
         self.render_mode = config.get("render_mode", None)
-        self.max_steps = config.get("max_step", 1000)
+        self.max_steps = config.get("max_step", 10000000)
         self.window = None
         self.surface = None
         self.mode = config.get("mode", "play")
@@ -22,7 +22,8 @@ class BaseEnv(gym.Env):
         # action space: [dx, dy, dz, press/release]
         # dx/dy/dz: [-1, 0, 1]
         # press: 1; release: 0
-        self.action_space = spaces.Discrete(54)
+        # delete [0, 0, 0, 0]
+        self.action_space = spaces.Discrete(53)
         if not self.rgb:
             self.observation_space = spaces.Box(
                 low=0,
