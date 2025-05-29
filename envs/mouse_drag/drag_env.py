@@ -1,11 +1,8 @@
 import random
-
-import gym
 import pygame
 import numpy as np
 from envs.base_mouse_env import BaseEnv
 from gymnasium import spaces
-
 from envs.tools import id_to_action
 
 
@@ -20,7 +17,7 @@ class DragAndDropEnv(BaseEnv):
 
         # Configs
         self.hp = self.max_hp
-        self.object_size = config.get("object_size", 20)
+        self.object_radius = config.get("object_size", 20)
         self.target_zone_radius = config.get("target_zone_radius", 40)
         self.total_targets = config.get("total_targets", 100)
 
@@ -29,6 +26,7 @@ class DragAndDropEnv(BaseEnv):
         self.reward_miss = config.get("reward_miss", 0)
         self.reward_success = config.get("reward_success", 100.0)
         self.reward_fail = config.get("reward_fail", 0)
+
         if self.obs_mode == "image":
             self.obs_channels = 3 if self.rgb else 1
             self.observation_space = spaces.Box(
@@ -44,6 +42,13 @@ class DragAndDropEnv(BaseEnv):
                 dtype=np.float32
             )
 
+    def _get_obs(self):
+        return np.array([
+            *self.cursor,
+            *self.object_pos,
+            *self.target_pos
+        ], dtype=np.float32)
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.hp = self.max_hp
@@ -53,14 +58,13 @@ class DragAndDropEnv(BaseEnv):
         self.holding = False
         self.drag_offset = [0, 0]
         self.generate_objects()
-
         return self._get_obs(), {}
 
     def generate_objects(self):
         while True:
             self.object_pos = [
-                random.randint(self.object_size, self.width - self.object_size),
-                random.randint(self.object_size, self.height - self.object_size)
+                random.randint(self.object_radius, self.width - self.object_radius),
+                random.randint(self.object_radius, self.height - self.object_radius)
             ]
 
             self.target_pos = [
@@ -70,7 +74,7 @@ class DragAndDropEnv(BaseEnv):
 
             dist = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
 
-            if dist > self.object_size + self.target_zone_radius:
+            if dist > self.object_radius + self.target_zone_radius:
                 break
 
     def step(self, action):
@@ -85,7 +89,6 @@ class DragAndDropEnv(BaseEnv):
         else:
             dx, dy, dz, press = action
 
-        #self.click_times += press
         # update the cursor
         if not self.play_mode:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width)
@@ -94,7 +97,7 @@ class DragAndDropEnv(BaseEnv):
         info = {}
 
         collide_dist = np.linalg.norm(np.array(self.cursor) - np.array(self.object_pos))
-        if press == 1 and collide_dist <= self.object_size:
+        if press == 1 and collide_dist <= self.object_radius:
             self.holding = True
             self.drag_offset[0] = self.cursor[0] - self.object_pos[0]
             self.drag_offset[1] = self.cursor[1] - self.object_pos[1]
@@ -118,7 +121,6 @@ class DragAndDropEnv(BaseEnv):
     def calculate_reward(self, press, info):
         reward = 0
         done = False
-
         dist = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
         max_distance = np.linalg.norm(np.array([self.width, self.height]))
         normalized_dist = dist / max_distance
@@ -142,13 +144,6 @@ class DragAndDropEnv(BaseEnv):
                 info["result"] = "Complete"
         return reward, done
 
-    def _get_obs(self):
-        return np.array([
-            *self.cursor,
-            *self.object_pos,
-            *self.target_pos
-        ], dtype=np.float32)
-
     def render(self, mode="human"):
         surface = super().render()
 
@@ -156,7 +151,7 @@ class DragAndDropEnv(BaseEnv):
         pygame.draw.circle(surface, (0, 255, 0), self.target_pos, self.target_zone_radius)
 
         # Draw object
-        pygame.draw.circle(surface, (255, 100, 100), self.object_pos, self.object_size)
+        pygame.draw.circle(surface, (255, 100, 100), self.object_pos, self.object_radius)
 
         # Draw cursor
         pygame.draw.circle(surface, (0, 0, 0), self.cursor, 5)

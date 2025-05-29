@@ -106,7 +106,9 @@ class ClickEnv(BaseEnv):
                 dx, dy, dz, press = action
         else:
             dx, dy, dz, press = action
+
         self.click_times += press
+
         # update the cursor
         if not self.play_mode:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width - 1)
