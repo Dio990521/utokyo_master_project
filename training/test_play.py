@@ -2,13 +2,20 @@ import numpy as np
 import pygame
 
 from envs.mouse_click.click_env import ClickEnv
+from envs.mouse_drag.drag_env import DragAndDropEnv
 
-env = ClickEnv(
+# env = ClickEnv(
+#     config={
+#     "render_mode": "human",
+#     "play_mode": True
+# })
+env = DragAndDropEnv(
     config={
-    "render_mode": "human",
-    "play_mode": True
-})
-
+        "render_mode": "human",
+        "play_mode": True,
+        "total_targets": 100,
+    }
+)
 obs, _ = env.reset()
 env.render()
 pressing = 0
@@ -33,7 +40,7 @@ while running:
     action = np.array([0,0,0,pressing])
 
     obs, reward, done, truncated, info = env.step(action)
-    print(f"Action: {action} -> Reward: {reward}, HP: {env.hp}, Score: {env.score}")
+    print(f"Action: {action} -> Reward: {reward}, HP: {env.hp}, Score: {env.success_drop}")
 
     if done:
         print(f"Game Over: {info.get('result')}")
