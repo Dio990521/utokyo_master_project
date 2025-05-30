@@ -3,7 +3,7 @@ import pygame
 import numpy as np
 from envs.base_mouse_env import BaseEnv
 from gymnasium import spaces
-from envs.tools import id_to_action
+from envs.tools import id_to_action, cosine_similarity
 
 
 class DragAndDropEnv(BaseEnv):
@@ -37,16 +37,21 @@ class DragAndDropEnv(BaseEnv):
             )
         elif self.obs_mode == "simple":
             self.observation_space = spaces.Box(
-                low=np.array([-self.width, -self.height], dtype=np.float32),
-                high=np.array([self.width, self.height], dtype=np.float32),
-                dtype=np.float32
+                low=np.array([0, 0, 0, 0, 0, 0, 0], dtype=np.float32),
+                high=np.array([self.width, self.height,  # cursor
+                                    self.width, self.height,  # object
+                                    self.width, self.height,  # target
+                                    1.0],                     # is_holding
+                                    dtype=np.float32),
+                    dtype=np.float32
             )
 
     def _get_obs(self):
         return np.array([
             *self.cursor,
             *self.object_pos,
-            *self.target_pos
+            *self.target_pos,
+            float(self.holding)
         ], dtype=np.float32)
 
     def reset(self, seed=None, options=None):
@@ -109,28 +114,40 @@ class DragAndDropEnv(BaseEnv):
             self.object_pos[0] = self.cursor[0] - self.drag_offset[0]
             self.object_pos[1] = self.cursor[1] - self.drag_offset[1]
 
-        reward, done = self.calculate_reward(press, info)
+        reward, done, distance_reward_o_t, distance_reward_c_o = self.calculate_reward(dx, dy, press, info)
 
         if done:
             self.episode_end = True
-
+        info = {"success": self.success_drop,
+                "steps": self.step_count,
+                "distance_reward_o_t": distance_reward_o_t,
+                "distance_reward_c_o": distance_reward_c_o,
+                "episode_end": self.episode_end,}
         if not self.render_mode:
             self.render()
         return self._get_obs(), reward, done, False, info
 
-    def calculate_reward(self, press, info):
+    def calculate_reward(self, dx, dy, press, info):
         reward = 0
         done = False
-        dist = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
+        dist_c_o = np.linalg.norm(np.array(self.object_pos) - np.array(self.cursor))
+        dist_o_t = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
         max_distance = np.linalg.norm(np.array([self.width, self.height]))
-        normalized_dist = dist / max_distance
-        distance_reward = (1 - normalized_dist) * 0.1
-        if dist < self.target_zone_radius and press == 0 and not self.holding:
+        normalized_dist_o_t = dist_o_t / max_distance
+        normalized_dist_c_o = dist_c_o / max_distance
+        distance_reward_o_t = (1 - normalized_dist_o_t) * 0.1
+        distance_reward_c_o = (1 - normalized_dist_c_o) * 0.1
+        d_target = np.array([self.object_pos[0] - self.cursor[0], self.object_pos[1] - self.cursor[1]])
+        d_move = np.array([dx, dy])
+        cosine_sim = cosine_similarity(d_target, d_move)
+        a = 0.8
+        beta = 0.2
+        if dist_o_t < self.target_zone_radius and press == 0 and not self.holding:
             self.success_drop += 1
             self.generate_objects()
-
         elif self.holding:
-            reward += distance_reward
+            reward += distance_reward_o_t
+        reward += a * cosine_sim * (1-int(self.holding)) + beta * distance_reward_c_o
 
         if self.hp <= 0 or self.success_drop == self.total_targets or self.step_count >= self.max_steps:
             done = True
@@ -142,7 +159,7 @@ class DragAndDropEnv(BaseEnv):
             else:
                 reward += self.reward_success * (self.success_drop / self.total_targets)
                 info["result"] = "Complete"
-        return reward, done
+        return reward, done, distance_reward_o_t, distance_reward_c_o
 
     def render(self, mode="human"):
         surface = super().render()
@@ -160,7 +177,7 @@ class DragAndDropEnv(BaseEnv):
 
         if self.render_mode == "human":
             pygame.display.flip()
-            self.clock.tick(30)
+            self.clock.tick(60)
 
     def close(self):
         if self.window is not None:

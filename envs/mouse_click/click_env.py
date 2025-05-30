@@ -122,7 +122,7 @@ class ClickEnv(BaseEnv):
         info = {"click_times": self.click_times,
                 "distance_reward": self.distance_reward,
                 "cossim_reward": self.cossim_reward,
-                "clicked_targets": self.clicked_targets,
+                "success": self.clicked_targets,
                 "steps": self.step_count,
                 "dst_reward_step": dist_reward,
                 "cossim_reward_step": cossim_reward,
@@ -185,7 +185,7 @@ class ClickEnv(BaseEnv):
 
         if self.render_mode == "human":
             pygame.display.flip()
-            #self.clock.tick(30)
+            self.clock.tick(60)
 
     def close(self):
         if self.window is not None:

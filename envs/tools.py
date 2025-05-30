@@ -1,9 +1,9 @@
 import itertools
 import numpy as np
 
-dx_values = [-1, 0, 1]
-dy_values = [-1, 0, 1]
-dz_values = [-1, 0, 1]
+dx_values = [-3, 0, 3]
+dy_values = [-3, 0, 3]
+dz_values = [-3, 0, 3]
 press_values = [0, 1]
 
 action_list_complex = [
@@ -15,7 +15,7 @@ action_list_simple = [
     action for action in itertools.product(dx_values, dy_values, press_values)
     if action != (0, 0, 0)
 ]
-print(action_list_simple)
+
 def id_to_action(mode, action_id):
     if mode == "simple":
         return action_list_simple[action_id]

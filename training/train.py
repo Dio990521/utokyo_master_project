@@ -5,6 +5,7 @@ import gymnasium as gym
 from stable_baselines3 import PPO
 import envs.mouse_click
 from stable_baselines3.common.callbacks import BaseCallback
+import envs.mouse_drag
 
 
 class TensorboardCallback(BaseCallback):
@@ -20,13 +21,11 @@ class TensorboardCallback(BaseCallback):
 
     def _on_step(self) -> bool:
         info = self.locals.get("infos", [{}])[0]
-        if "click_times" in info:
-            if info["episode_end"]:
-                self.clicked_targets_per_episode.append(info["clicked_targets"])
-            self.logger.record("click frequency", info["click_times"])
-            self.logger.record("distance reward", info["distance_reward"])
-            self.logger.record("cosine similarity reward", info["cossim_reward"])
-            self.logger.record("clicked targets", info["clicked_targets"])
+        for key in info:
+            if key == "episode_end":
+                self.clicked_targets_per_episode.append(info["success"])
+            else:
+                self.logger.record(str(key), info[key])
         return True
 
     def _on_training_end(self) -> None:
@@ -35,18 +34,19 @@ class TensorboardCallback(BaseCallback):
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
-env = gym.make('MouseClick-v0')
-print(gym.envs.registry['MouseClick-v0'])
+#ENV_NAME = "MouseClick-v0"
+ENV_NAME = "MouseDrag-v0"
+env = gym.make(ENV_NAME)
 
 env.reset()
 env.render()
-log_name = "simple_action_obs_no4"
+log_name = "no1"
 #model = PPO("CnnPolicy", env, verbose=1, tensorboard_log=f"./ppo_tensorboard_{log_name}/", ent_coef=0.1)
-model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=f"./ppo_tensorboard_{log_name}/", ent_coef=0.1)
+model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=f"./{ENV_NAME}/ppo_tensorboard_{log_name}/", ent_coef=0.1)
 
 model.learn(total_timesteps=1000000, callback=TensorboardCallback(env, log_name))
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-save_dir = "saved_agents/" + log_name
+save_dir = "saved_agents/" + ENV_NAME + "/" + log_name
 os.makedirs(save_dir, exist_ok=True)
 model.save(os.path.join(save_dir, f"ppo_click_env_{timestamp}"))
