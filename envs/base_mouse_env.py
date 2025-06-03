@@ -1,3 +1,5 @@
+import os
+
 import gymnasium as gym
 from gymnasium import spaces
 import pygame
@@ -7,12 +9,14 @@ class BaseEnv(gym.Env):
 
     def __init__(self, config=None):
         super().__init__()
+        pygame.init()
+
         self.width = config.get("width", 640)
         self.height = config.get("height", 480)
         self.max_hp = config.get("max_hp", 100)
         self.play_mode = config.get("play_mode", False)
         self.render_mode = config.get("render_mode", None)
-        self.max_steps = config.get("max_step", 1000)
+        self.max_steps = config.get("max_step", 1000000)
         self.mode = config.get("mode", "training")
         self.window = None
         self.surface = None
@@ -24,6 +28,8 @@ class BaseEnv(gym.Env):
         self.episode_end = False
         self.obs_mode = config.get("obs_mode", "image")
         self.clock = pygame.time.Clock()
+
+        self.finder_img, self.object_img = None, None
         self.action_space_mode = config.get("action_space_mode", "complex")
         if self.obs_compress:
             self.obs_width = 120
@@ -31,6 +37,10 @@ class BaseEnv(gym.Env):
         else:
             self.obs_width = self.width
             self.obs_height = self.height
+
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        self.file_icon_path = os.path.join(root_dir, "envs/assets", "file.png")
+        self.bg_path = os.path.join(root_dir, "envs/assets", "bg.jpg")
 
         # action space: [dx, dy, dz, press/release]
         # dx/dy/dz: [-1, 0, 1]
@@ -48,14 +58,14 @@ class BaseEnv(gym.Env):
         raise NotImplementedError
 
     def render(self):
-        pygame.init()
-
         if self.render_mode == "human":
             if self.window is None:
                 pygame.display.init()
                 self.window = pygame.display.set_mode((self.width, self.height))
                 pygame.display.set_caption("ClickEnv")
                 pygame.mouse.set_pos((self.width // 2, self.height // 2))
+                self.object_img = pygame.image.load(self.file_icon_path).convert_alpha()
+                self.finder_img = pygame.image.load(self.bg_path).convert_alpha()
             surface = self.window
         else:
             if self.surface is None:

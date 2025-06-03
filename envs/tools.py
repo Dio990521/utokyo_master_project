@@ -1,9 +1,9 @@
 import itertools
 import numpy as np
 
-dx_values = [-3, 0, 3]
-dy_values = [-3, 0, 3]
-dz_values = [-3, 0, 3]
+dx_values = [-1, 0, 1]
+dy_values = [-1, 0, 1]
+dz_values = [-1, 0, 1]
 press_values = [0, 1]
 
 action_list_complex = [

@@ -13,7 +13,7 @@ register(
         "mode": "training",
         "max_hp": 10000000,
         "total_targets": 1,
-        "max_step": 1000,
+        "max_step": 5000,
         "obs_mode": "simple"}
     }
 )

@@ -13,6 +13,7 @@ env = DragAndDropEnv(
     config={
         "render_mode": "human",
         "play_mode": True,
+        "max_hp": 10000000,
         "total_targets": 100,
     }
 )
@@ -20,10 +21,9 @@ obs, _ = env.reset()
 env.render()
 pressing = 0
 running = True
-
+env.prev_cursor_pos = pygame.mouse.get_pos()
 while running:
     env.render()
-
     current_mouse_pos = pygame.mouse.get_pos()
     env.cursor = current_mouse_pos
 
@@ -41,7 +41,7 @@ while running:
 
     obs, reward, done, truncated, info = env.step(action)
     print(f"Action: {action} -> Reward: {reward}, HP: {env.hp}, Score: {env.success_drop}")
-
+    env.prev_cursor_pos = current_mouse_pos
     if done:
         print(f"Game Over: {info.get('result')}")
         obs, _ = env.reset()

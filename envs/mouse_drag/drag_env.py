@@ -9,11 +9,13 @@ from envs.tools import id_to_action, cosine_similarity
 class DragAndDropEnv(BaseEnv):
     def __init__(self, config=None):
         super().__init__(config=config)
+        self.max_distance_o_t = None
         self.success_drop = 0
         self.target_pos = None
         self.object_pos = None
-        self.holding = False
+        self.dragging = False
         self.drag_offset = [0, 0]
+        self.prev_cursor_pos = [0, 0]
 
         # Configs
         self.hp = self.max_hp
@@ -26,6 +28,9 @@ class DragAndDropEnv(BaseEnv):
         self.reward_miss = config.get("reward_miss", 0)
         self.reward_success = config.get("reward_success", 100.0)
         self.reward_fail = config.get("reward_fail", 0)
+
+        self.bg_w, self.bg_h = 299, 223
+        self.icon_w, self.icon_h = 46, 64
 
         if self.obs_mode == "image":
             self.obs_channels = 3 if self.rgb else 1
@@ -51,7 +56,7 @@ class DragAndDropEnv(BaseEnv):
             *self.cursor,
             *self.object_pos,
             *self.target_pos,
-            float(self.holding)
+            float(self.dragging)
         ], dtype=np.float32)
 
     def reset(self, seed=None, options=None):
@@ -60,27 +65,28 @@ class DragAndDropEnv(BaseEnv):
         self.step_count = 0
         self.episode_end = False
         self.success_drop = 0
-        self.holding = False
+        self.dragging = False
         self.drag_offset = [0, 0]
         self.generate_objects()
+        self.prev_cursor_pos = [0, 0]
         return self._get_obs(), {}
 
     def generate_objects(self):
+        bg_x = random.randint(0, self.width - self.bg_w)
+        bg_y = random.randint(0, self.height - self.bg_h)
+        self.target_pos = [bg_x, bg_y]
+        bg_rect = pygame.Rect(bg_x, bg_y, self.bg_w, self.bg_h)
+
         while True:
-            self.object_pos = [
-                random.randint(self.object_radius, self.width - self.object_radius),
-                random.randint(self.object_radius, self.height - self.object_radius)
-            ]
+            icon_x = random.randint(0, self.width - self.icon_w)
+            icon_y = random.randint(0, self.height - self.icon_h)
+            icon_rect = pygame.Rect(icon_x, icon_y, self.icon_w, self.icon_h)
 
-            self.target_pos = [
-                random.randint(self.target_zone_radius, self.width - self.target_zone_radius),
-                random.randint(self.target_zone_radius, self.height - self.target_zone_radius)
-            ]
-
-            dist = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
-
-            if dist > self.object_radius + self.target_zone_radius:
+            if not icon_rect.colliderect(bg_rect):
+                self.object_pos = [icon_x, icon_y]
                 break
+
+        self.max_distance_o_t = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
 
     def step(self, action):
         self.step_count += 1
@@ -93,7 +99,6 @@ class DragAndDropEnv(BaseEnv):
                 dx, dy, dz, press = action
         else:
             dx, dy, dz, press = action
-
         # update the cursor
         if not self.play_mode:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width)
@@ -101,18 +106,20 @@ class DragAndDropEnv(BaseEnv):
 
         info = {}
 
-        collide_dist = np.linalg.norm(np.array(self.cursor) - np.array(self.object_pos))
-        if press == 1 and collide_dist <= self.object_radius:
-            self.holding = True
-            self.drag_offset[0] = self.cursor[0] - self.object_pos[0]
-            self.drag_offset[1] = self.cursor[1] - self.object_pos[1]
+        object_rect = self.object_img.get_rect(topleft=self.object_pos)
+        #collide_dist = np.linalg.norm(np.array(self.cursor) - np.array(self.object_pos))
+        if press == 1 and object_rect.collidepoint(*self.cursor):#collide_dist <= self.object_radius:
+            self.dragging = True
 
         if press == 0:
-            self.holding = False
+            self.dragging = False
 
-        if self.holding:
-            self.object_pos[0] = self.cursor[0] - self.drag_offset[0]
-            self.object_pos[1] = self.cursor[1] - self.drag_offset[1]
+        if self.dragging:
+            if self.play_mode:
+                dx = self.cursor[0] - self.prev_cursor_pos[0]
+                dy = self.cursor[1] - self.prev_cursor_pos[1]
+            self.object_pos[0] += dx
+            self.object_pos[1] += dy
 
         reward, done, distance_reward_o_t, distance_reward_c_o = self.calculate_reward(dx, dy, press, info)
 
@@ -133,21 +140,25 @@ class DragAndDropEnv(BaseEnv):
         dist_c_o = np.linalg.norm(np.array(self.object_pos) - np.array(self.cursor))
         dist_o_t = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
         max_distance = np.linalg.norm(np.array([self.width, self.height]))
-        normalized_dist_o_t = dist_o_t / max_distance
+        normalized_dist_o_t = dist_o_t / self.max_distance_o_t
         normalized_dist_c_o = dist_c_o / max_distance
-        distance_reward_o_t = (1 - normalized_dist_o_t) * 0.1
+        distance_reward_o_t = (1 - normalized_dist_o_t)
         distance_reward_c_o = (1 - normalized_dist_c_o) * 0.1
-        d_target = np.array([self.object_pos[0] - self.cursor[0], self.object_pos[1] - self.cursor[1]])
+        d_c_o = np.array([self.object_pos[0] - self.cursor[0], self.object_pos[1] - self.cursor[1]])
+        d_o_t = np.array([self.target_pos[0] - self.object_pos[0], self.target_pos[1] - self.object_pos[1]])
         d_move = np.array([dx, dy])
-        cosine_sim = cosine_similarity(d_target, d_move)
+        cosine_sim_c_o = cosine_similarity(d_c_o, d_move)
+        cosine_sim_o_t = cosine_similarity(d_o_t, d_move)
         a = 0.8
         beta = 0.2
-        if dist_o_t < self.target_zone_radius and press == 0 and not self.holding:
+
+        object_rect = self.object_img.get_rect(topleft=self.object_pos)
+        target_rect = self.finder_img.get_rect(topleft=self.target_pos)
+        if target_rect.contains(object_rect) and press == 0 and not self.dragging:
             self.success_drop += 1
             self.generate_objects()
-        elif self.holding:
-            reward += distance_reward_o_t
-        reward += a * cosine_sim * (1-int(self.holding)) + beta * distance_reward_c_o
+        reward += (a * cosine_sim_o_t + beta * distance_reward_o_t) * int(self.dragging)
+        reward += (a * cosine_sim_c_o + beta * distance_reward_c_o) * (1 - int(self.dragging))
 
         if self.hp <= 0 or self.success_drop == self.total_targets or self.step_count >= self.max_steps:
             done = True
@@ -163,12 +174,16 @@ class DragAndDropEnv(BaseEnv):
 
     def render(self, mode="human"):
         surface = super().render()
-
         # Draw target zone
-        pygame.draw.circle(surface, (0, 255, 0), self.target_pos, self.target_zone_radius)
+        #pygame.draw.circle(surface, (0, 255, 0), self.target_pos, self.target_zone_radius)
+        if self.object_img and self.finder_img:
+            obj_rect = self.object_img.get_rect(topleft=self.object_pos)
+            target_rect = self.finder_img.get_rect(topleft=self.target_pos)
+            surface.blit(self.finder_img, target_rect)
+            surface.blit(self.object_img, obj_rect)
 
         # Draw object
-        pygame.draw.circle(surface, (255, 100, 100), self.object_pos, self.object_radius)
+        #pygame.draw.circle(surface, (255, 100, 100), self.object_pos, self.object_radius)
 
         # Draw cursor
         pygame.draw.circle(surface, (0, 0, 0), self.cursor, 5)
@@ -177,7 +192,7 @@ class DragAndDropEnv(BaseEnv):
 
         if self.render_mode == "human":
             pygame.display.flip()
-            self.clock.tick(60)
+            #self.clock.tick(60)
 
     def close(self):
         if self.window is not None:

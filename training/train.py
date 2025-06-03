@@ -44,7 +44,7 @@ log_name = "no1"
 #model = PPO("CnnPolicy", env, verbose=1, tensorboard_log=f"./ppo_tensorboard_{log_name}/", ent_coef=0.1)
 model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=f"./{ENV_NAME}/ppo_tensorboard_{log_name}/", ent_coef=0.1)
 
-model.learn(total_timesteps=1000000, callback=TensorboardCallback(env, log_name))
+model.learn(total_timesteps=5000000, callback=TensorboardCallback(env, log_name))
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 save_dir = "saved_agents/" + ENV_NAME + "/" + log_name
