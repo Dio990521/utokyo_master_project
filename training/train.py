@@ -1,3 +1,4 @@
+import csv
 import os
 from datetime import datetime
 import numpy as np
@@ -17,13 +18,19 @@ class TensorboardCallback(BaseCallback):
         super().__init__(verbose)
         self.env = env
         self.clicked_targets_per_episode = []
+        self.shortest_steps_per_episode = []
+        self.ratio_success = []
         self.save_file_name = save_file_name + ".csv"
 
     def _on_step(self) -> bool:
         info = self.locals.get("infos", [{}])[0]
         for key in info:
             if key == "episode_end":
-                self.clicked_targets_per_episode.append(info["success"])
+                if info[key]:
+                    self.clicked_targets_per_episode.append(info["success"])
+                    self.shortest_steps_per_episode.append(info["shortest_distance"])
+                    if info["success"] > 0:
+                        self.ratio_success.append((self.num_timesteps,info["steps"] / info["shortest_distance"]))
             else:
                 self.logger.record(str(key), info[key])
         return True
@@ -33,6 +40,11 @@ class TensorboardCallback(BaseCallback):
             for value in self.clicked_targets_per_episode:
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
+        with open("ratio3_3.csv", mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["timesteps", "ratio_success"])
+            writer.writerows(self.ratio_success)
+        print("average shortest number of steps", sum(self.shortest_steps_per_episode) // len(self.shortest_steps_per_episode))
 
 #ENV_NAME = "MouseClick-v0"
 ENV_NAME = "MouseDrag-v0"
@@ -40,7 +52,7 @@ env = gym.make(ENV_NAME)
 
 env.reset()
 env.render()
-log_name = "no1"
+log_name = "no3"
 #model = PPO("CnnPolicy", env, verbose=1, tensorboard_log=f"./ppo_tensorboard_{log_name}/", ent_coef=0.1)
 model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=f"./{ENV_NAME}/ppo_tensorboard_{log_name}/", ent_coef=0.1)
 

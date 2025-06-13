@@ -3,72 +3,64 @@ import pygame
 import numpy as np
 from envs.base_mouse_env import BaseEnv
 from gymnasium import spaces
-from envs.tools import id_to_action, cosine_similarity
+from envs.tools import cosine_similarity
 
 
 class DragAndDropEnv(BaseEnv):
-    def __init__(self, config=None):
-        super().__init__(config=config)
-        self.max_distance_o_t = None
-        self.success_drop = 0
-        self.target_pos = None
-        self.object_pos = None
-        self.dragging = False
-        self.drag_offset = [0, 0]
-        self.prev_cursor_pos = [0, 0]
 
-        # Configs
+    def __init__(self, config=None):
+        super().__init__(config)
+
+        # Task-specific attributes
+        self.prev_cursor_pos = [0, 0]
+        self.object_pos = None
+        self.target_pos = None
         self.hp = self.max_hp
-        self.object_radius = config.get("object_size", 20)
-        self.target_zone_radius = config.get("target_zone_radius", 40)
+        self.dragging = False
         self.total_targets = config.get("total_targets", 100)
 
         # Reward design
-        self.reward_hit = config.get("reward_hit", 0)
-        self.reward_miss = config.get("reward_miss", 0)
         self.reward_success = config.get("reward_success", 100.0)
-        self.reward_fail = config.get("reward_fail", 0)
 
-        self.bg_w, self.bg_h = 299, 223
-        self.icon_w, self.icon_h = 46, 64
-
-        if self.obs_mode == "image":
-            self.obs_channels = 3 if self.rgb else 1
+        if self.obs_mode == "simple":
+            # [d_cursor_obj_x, d_cursor_obj_y, d_obj_target_x, d_obj_target_y, is_dragging]
             self.observation_space = spaces.Box(
-                low=0,
-                high=255,
-                shape=(self.obs_height, self.obs_width, self.obs_channels),
-                dtype=np.uint8
-            )
-        elif self.obs_mode == "simple":
-            self.observation_space = spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, 0], dtype=np.float32),
-                high=np.array([self.width, self.height,  # cursor
-                                    self.width, self.height,  # object
-                                    self.width, self.height,  # target
-                                    1.0],                     # is_holding
-                                    dtype=np.float32),
-                    dtype=np.float32
+                low=np.array([-self.width, -self.height, -self.width, -self.height, 0], dtype=np.float32),
+                high=np.array([self.width, self.height, self.width, self.height, 1.0], dtype=np.float32),
+                dtype=np.float32
             )
 
     def _get_obs(self):
-        return np.array([
-            *self.cursor,
-            *self.object_pos,
-            *self.target_pos,
-            float(self.dragging)
-        ], dtype=np.float32)
+        if self.obs_mode == "simple":
+            # d_cursor_object = ((np.array(self.object_pos) - np.array(self.cursor)) /
+            #                    np.array([self.width, self.height]))
+            # d_object_target = ((np.array(self.target_pos) - np.array(self.object_pos)) /
+            #                    np.array([self.width, self.height]))
+            # return np.array([
+            #     *d_cursor_object,
+            #     *d_object_target,
+            #     float(self.dragging)
+            # ], dtype=np.float32)
+            cursor_norm = np.array(self.cursor) / np.array([self.width, self.height])
+            object_norm = np.array(self.object_pos) / np.array([self.width, self.height])
+            target_norm = np.array(self.target_pos) / np.array([self.width, self.height])
+
+            return np.array([
+                *cursor_norm,
+                *object_norm,
+                *target_norm,
+                float(self.dragging)
+            ], dtype=np.float32)
+        return self._get_image_obs()
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.hp = self.max_hp
-        self.step_count = 0
-        self.episode_end = False
-        self.success_drop = 0
+        self.success = 0
         self.dragging = False
-        self.drag_offset = [0, 0]
         self.generate_objects()
         self.prev_cursor_pos = [0, 0]
+        if not self.render_mode: self.render()
         return self._get_obs(), {}
 
     def generate_objects(self):
@@ -81,34 +73,18 @@ class DragAndDropEnv(BaseEnv):
             icon_x = random.randint(0, self.width - self.icon_w)
             icon_y = random.randint(0, self.height - self.icon_h)
             icon_rect = pygame.Rect(icon_x, icon_y, self.icon_w, self.icon_h)
-
             if not icon_rect.colliderect(bg_rect):
                 self.object_pos = [icon_x, icon_y]
                 break
 
-        self.max_distance_o_t = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
-
     def step(self, action):
         self.step_count += 1
-        dx, dy, dz, press = 0, 0, 0, 0
-        if not self.play_mode:
-            action = id_to_action(self.action_space_mode, action)
-            if len(action) == 3:
-                dx, dy, press = action
-            elif len(action) == 4:
-                dx, dy, dz, press = action
-        else:
-            dx, dy, dz, press = action
-        # update the cursor
-        if not self.play_mode:
-            self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width)
-            self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.height)
+        dx, dy, _, press = self._decode_action(action)
+        self._update_cursor(dx, dy)
 
-        info = {}
-
-        object_rect = self.object_img.get_rect(topleft=self.object_pos)
-        #collide_dist = np.linalg.norm(np.array(self.cursor) - np.array(self.object_pos))
-        if press == 1 and object_rect.collidepoint(*self.cursor):#collide_dist <= self.object_radius:
+        # Handle dragging state
+        object_rect = pygame.Rect(self.object_pos[0], self.object_pos[1], self.icon_w, self.icon_h)
+        if press == 1 and object_rect.collidepoint(*self.cursor):
             self.dragging = True
 
         if press == 0:
@@ -121,80 +97,69 @@ class DragAndDropEnv(BaseEnv):
             self.object_pos[0] += dx
             self.object_pos[1] += dy
 
-        reward, done, distance_reward_o_t, distance_reward_c_o = self.calculate_reward(dx, dy, press, info)
-
+        reward, done = self._calculate_reward(dx, dy, press)
         if done:
             self.episode_end = True
-        info = {"success": self.success_drop,
-                "steps": self.step_count,
-                "distance_reward_o_t": distance_reward_o_t,
-                "distance_reward_c_o": distance_reward_c_o,
-                "episode_end": self.episode_end,}
-        if not self.render_mode:
-            self.render()
+            self.episode_count += 1
+
+        info = {"success": self.success, "steps": self.step_count, "episode_end": self.episode_end}
+        if not self.render_mode: self.render()
         return self._get_obs(), reward, done, False, info
 
-    def calculate_reward(self, dx, dy, press, info):
+    def _calculate_reward(self, dx, dy, press):
         reward = 0
         done = False
-        dist_c_o = np.linalg.norm(np.array(self.object_pos) - np.array(self.cursor))
-        dist_o_t = np.linalg.norm(np.array(self.object_pos) - np.array(self.target_pos))
-        max_distance = np.linalg.norm(np.array([self.width, self.height]))
-        normalized_dist_o_t = dist_o_t / self.max_distance_o_t
-        normalized_dist_c_o = dist_c_o / max_distance
-        distance_reward_o_t = (1 - normalized_dist_o_t)
-        distance_reward_c_o = (1 - normalized_dist_c_o) * 0.1
-        d_c_o = np.array([self.object_pos[0] - self.cursor[0], self.object_pos[1] - self.cursor[1]])
-        d_o_t = np.array([self.target_pos[0] - self.object_pos[0], self.target_pos[1] - self.object_pos[1]])
-        d_move = np.array([dx, dy])
-        cosine_sim_c_o = cosine_similarity(d_c_o, d_move)
-        cosine_sim_o_t = cosine_similarity(d_o_t, d_move)
-        a = 0.8
-        beta = 0.2
 
+        # Check for successful drop
         object_rect = self.object_img.get_rect(topleft=self.object_pos)
         target_rect = self.finder_img.get_rect(topleft=self.target_pos)
-        if target_rect.contains(object_rect) and press == 0 and not self.dragging:
-            self.success_drop += 1
+        if not self.dragging and press == 0 and target_rect.contains(object_rect):
+            self.success += 1
             self.generate_objects()
-        reward += (a * cosine_sim_o_t + beta * distance_reward_o_t) * int(self.dragging)
-        reward += (a * cosine_sim_c_o + beta * distance_reward_c_o) * (1 - int(self.dragging))
 
-        if self.hp <= 0 or self.success_drop == self.total_targets or self.step_count >= self.max_steps:
+        # Reward shaping based on phase (approaching vs. dragging)
+        d_move = np.array([dx, dy])
+        alpha, beta = 0.2, 0.8
+        if self.dragging:
+            # Phase 2: Drag object to target
+            center_obj = np.array(object_rect.center)
+            center_target = np.array(target_rect.center)
+            d_obj_target = center_target - center_obj
+            dist_o_t = np.linalg.norm(d_obj_target)
+
+            max_dist_o_t = np.linalg.norm([self.width, self.height])
+            reward += (1 - dist_o_t / max_dist_o_t) * alpha  # Proximity reward
+            reward += cosine_similarity(d_obj_target, d_move) * beta  # Direction reward
+        else:
+            # Phase 1: Approach the object
+            center_obj = np.array(object_rect.center)
+            d_cursor_obj = center_obj - np.array(self.cursor)
+            dist_c_o = np.linalg.norm(d_cursor_obj)
+
+            max_dist_c_o = np.linalg.norm([self.width, self.height])
+            reward += (1 - dist_c_o / max_dist_c_o) * alpha  # Proximity reward
+            reward += cosine_similarity(d_cursor_obj, d_move) * beta  # Direction reward
+
+        # Episode termination
+        if self.hp <= 0 or self.success >= self.total_targets or self.step_count >= self.max_steps:
             done = True
+            if self.success > 0:
+                reward += self.reward_success * (self.success / self.total_targets)
 
-        if done:
-            if self.success_drop == 0:
-                reward += self.reward_fail
-                info["result"] = "Game Over"
-            else:
-                reward += self.reward_success * (self.success_drop / self.total_targets)
-                info["result"] = "Complete"
-        return reward, done, distance_reward_o_t, distance_reward_c_o
+        return reward, done
 
     def render(self, mode="human"):
         surface = super().render()
-        # Draw target zone
-        #pygame.draw.circle(surface, (0, 255, 0), self.target_pos, self.target_zone_radius)
-        if self.object_img and self.finder_img:
-            obj_rect = self.object_img.get_rect(topleft=self.object_pos)
-            target_rect = self.finder_img.get_rect(topleft=self.target_pos)
-            surface.blit(self.finder_img, target_rect)
-            surface.blit(self.object_img, obj_rect)
+        if self.object_pos and self.target_pos:
+            surface.blit(self.finder_img, self.finder_img.get_rect(topleft=self.target_pos))
+            surface.blit(self.object_img, self.object_img.get_rect(topleft=self.object_pos))
+        super().draw_cursor(surface)
 
-        # Draw object
-        #pygame.draw.circle(surface, (255, 100, 100), self.object_pos, self.object_radius)
-
-        # Draw cursor
-        pygame.draw.circle(surface, (0, 0, 0), self.cursor, 5)
-        if self.mode == "test":
-            print(f"HP: {self.hp}", f"Score: {self.success_drop}/{self.total_targets}")
+        if self.mode == "test-show-ui":
+            font = pygame.font.SysFont("Arial", 24)
+            surface.blit(font.render(f"HP: {self.hp}", True, (0, 0, 0)), (10, 10))
+            surface.blit(font.render(f"Score: {self.success}/{self.total_targets}", True, (0, 0, 0)), (10, 30))
 
         if self.render_mode == "human":
             pygame.display.flip()
-            #self.clock.tick(60)
-
-    def close(self):
-        if self.window is not None:
-            pygame.quit()
-            self.window = None
+            self.clock.tick(self.metadata["render_fps"])
