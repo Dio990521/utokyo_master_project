@@ -6,7 +6,7 @@ from envs.mouse_drag.drag_env import DragAndDropEnv
 from envs.mouse_dropdown.dropdown_env import DropdownEnv
 
 env = None
-ENV = "dropdown" # click; drag; dropdown
+ENV = "click" # click; drag; dropdown
 if ENV == "click":
     env = ClickEnv(
         config={
@@ -56,7 +56,7 @@ while running:
     action = np.array([0,0,0,pressing])
 
     obs, reward, done, truncated, info = env.step(action)
-    print(obs)
+    #print(obs)
     print(f"Action: {action} -> Reward: {reward}, HP: {env.hp}, Score: {env.success}")
     env.prev_cursor_pos = current_mouse_pos
     if done:

@@ -16,8 +16,8 @@ class BaseEnv(gym.Env):
         super().__init__()
         pygame.init()
         # Screen and asset dimensions
-        self.width = config.get("width", 640)
-        self.height = config.get("height", 480)
+        self.width = config.get("width", 84)
+        self.height = config.get("height", 84)
         self.bg_w, self.bg_h = 299, 223
         self.icon_w, self.icon_h = 46, 64
 
@@ -31,7 +31,7 @@ class BaseEnv(gym.Env):
 
         # Episode and state tracking
         self.max_hp = config.get("max_hp", 100)
-        self.max_steps = config.get("max_step", 1_000_000)
+        self.max_steps = config.get("max_step", 1000000)
         self.step_count = 0
         self.episode_count = 0
         self.episode_end = False
@@ -91,7 +91,6 @@ class BaseEnv(gym.Env):
         return dx, dy, dz, press
 
     def _update_cursor(self, dx, dy):
-        """Updates the cursor position based on movement deltas."""
         if not self.play_mode:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.width - 1)
             self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.height - 1)
@@ -147,4 +146,6 @@ class BaseEnv(gym.Env):
         pygame.draw.circle(surface, (0, 0, 0), self.cursor, 5) # Draw cursor
 
     def close(self):
-        raise NotImplementedError
+        if self.window is not None:
+            pygame.quit()
+            self.window = None

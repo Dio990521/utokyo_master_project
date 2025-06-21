@@ -18,6 +18,7 @@ class DragAndDropEnv(BaseEnv):
         self.hp = self.max_hp
         self.dragging = False
         self.total_targets = config.get("total_targets", 100)
+        self.shortest_distance = 0
 
         # Reward design
         self.reward_success = config.get("reward_success", 100.0)
@@ -26,31 +27,31 @@ class DragAndDropEnv(BaseEnv):
             # [d_cursor_obj_x, d_cursor_obj_y, d_obj_target_x, d_obj_target_y, is_dragging]
             self.observation_space = spaces.Box(
                 low=np.array([-self.width, -self.height, -self.width, -self.height, 0], dtype=np.float32),
-                high=np.array([self.width, self.height, self.width, self.height, 1.0], dtype=np.float32),
+                high=np.array([self.width, self.height, -self.width, -self.height, 1.0], dtype=np.float32),
                 dtype=np.float32
             )
 
     def _get_obs(self):
         if self.obs_mode == "simple":
-            # d_cursor_object = ((np.array(self.object_pos) - np.array(self.cursor)) /
-            #                    np.array([self.width, self.height]))
-            # d_object_target = ((np.array(self.target_pos) - np.array(self.object_pos)) /
-            #                    np.array([self.width, self.height]))
-            # return np.array([
-            #     *d_cursor_object,
-            #     *d_object_target,
-            #     float(self.dragging)
-            # ], dtype=np.float32)
-            cursor_norm = np.array(self.cursor) / np.array([self.width, self.height])
-            object_norm = np.array(self.object_pos) / np.array([self.width, self.height])
-            target_norm = np.array(self.target_pos) / np.array([self.width, self.height])
-
+            d_cursor_object = ((np.array(self.object_pos) - np.array(self.cursor)) /
+                               np.array([self.width, self.height]))
+            d_object_target = ((np.array(self.target_pos) - np.array(self.object_pos)) /
+                               np.array([self.width, self.height]))
             return np.array([
-                *cursor_norm,
-                *object_norm,
-                *target_norm,
+                *d_cursor_object,
+                *d_object_target,
                 float(self.dragging)
             ], dtype=np.float32)
+            # cursor_norm = np.array(self.cursor) / np.array([self.width, self.height])
+            # object_norm = np.array(self.object_pos) / np.array([self.width, self.height])
+            # target_norm = np.array(self.target_pos) / np.array([self.width, self.height])
+            #
+            # return np.array([
+            #     *cursor_norm,
+            #     *object_norm,
+            #     *target_norm,
+            #     float(self.dragging)
+            # ], dtype=np.float32)
         return self._get_image_obs()
 
     def reset(self, seed=None, options=None):
@@ -77,6 +78,8 @@ class DragAndDropEnv(BaseEnv):
                 self.object_pos = [icon_x, icon_y]
                 break
 
+        self.shortest_distance = np.linalg.norm(np.array(self.cursor)-np.array(self.object_pos)) + np.linalg.norm(np.array(self.object_pos)-np.array(self.target_pos))
+
     def step(self, action):
         self.step_count += 1
         dx, dy, _, press = self._decode_action(action)
@@ -102,7 +105,11 @@ class DragAndDropEnv(BaseEnv):
             self.episode_end = True
             self.episode_count += 1
 
-        info = {"success": self.success, "steps": self.step_count, "episode_end": self.episode_end}
+        info = {
+            "success": self.success,
+            "steps": self.step_count,
+            "shortest_distance": self.shortest_distance,
+            "episode_end": self.episode_end}
         if not self.render_mode: self.render()
         return self._get_obs(), reward, done, False, info
 
@@ -162,4 +169,4 @@ class DragAndDropEnv(BaseEnv):
 
         if self.render_mode == "human":
             pygame.display.flip()
-            self.clock.tick(self.metadata["render_fps"])
+            #self.clock.tick(self.metadata["render_fps"])

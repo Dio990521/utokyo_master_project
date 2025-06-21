@@ -1,17 +1,16 @@
-import numpy as np
 import pygame
-import matplotlib.pyplot as plt
 
 from stable_baselines3 import PPO
-import gymnasium as gym
 from envs.mouse_click.click_env import ClickEnv
 from envs.mouse_drag.drag_env import DragAndDropEnv
+from envs.mouse_dropdown.dropdown_env import DropdownEnv
 from envs.tools import id_to_action
 
 env = None
 ENV = "drag" #"drag"
 #model = PPO.load("saved_agents/MouseClick-v0/abs_obs_no4/ppo_click_env_20250531_000803.zip")
-model = PPO.load("saved_agents/MouseDrag-v0/no3/ppo_click_env_20250611_133332.zip")
+model = PPO.load("saved_agents/MouseDrag-v0/no1/ppo_click_env_20250614_184721.zip")
+#model = PPO.load("saved_agents/MouseDropdown-v0/MouseDropdown-v0_no1/ppo_click_env_20250617_150054.zip")
 
 
 if ENV == "click":
@@ -40,6 +39,20 @@ elif ENV == "drag":
         "mode": "test",
         "max_hp": 10000000,
         "total_targets": 100,
+        "max_step": 10000000,
+        "obs_mode": "simple"})
+elif ENV == "dropdown":
+    env = DropdownEnv(
+        config={
+        "width": 640,
+        "height": 480,
+        "action_space_mode": "simple",
+        "render_mode": "human",
+        "rgb": True,
+        "obs_compress": False,
+        "mode": "test",
+        "max_hp": 10000000,
+        "total_targets": 1,
         "max_step": 10000000,
         "obs_mode": "simple"})
 obs, _ = env.reset()

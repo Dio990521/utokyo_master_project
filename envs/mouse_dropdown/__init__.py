@@ -2,7 +2,7 @@ from gymnasium.envs.registration import register
 
 register(
     id='MouseDropdown-v0',
-    entry_point='envs.mouse_dropdown.drag_env:DropDownMenuEnv',
+    entry_point='envs.mouse_dropdown.dropdown_env:DropdownEnv',
     kwargs={"config": {
         "width": 640,
         "height": 480,
@@ -13,7 +13,7 @@ register(
         "mode": "training",
         "max_hp": 10000000,
         "total_targets": 1,
-        "max_step": 2000,
+        "max_step": 5000,
         "obs_mode": "simple"}
     }
 )

@@ -7,7 +7,6 @@ from envs.base_mouse_env import BaseEnv
 
 
 class DropdownEnv(BaseEnv):
-    """An environment where the agent must open a dropdown menu and select the correct option."""
 
     def __init__(self, config=None):
         super().__init__(config)
@@ -20,7 +19,7 @@ class DropdownEnv(BaseEnv):
         menu_y = (self.height - menu_h) // 3
         self.menu_rect = pygame.Rect(menu_x, menu_y, menu_w, menu_h)
         self.options = ["A", "B", "C"]
-        self.goal_option = "B"
+        self.goal_option = "C"#random.choice(self.options)
         self.option_rects = [
             pygame.Rect(self.menu_rect.x, self.menu_rect.y + (i + 1) * self.menu_rect.h, self.menu_rect.w,
                         self.menu_rect.h)
@@ -32,9 +31,10 @@ class DropdownEnv(BaseEnv):
         self.selected_option = None
         self.menu_open = False
         self.success = 0
+        self.first_open = False
 
         # Reward
-        self.reward_success = config.get("reward_success", 1.0)
+        self.reward_success = config.get("reward_success", 100.0)
 
         # Font for rendering
         self.font = pygame.font.SysFont(None, 24)
@@ -43,31 +43,38 @@ class DropdownEnv(BaseEnv):
         if self.obs_mode == "simple":
             # [cursor_x, cursor_y, menu_open_flag, selected_option_idx]
             self.observation_space = spaces.Box(
-                low=np.array([0, 0, 0, -1], dtype=np.float32),
-                high=np.array([self.width, self.height, 1, len(self.options) - 1], dtype=np.float32),
+                low=np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=np.float32),
+                high=np.array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, len(self.options) - 1], dtype=np.float32),
                 dtype=np.float32
             )
 
     def _get_obs(self):
-        if self.obs_mode == "simple":
-            menu_open_val = float(self.menu_open)
+        cursor_x, cursor_y = self.cursor
+        menu_open_val = float(self.menu_open)
 
-            dx_menu = (self.menu_rect.centerx - self.cursor[0]) / self.width
-            dy_menu = (self.menu_rect.centery - self.cursor[1]) / self.height
+        menu_cx = self.menu_rect.centerx / self.width
+        menu_cy = self.menu_rect.centery / self.height
 
-            obs_list = [menu_open_val, dx_menu, dy_menu]
+        obs_list = [
+            cursor_x / self.width,
+            cursor_y / self.height,
+            menu_cx,
+            menu_cy,
+        ]
 
-            if self.menu_open:
-                for option_rect in self.option_rects:
-                    dx_opt = (option_rect.centerx - self.cursor[0]) / self.width
-                    dy_opt = (option_rect.centery - self.cursor[1]) / self.height
-                    obs_list.extend([dx_opt, dy_opt])
-            else:
-                obs_list.extend([0.0] * len(self.option_rects) * 2)
+        if self.menu_open:
+            for rect in self.option_rects:
+                opt_cx = rect.centerx / self.width
+                opt_cy = rect.centery / self.height
+                obs_list.extend([opt_cx, opt_cy])
+        else:
+           obs_list.extend([-1] * len(self.option_rects) * 2)
 
-            return np.array(obs_list, dtype=np.float32)
+        goal_index = self.options.index(self.goal_option)
+        obs_list.append(goal_index)
+        obs_list.append(menu_open_val)
 
-        return self._get_image_obs()
+        return np.array(obs_list, dtype=np.float32)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -76,8 +83,11 @@ class DropdownEnv(BaseEnv):
         self.menu_open = False
         self.success = 0
         self.episode_end = False
+        self.first_open = False
         self.cursor = [self.width // 2, self.height // 2]
-        random.shuffle(self.options)
+        #self.cursor = [self.menu_rect.centerx, self.menu_rect.centery]
+        #random.shuffle(self.options)
+        #self.goal_option = random.choice(self.options)
         if not self.render_mode: self.render()
         return self._get_obs(), {}
 
@@ -92,6 +102,11 @@ class DropdownEnv(BaseEnv):
         if press == 1:
             # Click on menu header to open/close
             if self.menu_rect.collidepoint(self.cursor):
+                if not self.menu_open and not self.first_open:
+                    reward += 10.0
+                    self.first_open = True
+                if self.menu_open:
+                    reward -= 1.0
                 self.menu_open = not self.menu_open
             # If menu is open, check for clicks on options
             elif self.menu_open:
@@ -100,10 +115,10 @@ class DropdownEnv(BaseEnv):
                         self.selected_option = self.options[i]
                         self.menu_open = False
                         if self.selected_option == self.goal_option:
-                            reward = self.reward_success
+                            reward += self.reward_success
                             self.success += 1
                         else:
-                            reward = -0.1  # Penalty for wrong selection
+                            reward -= 1.0
                             self.hp -= 1
                         break
 
@@ -116,6 +131,17 @@ class DropdownEnv(BaseEnv):
 
         if not self.render_mode: self.render()
         return self._get_obs(), reward, done, False, info
+
+    # def _calculate_reward(self, dx, dy, press):
+    #     if not self.menu_open:
+    #         # Phase 1: Approach the object
+    #         center_obj = np.array(object_rect.center)
+    #         d_cursor_obj = center_obj - np.array(self.cursor)
+    #         dist_c_o = np.linalg.norm(d_cursor_obj)
+    #
+    #         max_dist_c_o = np.linalg.norm([self.width, self.height])
+    #         reward += (1 - dist_c_o / max_dist_c_o) * alpha  # Proximity reward
+    #         reward += cosine_similarity(d_cursor_obj, d_move) * beta  # Direction reward
 
     def render(self):
         surface = super().render()

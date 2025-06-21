@@ -34,14 +34,17 @@ class ClickEnv(BaseEnv):
         ]
 
     def _get_obs(self):
-        if self.obs_mode == "simple":
-            return np.array([
-                self.cursor[0] / self.width,
-                self.cursor[1] / self.height,
-                self.target_pos[0] / self.width,
-                self.target_pos[1] / self.height
-            ], dtype=np.float32)
-        return self._get_image_obs()
+        dx = self.target_pos[0] - self.cursor[0]
+        dy = self.target_pos[1] - self.cursor[1]
+        return np.array([dx, dy], dtype=np.float32)
+        # if self.obs_mode == "simple":
+        #     return np.array([
+        #         self.cursor[0],
+        #         self.cursor[1],
+        #         self.target_pos[0],
+        #         self.target_pos[1]
+        #     ], dtype=np.float32)
+        # return self._get_image_obs()
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -90,10 +93,11 @@ class ClickEnv(BaseEnv):
         d_move = np.array([dx, dy])
 
         max_dist = np.linalg.norm([self.width, self.height])
-        distance_reward = (1 - (dist / max_dist)) * 0.2
-        cosine_sim = cosine_similarity(d_target, d_move) * 0.8
-        reward += distance_reward + cosine_sim
-
+        distance_reward = (1 - (dist / max_dist)) * 0.1
+        alpha = 0.8
+        beta = 0.2
+        cosine_sim = cosine_similarity(d_target, d_move)
+        reward += alpha * cosine_sim + beta * distance_reward
         # Episode termination
         if self.hp <= 0 or self.success >= self.total_targets or self.step_count >= self.max_steps:
             done = True
@@ -113,4 +117,4 @@ class ClickEnv(BaseEnv):
 
         if self.render_mode == "human":
             pygame.display.flip()
-            self.clock.tick(self.metadata["render_fps"])
+            #self.clock.tick(self.metadata["render_fps"])

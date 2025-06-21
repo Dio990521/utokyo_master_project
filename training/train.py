@@ -7,12 +7,10 @@ from stable_baselines3 import PPO
 import envs.mouse_click
 from stable_baselines3.common.callbacks import BaseCallback
 import envs.mouse_drag
+import envs.mouse_dropdown
 
 
 class TensorboardCallback(BaseCallback):
-    """
-    Custom callback for plotting additional values in tensorboard.
-    """
 
     def __init__(self, env, save_file_name, verbose=0):
         super().__init__(verbose)
@@ -30,7 +28,7 @@ class TensorboardCallback(BaseCallback):
                     self.clicked_targets_per_episode.append(info["success"])
                     self.shortest_steps_per_episode.append(info["shortest_distance"])
                     if info["success"] > 0:
-                        self.ratio_success.append((self.num_timesteps,info["steps"] / info["shortest_distance"]))
+                      self.ratio_success.append((self.num_timesteps,info["steps"] / info["shortest_distance"]))
             else:
                 self.logger.record(str(key), info[key])
         return True
@@ -40,7 +38,7 @@ class TensorboardCallback(BaseCallback):
             for value in self.clicked_targets_per_episode:
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
-        with open("ratio3_3.csv", mode='w', newline='') as file:
+        with open("dropdown_ratio_1.csv", mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["timesteps", "ratio_success"])
             writer.writerows(self.ratio_success)
@@ -48,11 +46,12 @@ class TensorboardCallback(BaseCallback):
 
 #ENV_NAME = "MouseClick-v0"
 ENV_NAME = "MouseDrag-v0"
+#ENV_NAME = "MouseDropdown-v0"
 env = gym.make(ENV_NAME)
 
 env.reset()
 env.render()
-log_name = "no3"
+log_name = ENV_NAME + "_test"
 #model = PPO("CnnPolicy", env, verbose=1, tensorboard_log=f"./ppo_tensorboard_{log_name}/", ent_coef=0.1)
 model = PPO("MlpPolicy", env, verbose=1, tensorboard_log=f"./{ENV_NAME}/ppo_tensorboard_{log_name}/", ent_coef=0.1)
 
