@@ -6,7 +6,8 @@ import os
 import random
 import pygame
 
-from envs.drawing_env.tools.image_process import calculate_similarity, draw_line_on_canvas
+from envs.drawing_env.tools.image_process import calculate_similarity, draw_line_on_canvas, \
+    calculate_shape_similarity_distance
 
 
 class DrawingAgentEnv(gym.Env):
@@ -18,20 +19,22 @@ class DrawingAgentEnv(gym.Env):
         self.max_steps = config.get("max_steps", 1000)
         self.render_mode = config.get("render_mode", "human")
         self.current_step = 0
-
+        self.max_hp = config.get("max_hp", 100)
+        self.hp = self.max_hp
         self.target_sketches_path = target_sketches_path
         self.target_sketches = self._load_target_sketches()
         if not self.target_sketches:
             raise ValueError(f"No target sketches found in {target_sketches_path}")
 
-        low_action = np.array([-5.0, -5.0, 0.0, 0.0], dtype=np.float32)
-        high_action = np.array([5.0, 5.0, 1.0, 1.0], dtype=np.float32)
-        self.action_space = spaces.Box(low=low_action, high=high_action, shape=(4,), dtype=np.float32)
-        #self.action_space = spaces.Discrete(17)
+        #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
+        #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
+        #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
+        self.action_space = spaces.Discrete(18)
         self.observation_space = spaces.Dict({
-            "canvas": spaces.Box(low=0, high=255, shape=self.canvas_size, dtype=np.uint8),
-            "target_sketch": spaces.Box(low=0, high=255, shape=self.canvas_size, dtype=np.uint8),
-            "cursor_pos": spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32),
+            "diff": spaces.Box(low=0, high=255, shape=self.canvas_size, dtype=np.uint8),
+            #"canvas": spaces.Box(low=0, high=255, shape=self.canvas_size, dtype=np.uint8),
+            #"target_sketch": spaces.Box(low=0, high=255, shape=self.canvas_size, dtype=np.uint8),
+            "cursor_pos": spaces.Box(low=0, high=100, shape=(2,), dtype=np.float32),
             "pen_state": spaces.Discrete(2)
         })
 
@@ -62,12 +65,11 @@ class DrawingAgentEnv(gym.Env):
         return sketches
 
     def _get_obs(self):
-        #norm_cursor_x = self.cursor_x / self.canvas_size[0]
-        #norm_cursor_y = self.cursor_y / self.canvas_size[1]
+        diff = np.abs(self.canvas.astype(np.int16) - self.target_sketch.astype(np.int16)).astype(np.uint8)
 
         return {
-            "canvas": self.canvas.copy(),
-            "target_sketch": self.target_sketch.copy(),
+            "diff": diff,
+            #"target_sketch": self.target_sketch.copy(),
             "cursor_pos": np.array(self.cursor, dtype=np.float32),
             "pen_state": int(self.is_pen_down),
         }
@@ -75,18 +77,34 @@ class DrawingAgentEnv(gym.Env):
     def _get_info(self):
         return {"similarity": calculate_similarity(self.canvas, self.target_sketch)}
 
+    def _decode_action(self, action):
+        """
+        Decodes a discrete action (0-17) into dx, dy, and pen_state.
+        - Actions 0-8: Pen is UP.
+        - Actions 9-17: Pen is DOWN.
+
+        The 9 movements correspond to a 3x3 grid around the cursor.
+        """
+        # Determine pen state
+        is_pen_down = action >= 9
+
+        # Determine movement
+        sub_action = action % 9
+        dx = (sub_action % 3) - 1  # Results in -1, 0, or 1
+        dy = (sub_action // 3) - 1  # Results in -1, 0, or 1
+
+        return dx, dy, is_pen_down
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
 
         self.current_step = 0
-        self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)  # 初始化为白色画布
+        self.hp = self.max_hp
+        self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)
         #self.cursor = [self.canvas_size[0] // 2, self.canvas_size[1] // 2]
 
         self.target_sketch = random.choice(self.target_sketches)
-
-        start_point = self._find_starting_point(self.target_sketch)
-        self.cursor = start_point
-
+        self.cursor = self._find_starting_point(self.target_sketch)
         self.is_pen_down = False
 
         if self.render_mode == "human":
@@ -96,7 +114,7 @@ class DrawingAgentEnv(gym.Env):
 
                 self.window = pygame.display.set_mode(
                     (self.canvas_size[0] * 2 + 10, self.canvas_size[1]))
-                pygame.display.set_caption("Drawing Agent RL")
+                pygame.display.set_caption("Drawing Sketch RL")
             if self.clock is None:
                 self.clock = pygame.time.Clock()
 
@@ -111,11 +129,12 @@ class DrawingAgentEnv(gym.Env):
     def step(self, action):
         self.current_step += 1
 
-        dx, dy, pen_action_logit, finish = action
-        dx = int(np.round(dx))
-        dy = int(np.round(dy))
+        #dx, dy, pen_action_logit = action
+        #dx = int(np.round(dx))
+        #dy = int(np.round(dy))
 
-        new_pen_state = bool(np.round(np.clip(pen_action_logit, 0, 1)))
+        #new_pen_state = bool(np.round(np.clip(pen_action_logit, 0, 1)))
+        dx, dy, self.is_pen_down = self._decode_action(action)
 
         reward = 0.0
         terminated = False
@@ -123,49 +142,62 @@ class DrawingAgentEnv(gym.Env):
 
         prev_cursor_x, prev_cursor_y = self.cursor[0], self.cursor[1]
 
+        prev_canvas_state = self.canvas.copy()
+
         self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
         self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
         if self.is_pen_down:
-            draw_line_on_canvas(self.canvas, prev_cursor_x, prev_cursor_y,
-                                self.cursor[0], self.cursor[1], color=0, brush_size=5)
+            #draw_line_on_canvas(self.canvas, prev_cursor_x, prev_cursor_y,
+            #                    self.cursor[0], self.cursor[1], color=0, brush_size=1)
+            #points = self._get_line_pixels(prev_cursor_x, prev_cursor_y, self.cursor[0], self.cursor[1])
 
-            points = self._get_line_pixels(prev_cursor_x, prev_cursor_y, self.cursor[0], self.cursor[1])
-
-            for px, py in points:
-                if self.canvas[py, px] == 0:
-                    if self.target_sketch[py, px] == 0:
+            if self.is_pen_down:
+                x, y = self.cursor
+                if self.canvas[y, x] == 255:
+                    self.canvas[y, x] = 0
+                    if self.target_sketch[y, x] == 0:
                         reward += 0.1
                     else:
-                        reward -= 0.01
+                        self.hp -= 1
+                    #    reward -= 0.01
+                else:
+                    reward -= 0.005
 
-            # if (self.cursor[0] == 0 and dx < 0) or (self.cursor[0] == self.canvas_size[0] - 1 and dx > 0) or \
-            #         (self.cursor[1] == 0 and dy < 0) or (self.cursor[1] == self.canvas_size[1] - 1 and dy > 0):
-            #     reward -= 0.05
+            #for px, py in points:
+            #   if prev_canvas_state[py, px] == 255:
+            #       if self.target_sketch[py, px] == 0:
+            #           reward += 0.1
+            #       else:
+            #           reward -= 0.01
 
-        if new_pen_state != self.is_pen_down:
-            self.is_pen_down = new_pen_state
-            if self.is_pen_down and self.target_sketch[self.cursor[1], self.cursor[0]] == 0:
-                reward += 0.02
-            elif not self.is_pen_down and self.target_sketch[self.cursor[1], self.cursor[0]] == 255:
-                reward += 0.02
+        # if new_pen_state != self.is_pen_down:
+        #     self.is_pen_down = new_pen_state
+        #     if self.is_pen_down and self.target_sketch[self.cursor[1], self.cursor[0]] == 0:
+        #         reward += 0.02
+        #     elif not self.is_pen_down and self.target_sketch[self.cursor[1], self.cursor[0]] == 255:
+        #         reward += 0.02
 
-        if self.current_step >= self.max_steps or finish > 0.9:
+        if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True
 
-        current_similarity = calculate_similarity(self.canvas, self.target_sketch)
-        if current_similarity > 0.95:
-            reward += 100.0
-            terminated = True
-            print(f"Task completed! Similarity: {current_similarity:.4f}")
+        # current_similarity = calculate_similarity(self.canvas, self.target_sketch)
+        # if current_similarity > 0.9:
+        #     reward += 100.0
+        #     terminated = True
+        #     print(f"Task completed! Similarity: {current_similarity:.4f}")
+        #reward += current_similarity
+        if truncated or terminated:
+            shape_distance = calculate_shape_similarity_distance(self.canvas, self.target_sketch)
+            final_shape_reward = 10.0 * np.exp(-5.0 * shape_distance)
+            reward += final_shape_reward
 
-        if truncated and not terminated:
-            final_similarity_reward = current_similarity * 5.0
-            reward += final_similarity_reward
-            print(f"Max steps reached. Final Similarity: {current_similarity:.4f}")
+            print(f"Final Shape Reward: {final_shape_reward:.4f}")
+
         reward -= 0.001
         observation = self._get_obs()
         info = self._get_info()
+        if self.render_mode: self.render()
 
         return observation, reward, terminated, truncated, info
 
@@ -191,23 +223,15 @@ class DrawingAgentEnv(gym.Env):
                 y1 += sy
         return points
 
-    import numpy as np
-
     def _find_starting_point(self, sketch_array):
-        """
-        Finds a plausible starting point for a sketch from a numpy array.
-        Strategy: Find the top-most, then left-most pixel.
-        """
         foreground_pixels = np.argwhere(sketch_array == 0)
 
         if foreground_pixels.size == 0:
-            # 如果没有前景像素，返回画布中心作为默认值
             return [self.canvas_size[0] // 2, self.canvas_size[1] // 2]
 
         sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
         top_left_pixel = foreground_pixels[sorted_indices[0]]
 
-        # 返回 [x, y]
         return [top_left_pixel[1], top_left_pixel[0]]
 
     def render(self):
@@ -232,14 +256,14 @@ class DrawingAgentEnv(gym.Env):
             self.target_sketch_surface = pygame.image.fromstring(pil_target_rgb.tobytes(), pil_target_rgb.size,
                                                                  pil_target_rgb.mode)
 
-            self.window.fill((0, 0, 0))
+            self.window.fill((105, 105, 105))
 
             self.window.blit(self.target_sketch_surface, (0, 0))
 
             self.window.blit(self.canvas_surface, (self.canvas_size[0] + 10, 0))
 
             cursor_color = (255, 0, 0) if self.is_pen_down else (0, 0, 255)
-            cursor_radius = 5
+            cursor_radius = 3
             pygame.draw.circle(self.window, cursor_color,
                                (self.canvas_size[0] + 10 + self.cursor[0], self.cursor[1]),
                                cursor_radius)
