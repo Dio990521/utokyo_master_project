@@ -3,7 +3,7 @@ import numpy as np
 
 # 加载并二值化
 img1 = cv2.imread("smile.png", cv2.IMREAD_GRAYSCALE)
-img2 = cv2.imread("sketches/line.png", cv2.IMREAD_GRAYSCALE)
+img2 = cv2.imread("sketches/line_20x20.png", cv2.IMREAD_GRAYSCALE)
 
 _, thresh1 = cv2.threshold(img1, 127, 255, cv2.THRESH_BINARY_INV)
 _, thresh2 = cv2.threshold(img2, 127, 255, cv2.THRESH_BINARY_INV)

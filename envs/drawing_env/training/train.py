@@ -7,20 +7,19 @@ from envs.drawing_env.tools.image_process import ImageDraw
 import envs.drawing_env
 import os
 
-VERSION = "_1/"
+VERSION = "_2/"
 LOG_DIR = "saved_logs/" + VERSION
 MODELS_DIR = "saved_models/" + VERSION
 SKETCH_DATA_PATH = "sketches/"
-CANVAS_SIZE = (100, 100)
+#CANVAS_SIZE = (20, 20)
 MAX_EPISODE_STEPS = 1000
-TOTAL_TIME_STEPS = 1000000
+TOTAL_TIME_STEPS = 5000000
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
 os.makedirs(SKETCH_DATA_PATH, exist_ok=True)
 
 env = gym.make("DrawingEnv-v0")
-keys_to_normalize = ["canvas", "target_sketch", "cursor_pos"]
 
 policy_kwargs = dict(
     net_arch=[dict(pi=[256, 256], vf=[256, 256])],

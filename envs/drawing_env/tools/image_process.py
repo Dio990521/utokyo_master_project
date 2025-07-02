@@ -4,6 +4,34 @@ from skimage.metrics import structural_similarity as ssim
 import cv2
 
 
+def calculate_pixel_similarity(canvas, target_sketch):
+    """
+    计算画布与目标草图之间黑色像素的重合度作为相似度。
+    相似度 = (画布与目标图中重合的黑色像素数) / (目标图中的总黑色像素数)
+
+    Args:
+        canvas (np.array): 当前画布 (0=黑, 255=白)。
+        target_sketch (np.array): 目标草图 (0=黑, 255=白)。
+
+    Returns:
+        float: 相似度，范围在 [0, 1] 之间。
+    """
+    # 找到目标中的黑色像素总数
+    total_target_pixels = np.sum(target_sketch == 0)
+
+    # 如果目标图像是全白的，没有可画的，相似度为1
+    if total_target_pixels == 0:
+        return 1.0
+
+    # 找到画布和目标图中均为黑色的重合像素
+    # (canvas == 0) 会返回一个布尔数组，在黑色像素处为True
+    # & 是逻辑与操作
+    overlapping_pixels = np.sum((canvas == 0) & (target_sketch == 0))
+
+    similarity = overlapping_pixels / total_target_pixels
+
+    return similarity
+
 def calculate_shape_similarity_distance(image1: np.ndarray, image2: np.ndarray) -> float:
     """
     使用 cv2.matchShapes 计算两个图像中主要轮廓的形状距离。

@@ -3,10 +3,10 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
-VERSION = "_114514/"
+VERSION = "_2/"
 MODELS_DIR = "saved_models/" + VERSION
 SKETCH_DATA_PATH = "sketches/"
-CANVAS_SIZE = (100, 100)
+CANVAS_SIZE = (20, 20)
 MAX_EPISODE_STEPS = 1000
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
@@ -32,7 +32,7 @@ eval_env.render()
 episode_reward = 0
 
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=False)
+    action, _states = model.predict(obs, deterministic=True)
     print(action)
     eval_env.render()
 
