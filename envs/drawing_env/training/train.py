@@ -1,17 +1,35 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
 from envs.drawing_env.draw_env import DrawingAgentEnv
 from envs.drawing_env.tools.image_process import ImageDraw
 import envs.drawing_env
 import os
 
-VERSION = "_2/"
+from envs.drawing_env.training.custom_cnn import CustomCnnExtractor
+
+
+class TensorboardCallbackDraw(BaseCallback):
+
+    def __init__(self, env, save_file_name="test"):
+        super().__init__()
+        self.env = env
+        self.shortest_steps_per_episode = []
+        self.ratio_success = []
+        self.similarity = []
+        self.save_file_name = save_file_name + ".csv"
+
+    def _on_step(self) -> bool:
+        info = self.locals.get("infos", [{}])[0]
+        for key in info:
+            self.logger.record(str(key), info[key])
+        return True
+
+
+VERSION = "_1/"
 LOG_DIR = "saved_logs/" + VERSION
 MODELS_DIR = "saved_models/" + VERSION
 SKETCH_DATA_PATH = "sketches/"
-#CANVAS_SIZE = (20, 20)
 MAX_EPISODE_STEPS = 1000
 TOTAL_TIME_STEPS = 5000000
 
@@ -22,12 +40,12 @@ os.makedirs(SKETCH_DATA_PATH, exist_ok=True)
 env = gym.make("DrawingEnv-v0")
 
 policy_kwargs = dict(
-    net_arch=[dict(pi=[256, 256], vf=[256, 256])],
-    # features_extractor_class=CustomCNNFeaturesExtractor
+    features_extractor_class=CustomCnnExtractor,
+    features_extractor_kwargs=dict(features_dim=128)
 )
 
 model = PPO(
-    "MultiInputPolicy",
+    "CnnPolicy",
     env,
     learning_rate=0.0003,
     n_steps=2048,
@@ -35,7 +53,7 @@ model = PPO(
     gamma=0.99,
     gae_lambda=0.95,
     clip_range=0.2,
-    ent_coef=0.1,
+    ent_coef=0.15,
     verbose=1,
     tensorboard_log=LOG_DIR,
     policy_kwargs=policy_kwargs,
@@ -53,7 +71,7 @@ checkpoint_callback = CheckpointCallback(
 print("Start training...")
 model.learn(
     total_timesteps=TOTAL_TIME_STEPS,
-    callback=[checkpoint_callback],
+    callback=[checkpoint_callback, TensorboardCallbackDraw(env)],
     progress_bar=True
 )
 print("Training finished.")

@@ -3,10 +3,10 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
-VERSION = "_2/"
+VERSION = "_1/"
 MODELS_DIR = "saved_models/" + VERSION
 SKETCH_DATA_PATH = "sketches/"
-CANVAS_SIZE = (20, 20)
+CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
@@ -22,24 +22,34 @@ def make_env():
         }
     )
 
-eval_env = DummyVecEnv([make_env])
+#eval_env = DummyVecEnv([make_env])
+eval_env = DrawingAgentEnv(
+        target_sketches_path=SKETCH_DATA_PATH,
+        config={
+            "canvas_size": CANVAS_SIZE,
+            "render": False,
+            "max_steps": MAX_EPISODE_STEPS,
+            "render_mode": "human",
+        }
+    )
 
 model = PPO.load(model_path, env=eval_env)
 print(f"Model loaded from {model_path}")
 
-obs = eval_env.reset()
+obs, _ = eval_env.reset()
+print(obs.shape)
 eval_env.render()
 episode_reward = 0
 
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=True)
+    action, _states = model.predict(obs, deterministic=False)
     print(action)
     eval_env.render()
 
-    obs, reward, terminated, info = eval_env.step(action)
-    episode_reward += reward[0]  # reward 是数组
+    obs, reward, terminated, truncated, info = eval_env.step(action)
+    episode_reward += reward
 
-    if terminated[0]:
+    if terminated or truncated:
         break
 
 eval_env.close()
