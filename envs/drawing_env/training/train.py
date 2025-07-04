@@ -22,16 +22,24 @@ class TensorboardCallbackDraw(BaseCallback):
     def _on_step(self) -> bool:
         info = self.locals.get("infos", [{}])[0]
         for key in info:
-            self.logger.record(str(key), info[key])
+            if key == "episode_end":
+                if info[key]:
+                    self.similarity.append(info["similarity"])
         return True
 
+    def _on_training_end(self) -> None:
+        with open(self.save_file_name, "w") as f:
+            for value in self.similarity:
+                f.write(f"{value}\n")
+            print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
 VERSION = "_1/"
 LOG_DIR = "saved_logs/" + VERSION
 MODELS_DIR = "saved_models/" + VERSION
+SAVE_FILE_NAME = "similarity" + VERSION
 SKETCH_DATA_PATH = "sketches/"
 MAX_EPISODE_STEPS = 1000
-TOTAL_TIME_STEPS = 5000000
+TOTAL_TIME_STEPS = 1000000
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -71,7 +79,7 @@ checkpoint_callback = CheckpointCallback(
 print("Start training...")
 model.learn(
     total_timesteps=TOTAL_TIME_STEPS,
-    callback=[checkpoint_callback, TensorboardCallbackDraw(env)],
+    callback=[checkpoint_callback, TensorboardCallbackDraw(env, save_file_name=SAVE_FILE_NAME)],
     progress_bar=True
 )
 print("Training finished.")

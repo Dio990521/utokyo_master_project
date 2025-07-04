@@ -32,6 +32,27 @@ def calculate_shape_similarity_distance(image1: np.ndarray, image2: np.ndarray) 
 
     return distance
 
+def calculate_block_reward(canvas, target_sketch, block_size):
+    canvas_h, canvas_w = canvas.shape
+    score = 0
+    num_blocks = 0
+
+    for y in range(0, canvas_h, block_size):
+        for x in range(0, canvas_w, block_size):
+            num_blocks += 1
+
+            canvas_block = canvas[y:y + block_size, x:x + block_size]
+            target_block = target_sketch[y:y + block_size, x:x + block_size]
+
+            canvas_has_black = np.any(canvas_block == 0)
+            target_has_black = np.any(target_block == 0)
+
+            if (canvas_has_black and target_has_black) or \
+                    (not canvas_has_black and not target_has_black):
+                score += 1
+
+    return score / num_blocks if num_blocks > 0 else 0
+
 def draw_line_on_canvas(canvas: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: int, brush_size: int = 1):
 
     img = Image.fromarray(canvas, 'L') # 'L' for grayscale

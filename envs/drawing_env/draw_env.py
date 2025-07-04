@@ -6,8 +6,7 @@ import os
 import random
 import pygame
 
-from envs.drawing_env.tools.image_process import draw_line_on_canvas, \
-    calculate_shape_similarity_distance, calculate_pixel_similarity
+from envs.drawing_env.tools.image_process import calculate_pixel_similarity, calculate_block_reward
 
 
 def _decode_action(action):
@@ -18,10 +17,8 @@ def _decode_action(action):
 
     The 9 movements correspond to a 3x3 grid around the cursor.
     """
-    # Determine pen state
     is_pen_down = action >= 9
 
-    # Determine movement
     sub_action = action % 9
     dx = (sub_action % 3) - 1  # Results in -1, 0, or 1
     dy = (sub_action // 3) - 1  # Results in -1, 0, or 1
@@ -34,6 +31,7 @@ class DrawingAgentEnv(gym.Env):
 
     def __init__(self, target_sketches_path="sketches/", config=None):
         super(DrawingAgentEnv, self).__init__()
+        self.episode_end = False
         self.last_pixel_similarity = None
         self.canvas_size = config.get("canvas_size", [100, 100])
         self.max_steps = config.get("max_steps", 1000)
@@ -46,15 +44,22 @@ class DrawingAgentEnv(gym.Env):
         if not self.target_sketches:
             raise ValueError(f"No target sketches found in {target_sketches_path}")
 
+        self.block_reward_levels = [16, 8, 4]
+        self.current_block_level_index = 0
+        self.current_block_size = self.block_reward_levels[self.current_block_level_index]
+        self.level_up_thresholds = {
+            16: 0.5,
+            8: 0.75,
+        }
+
         #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
         #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
         #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
         self.action_space = spaces.Discrete(18)
-
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(3, *self.canvas_size), # (H, W, 3)
+            shape=(3, *self.canvas_size), # (3, H, W)
             dtype=np.uint8
         )
 
@@ -84,6 +89,15 @@ class DrawingAgentEnv(gym.Env):
         print(f"Loaded {len(sketches)} target sketches.")
         return sketches
 
+    def _update_block_level(self, final_similarity):
+        if self.current_block_level_index < len(self.block_reward_levels) - 1:
+            threshold = self.level_up_thresholds.get(self.current_block_size)
+
+            if threshold is not None and final_similarity > threshold:
+                self.current_block_level_index += 1
+                self.current_block_size = self.block_reward_levels[self.current_block_level_index]
+                print(f"Grid is updated to: {self.current_block_size}x{self.current_block_size}")
+
     def _get_obs(self):
         pen_position_mask = np.full(self.canvas_size, 0, dtype=np.uint8)
         y, x = self.cursor[1], self.cursor[0]
@@ -101,6 +115,7 @@ class DrawingAgentEnv(gym.Env):
     def _get_info(self):
         return {
             "similarity": self.last_pixel_similarity,
+            "episode_end": self.episode_end
         }
 
     def reset(self, seed=None, options=None):
@@ -109,6 +124,7 @@ class DrawingAgentEnv(gym.Env):
         self.current_step = 0
         self.hp = self.max_hp
         self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)
+        self.episode_end = False
 
         self.target_sketch = random.choice(self.target_sketches)
         self.cursor = self._find_starting_point(self.target_sketch)
@@ -135,12 +151,6 @@ class DrawingAgentEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-
-        #dx, dy, pen_action_logit = action
-        #dx = int(np.round(dx))
-        #dy = int(np.round(dy))
-
-        #new_pen_state = bool(np.round(np.clip(pen_action_logit, 0, 1)))
         dx, dy, self.is_pen_down = _decode_action(action)
 
         reward = 0.0
@@ -167,8 +177,7 @@ class DrawingAgentEnv(gym.Env):
         pixel_similarity_reward = current_pixel_similarity - self.last_pixel_similarity
         self.last_pixel_similarity = current_pixel_similarity
 
-        reward += pixel_similarity_reward * 10.0
-        #reward -= 0.001
+        reward += pixel_similarity_reward
         if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True
 
@@ -177,33 +186,17 @@ class DrawingAgentEnv(gym.Env):
             terminated = True
             print(f"Task completed! Similarity: {current_pixel_similarity:.4f}")
 
+        if terminated or truncated:
+            self.episode_end = True
+            block_reward = calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
+            reward += block_reward
+            self._update_block_level(current_pixel_similarity)
+
         observation = self._get_obs()
         info = self._get_info()
         if self.render_mode: self.render()
 
         return observation, reward, terminated, truncated, info
-
-    def _get_line_pixels(self, x1, y1, x2, y2):
-        """Bresenham's Line Algorithm implementation to get pixels on a line."""
-        points = []
-        dx = abs(x2 - x1)
-        dy = abs(y2 - y1)
-        sx = 1 if x1 < x2 else -1
-        sy = 1 if y1 < y2 else -1
-        err = dx - dy
-
-        while True:
-            points.append((x1, y1))
-            if x1 == x2 and y1 == y2:
-                break
-            e2 = 2 * err
-            if e2 > -dy:
-                err -= dy
-                x1 += sx
-            if e2 < dx:
-                err += dx
-                y1 += sy
-        return points
 
     def _find_starting_point(self, sketch_array):
         foreground_pixels = np.argwhere(sketch_array == 0)

@@ -3,7 +3,6 @@ import torch.nn as nn
 from gymnasium import spaces
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
-
 class CustomCnnExtractor(BaseFeaturesExtractor):
 
     def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
@@ -12,16 +11,13 @@ class CustomCnnExtractor(BaseFeaturesExtractor):
         n_input_channels = observation_space.shape[0]
 
         self.cnn = nn.Sequential(
-            nn.Conv2d(n_input_channels, 32, kernel_size=8, stride=4, padding=0),
-            # (32 - 8) / 4 + 1 = 7, output: (32, 7, 7)
+            nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=0),
-            # (7 - 3) / 2 + 1 = 3, output: (64, 3, 3)
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=0),
-            # (3 - 3) / 1 + 1 = 1。output: (64, 1, 1)
+            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
             nn.ReLU(),
-            nn.Flatten(),
+            nn.Flatten()
         )
 
         with torch.no_grad():
@@ -30,7 +26,7 @@ class CustomCnnExtractor(BaseFeaturesExtractor):
 
         self.linear = nn.Sequential(
             nn.Linear(n_flatten, features_dim),
-            nn.ReLU(),
+            nn.ReLU()
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
