@@ -1,8 +1,39 @@
 import numpy as np
 from PIL import Image, ImageDraw
-from skimage.metrics import structural_similarity as ssim
 import cv2
+import matplotlib.pyplot as plt
 
+def visualize_obs(obs):
+    canvas = obs[0]
+    target = obs[1]
+    pen_mask = obs[2]
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    axs[0].imshow(canvas, cmap='gray')
+    axs[0].set_title("Canvas")
+
+    axs[1].imshow(target, cmap='gray')
+    axs[1].set_title("Target Sketch")
+
+    axs[2].imshow(pen_mask, cmap='gray')
+    axs[2].set_title("Pen Position")
+
+    for ax in axs:
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+def find_starting_point(sketch):
+    foreground_pixels = np.argwhere(sketch == 0)
+
+    if foreground_pixels.size == 0:
+        return [self.canvas_size[0] // 2, self.canvas_size[1] // 2]
+
+    sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
+    top_left_pixel = foreground_pixels[sorted_indices[0]]
+
+    return [top_left_pixel[1], top_left_pixel[0]]
 
 def calculate_pixel_similarity(canvas, target_sketch):
     total_target_pixels = np.sum(target_sketch == 0)

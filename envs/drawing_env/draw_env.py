@@ -6,7 +6,7 @@ import os
 import random
 import pygame
 
-from envs.drawing_env.tools.image_process import calculate_pixel_similarity, calculate_block_reward
+from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, calculate_block_reward, visualize_obs
 
 
 def _decode_action(action):
@@ -37,7 +37,7 @@ class DrawingAgentEnv(gym.Env):
         self.max_steps = config.get("max_steps", 1000)
         self.render_mode = config.get("render_mode", "human")
         self.current_step = 0
-        self.max_hp = config.get("max_hp", 100000)
+        self.max_hp = config.get("max_hp", 1000000)
         self.hp = self.max_hp
         self.target_sketches_path = target_sketches_path
         self.target_sketches = self._load_target_sketches()
@@ -110,6 +110,7 @@ class DrawingAgentEnv(gym.Env):
             pen_position_mask
         ], axis=-1)
         observation = observation.transpose(2, 0, 1)
+        #visualize_obs(observation)
         return observation
 
     def _get_info(self):
@@ -127,7 +128,7 @@ class DrawingAgentEnv(gym.Env):
         self.episode_end = False
 
         self.target_sketch = random.choice(self.target_sketches)
-        self.cursor = self._find_starting_point(self.target_sketch)
+        self.cursor = find_starting_point(self.target_sketch)
         self.is_pen_down = False
         self.last_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
         if self.render_mode == "human":
@@ -197,17 +198,6 @@ class DrawingAgentEnv(gym.Env):
         if self.render_mode: self.render()
 
         return observation, reward, terminated, truncated, info
-
-    def _find_starting_point(self, sketch_array):
-        foreground_pixels = np.argwhere(sketch_array == 0)
-
-        if foreground_pixels.size == 0:
-            return [self.canvas_size[0] // 2, self.canvas_size[1] // 2]
-
-        sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
-        top_left_pixel = foreground_pixels[sorted_indices[0]]
-
-        return [top_left_pixel[1], top_left_pixel[0]]
 
     def render(self):
         if self.render_mode == "human":

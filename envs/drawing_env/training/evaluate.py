@@ -3,6 +3,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
+
 VERSION = "_1/"
 MODELS_DIR = "saved_models/" + VERSION
 SKETCH_DATA_PATH = "sketches/"
@@ -42,7 +43,7 @@ eval_env.render()
 episode_reward = 0
 
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=False)
+    action, _states = model.predict(obs, deterministic=True)
     print(action)
     eval_env.render()
 

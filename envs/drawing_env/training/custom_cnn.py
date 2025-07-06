@@ -30,4 +30,5 @@ class CustomCnnExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        return self.linear(self.cnn(observations))
+        output = self.linear(self.cnn(observations))
+        return output

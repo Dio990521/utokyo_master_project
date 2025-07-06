@@ -25,6 +25,8 @@ class TensorboardCallbackDraw(BaseCallback):
             if key == "episode_end":
                 if info[key]:
                     self.similarity.append(info["similarity"])
+            else:
+                self.logger.record(str(key), info[key])
         return True
 
     def _on_training_end(self) -> None:
@@ -33,13 +35,13 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
-VERSION = "_1/"
-LOG_DIR = "saved_logs/" + VERSION
-MODELS_DIR = "saved_models/" + VERSION
+VERSION = "_2"
+LOG_DIR = "saved_logs/" + VERSION + "/"
+MODELS_DIR = "saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
 SKETCH_DATA_PATH = "sketches/"
 MAX_EPISODE_STEPS = 1000
-TOTAL_TIME_STEPS = 1000000
+TOTAL_TIME_STEPS = 5000000
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -61,26 +63,25 @@ model = PPO(
     gamma=0.99,
     gae_lambda=0.95,
     clip_range=0.2,
-    ent_coef=0.15,
+    ent_coef=0.2,
     verbose=1,
     tensorboard_log=LOG_DIR,
     policy_kwargs=policy_kwargs,
 )
 
-checkpoint_callback = CheckpointCallback(
-    save_freq=MAX_EPISODE_STEPS * 100,
-    save_path=MODELS_DIR,
-    name_prefix="drawing_agent_checkpoint",
-    save_replay_buffer=True,
-    save_vecnormalize=True,
-)
+# checkpoint_callback = CheckpointCallback(
+#     save_freq=MAX_EPISODE_STEPS * 100,
+#     save_path=MODELS_DIR,
+#     name_prefix="drawing_agent_checkpoint",
+#     save_replay_buffer=True,
+#     save_vecnormalize=True,
+# )
 
 
 print("Start training...")
 model.learn(
     total_timesteps=TOTAL_TIME_STEPS,
-    callback=[checkpoint_callback, TensorboardCallbackDraw(env, save_file_name=SAVE_FILE_NAME)],
-    progress_bar=True
+    callback=[TensorboardCallbackDraw(env, save_file_name=SAVE_FILE_NAME)],
 )
 print("Training finished.")
 
