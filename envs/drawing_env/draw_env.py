@@ -29,7 +29,7 @@ def _decode_action(action):
 class DrawingAgentEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, target_sketches_path="sketches/", config=None):
+    def __init__(self, config=None):
         super(DrawingAgentEnv, self).__init__()
         self.episode_end = False
         self.last_pixel_similarity = None
@@ -39,10 +39,10 @@ class DrawingAgentEnv(gym.Env):
         self.current_step = 0
         self.max_hp = config.get("max_hp", 1000000)
         self.hp = self.max_hp
-        self.target_sketches_path = target_sketches_path
+        self.target_sketches_path = config.get("target_sketches_path", None)
         self.target_sketches = self._load_target_sketches()
         if not self.target_sketches:
-            raise ValueError(f"No target sketches found in {target_sketches_path}")
+            raise ValueError(f"No target sketches found in {self.target_sketches_path}")
 
         self.block_reward_levels = [16, 8, 4]
         self.current_block_level_index = 0

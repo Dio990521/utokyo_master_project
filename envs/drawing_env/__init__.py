@@ -9,7 +9,8 @@ register(
         "rgb": True,
         "max_steps": 1000,
         "render_mode": None,
-        "mode": "training"
+        "mode": "training",
+        "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
     }
 )

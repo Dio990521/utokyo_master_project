@@ -1,9 +1,6 @@
 import gymnasium as gym
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback
-from envs.drawing_env.draw_env import DrawingAgentEnv
-from envs.drawing_env.tools.image_process import ImageDraw
-import envs.drawing_env
+from stable_baselines3.common.callbacks import BaseCallback
 import os
 
 from envs.drawing_env.training.custom_cnn import CustomCnnExtractor
@@ -35,17 +32,15 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
-VERSION = "_2"
-LOG_DIR = "saved_logs/" + VERSION + "/"
-MODELS_DIR = "saved_models/" + VERSION + "/"
+VERSION = "_22"
+LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
+MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
-SKETCH_DATA_PATH = "sketches/"
 MAX_EPISODE_STEPS = 1000
 TOTAL_TIME_STEPS = 5000000
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
-os.makedirs(SKETCH_DATA_PATH, exist_ok=True)
 
 env = gym.make("DrawingEnv-v0")
 
