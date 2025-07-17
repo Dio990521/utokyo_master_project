@@ -165,14 +165,11 @@ class DrawingAgentEnv(gym.Env):
             x, y = self.cursor
             if self.canvas[y, x] == 255:
                 self.canvas[y, x] = 0
-                #if self.target_sketch[y, x] == 0:
-                    #reward += 0.1
-                #else:
-                    #self.hp -= 1
-                    #reward -= 0.01
-            #else:
-                #self.hp -= 1
-                #reward -= 0.01
+                if self.target_sketch[y, x] == 0:
+                    reward += 0.1
+                else:
+                    self.hp -= 1
+                    reward -= 0.1
 
         current_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
         pixel_similarity_reward = current_pixel_similarity - self.last_pixel_similarity

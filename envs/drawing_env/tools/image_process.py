@@ -26,10 +26,6 @@ def visualize_obs(obs):
 
 def find_starting_point(sketch):
     foreground_pixels = np.argwhere(sketch == 0)
-
-    if foreground_pixels.size == 0:
-        return [self.canvas_size[0] // 2, self.canvas_size[1] // 2]
-
     sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
     top_left_pixel = foreground_pixels[sorted_indices[0]]
 
@@ -45,6 +41,16 @@ def calculate_pixel_similarity(canvas, target_sketch):
     similarity = overlapping_pixels / total_target_pixels
 
     return similarity
+
+def load_image_as_array(image_path):
+    # Convert to grayscale and binary (0: black, 255: white)
+    image = Image.open(image_path).convert('L')
+    image_array = np.array(image)
+
+    # Optional: thresholding to ensure binary format
+    binary_image = np.where(image_array < 128, 0, 255).astype(np.uint8)
+
+    return binary_image
 
 def calculate_shape_similarity_distance(image1: np.ndarray, image2: np.ndarray) -> float:
     img1_inv = cv2.bitwise_not(image1)

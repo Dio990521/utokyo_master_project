@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "_1/"
+VERSION = "_3_2/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
@@ -44,7 +44,7 @@ eval_env.render()
 episode_reward = 0
 
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=True)
+    action, _states = model.predict(obs, deterministic=False)
     print(action)
     eval_env.render()
 

@@ -3,7 +3,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 import os
 
-from envs.drawing_env.training.custom_cnn import CustomCnnExtractor
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
 
 class TensorboardCallbackDraw(BaseCallback):
@@ -32,7 +32,7 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
-VERSION = "_22"
+VERSION = "_1"
 LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
