@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("similarity_2_2.csv", header=None)
+df = pd.read_csv("similarity_1_2.csv", header=None)
 df.columns = ['similarity']
 df['step'] = df.index
 

@@ -32,7 +32,7 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
             print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
 
-VERSION = "_1"
+VERSION = "_1_2"
 LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
@@ -58,7 +58,7 @@ model = PPO(
     gamma=0.99,
     gae_lambda=0.95,
     clip_range=0.2,
-    ent_coef=0.2,
+    ent_coef=0.01,
     verbose=1,
     tensorboard_log=LOG_DIR,
     policy_kwargs=policy_kwargs,

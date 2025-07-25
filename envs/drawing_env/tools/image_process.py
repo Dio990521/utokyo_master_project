@@ -24,6 +24,20 @@ def visualize_obs(obs):
     plt.tight_layout()
     plt.show()
 
+def calculate_iou_similarity(target_sketch, canvas, black_pixel_value=0) -> float:
+    target_bool = (target_sketch == black_pixel_value)
+    canvas_bool = (canvas == black_pixel_value)
+
+    intersection = np.sum(target_bool & canvas_bool)
+
+    union = np.sum(target_bool | canvas_bool)
+
+    if union == 0:
+        return 1.0
+
+    iou = intersection / union
+    return iou
+
 def find_starting_point(sketch):
     foreground_pixels = np.argwhere(sketch == 0)
     sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
