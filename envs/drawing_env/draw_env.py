@@ -6,24 +6,35 @@ import os
 import random
 import pygame
 
-from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, calculate_block_reward, visualize_obs
+from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
+    calculate_block_reward, visualize_obs, calculate_iou_similarity
 
 
 def _decode_action(action):
     """
-    Decodes a discrete action (0-17) into dx, dy, and pen_state.
-    - Actions 0-8: Pen is UP.
-    - Actions 9-17: Pen is DOWN.
+    解码一个 0-35 范围内的离散动作。
+    动作空间组合逻辑: 9 (移动) * 2 (画笔状态) * 2 (停止/继续) = 36
 
-    The 9 movements correspond to a 3x3 grid around the cursor.
+    - 动作 0-17:  继续绘画 (is_stop = False)
+        - 0-8:   画笔抬起 (is_pen_down = False)
+        - 9-17:  画笔落下 (is_pen_down = True)
+    - 动作 18-35: 停止绘画 (is_stop = True)
+        - 18-26: (画笔抬起) - 效果等同于停止
+        - 27-35: (画笔落下) - 效果等同于停止
     """
-    is_pen_down = action >= 9
+
+    is_stop = action >= 18
+
+    if action < 18:
+        is_pen_down = action >= 9
+    else:
+        is_pen_down = action >= 27
 
     sub_action = action % 9
-    dx = (sub_action % 3) - 1  # Results in -1, 0, or 1
-    dy = (sub_action // 3) - 1  # Results in -1, 0, or 1
+    dx = (sub_action % 3) - 1  # -1, 0, or 1
+    dy = (sub_action // 3) - 1 # -1, 0, or 1
 
-    return dx, dy, is_pen_down
+    return dx, dy, is_pen_down, is_stop
 
 
 class DrawingAgentEnv(gym.Env):
@@ -38,6 +49,9 @@ class DrawingAgentEnv(gym.Env):
         self.render_mode = config.get("render_mode", "human")
         self.current_step = 0
         self.max_hp = config.get("max_hp", 1000000)
+        self.stroke_budget = config.get("stroke_budget", 1)
+        self.pen_lift_budget = self.stroke_budget - 1
+
         self.hp = self.max_hp
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.target_sketches = self._load_target_sketches()
@@ -55,11 +69,12 @@ class DrawingAgentEnv(gym.Env):
         #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
         #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
         #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
-        self.action_space = spaces.Discrete(18)
+        self.action_space = spaces.Discrete(36)
+
         self.observation_space = spaces.Box(
             low=0,
             high=255,
-            shape=(3, *self.canvas_size), # (3, H, W)
+            shape=(4, *self.canvas_size), # (4, H, W)
             dtype=np.uint8
         )
 
@@ -67,6 +82,7 @@ class DrawingAgentEnv(gym.Env):
         self.target_sketch = None
         self.cursor = [0, 0]
         self.is_pen_down = False
+        self.pen_was_down = False
 
         self.window = None
         self.clock = None
@@ -104,13 +120,15 @@ class DrawingAgentEnv(gym.Env):
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_position_mask[y, x] = 255
 
+        stroke_budget_channel = np.full(self.canvas_size, 255 if self.pen_lift_budget > 0 else 0, dtype=np.uint8)
+
         observation = np.stack([
             self.canvas.copy(),
             self.target_sketch.copy(),
-            pen_position_mask
+            pen_position_mask,
+            stroke_budget_channel
         ], axis=-1)
         observation = observation.transpose(2, 0, 1)
-        #visualize_obs(observation)
         return observation
 
     def _get_info(self):
@@ -126,10 +144,12 @@ class DrawingAgentEnv(gym.Env):
         self.hp = self.max_hp
         self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)
         self.episode_end = False
+        self.pen_lift_budget = self.stroke_budget - 1
+        self.pen_was_down = False
+        self.is_pen_down = False
 
         self.target_sketch = random.choice(self.target_sketches)
         self.cursor = find_starting_point(self.target_sketch)
-        self.is_pen_down = False
         self.last_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
         if self.render_mode == "human":
             if self.window is None:
@@ -152,43 +172,51 @@ class DrawingAgentEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        dx, dy, self.is_pen_down = _decode_action(action)
+        dx, dy, is_pen_down, is_stop_action = _decode_action(action)
 
         reward = 0.0
         terminated = False
         truncated = False
 
-        self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
-        self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
+        if is_stop_action:
+            terminated = True
+            reward += calculate_iou_similarity(self.canvas, self.target_sketch)
+            reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
+        else:
+            self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
+            self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
-        if self.is_pen_down:
-            x, y = self.cursor
-            if self.canvas[y, x] == 255:
-                self.canvas[y, x] = 0
-                if self.target_sketch[y, x] == 0:
-                    reward += 0.1
-                else:
-                    self.hp -= 1
-                    reward -= 0.1
+            if self.pen_was_down and not is_pen_down:
+                self.pen_lift_budget -= 1
 
-        current_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
-        pixel_similarity_reward = current_pixel_similarity - self.last_pixel_similarity
-        self.last_pixel_similarity = current_pixel_similarity
+            self.is_pen_down = is_pen_down
 
-        reward += pixel_similarity_reward
+            if self.pen_lift_budget < 0:
+                self.is_pen_down = False
+                terminated = True
+
+            self.pen_was_down = self.is_pen_down
+
+            if self.is_pen_down:
+                x, y = self.cursor
+                if self.canvas[y, x] == 255:
+                    self.canvas[y, x] = 0
+                    reward += 0.1 if self.target_sketch[y, x] == 0 else -0.1
+                    if self.target_sketch[y, x] != 0: self.hp -=1
+
+
+            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+            reward += (current_pixel_similarity - self.last_pixel_similarity)
+            self.last_pixel_similarity = current_pixel_similarity
+
         if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True
 
-        if current_pixel_similarity > 0.9:
-            reward += 100.0
-            terminated = True
-            print(f"Task completed! Similarity: {current_pixel_similarity:.4f}")
-
         if terminated or truncated:
             self.episode_end = True
-            block_reward = calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
-            reward += block_reward
-            self._update_block_level(current_pixel_similarity)
+            if not is_stop_action:
+                 reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
+            self._update_block_level(self.last_pixel_similarity)
 
         observation = self._get_obs()
         info = self._get_info()
