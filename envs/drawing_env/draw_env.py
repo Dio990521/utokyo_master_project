@@ -12,29 +12,23 @@ from envs.drawing_env.tools.image_process import find_starting_point, calculate_
 
 def _decode_action(action):
     """
-    解码一个 0-35 范围内的离散动作。
-    动作空间组合逻辑: 9 (移动) * 2 (画笔状态) * 2 (停止/继续) = 36
+    Decodes a discrete action (0-18) into dx, dy, pen_state, and stop_action.
+    - Actions 0-8: Pen is UP.
+    - Actions 9-17: Pen is DOWN.
+    - Action 18: STOP.
 
-    - 动作 0-17:  继续绘画 (is_stop = False)
-        - 0-8:   画笔抬起 (is_pen_down = False)
-        - 9-17:  画笔落下 (is_pen_down = True)
-    - 动作 18-35: 停止绘画 (is_stop = True)
-        - 18-26: (画笔抬起) - 效果等同于停止
-        - 27-35: (画笔落下) - 效果等同于停止
+    The 9 movements correspond to a 3x3 grid around the cursor.
     """
+    if action == 18:
+        return 0, 0, 0, 1 # dx, dy, is_pen_down, is_stop
 
-    is_stop = action >= 18
-
-    if action < 18:
-        is_pen_down = action >= 9
-    else:
-        is_pen_down = action >= 27
+    is_pen_down = action >= 9
 
     sub_action = action % 9
-    dx = (sub_action % 3) - 1  # -1, 0, or 1
-    dy = (sub_action // 3) - 1 # -1, 0, or 1
+    dx = (sub_action % 3) - 1  # Results in -1, 0, or 1
+    dy = (sub_action // 3) - 1  # Results in -1, 0, or 1
 
-    return dx, dy, is_pen_down, is_stop
+    return dx, dy, int(is_pen_down), 0
 
 
 class DrawingAgentEnv(gym.Env):
@@ -69,7 +63,7 @@ class DrawingAgentEnv(gym.Env):
         #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
         #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
         #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
-        self.action_space = spaces.Discrete(36)
+        self.action_space = spaces.Discrete(19) # 0-17 for movement, 18 for stop
 
         self.observation_space = spaces.Box(
             low=0,
@@ -120,7 +114,7 @@ class DrawingAgentEnv(gym.Env):
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_position_mask[y, x] = 255
 
-        stroke_budget_channel = np.full(self.canvas_size, 255 if self.pen_lift_budget > 0 else 0, dtype=np.uint8)
+        stroke_budget_channel = np.full(self.canvas_size, self.pen_lift_budget, dtype=np.uint8)
 
         observation = np.stack([
             self.canvas.copy(),
@@ -150,7 +144,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.target_sketch = random.choice(self.target_sketches)
         self.cursor = find_starting_point(self.target_sketch)
-        self.last_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
+        self.last_pixel_similarity = 0
         if self.render_mode == "human":
             if self.window is None:
                 pygame.init()
@@ -173,6 +167,8 @@ class DrawingAgentEnv(gym.Env):
     def step(self, action):
         self.current_step += 1
         dx, dy, is_pen_down, is_stop_action = _decode_action(action)
+        is_pen_down = bool(is_pen_down)
+        is_stop_action = bool(is_stop_action)
 
         reward = 0.0
         terminated = False
@@ -180,7 +176,6 @@ class DrawingAgentEnv(gym.Env):
 
         if is_stop_action:
             terminated = True
-            reward += calculate_iou_similarity(self.canvas, self.target_sketch)
             reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
         else:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
@@ -205,9 +200,9 @@ class DrawingAgentEnv(gym.Env):
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
 
-            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-            reward += (current_pixel_similarity - self.last_pixel_similarity)
-            self.last_pixel_similarity = current_pixel_similarity
+            #current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+            #reward += (current_pixel_similarity - self.last_pixel_similarity)
+            #self.last_pixel_similarity = current_pixel_similarity
 
         if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True

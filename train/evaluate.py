@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "_3_2/"
+VERSION = "_test6/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
