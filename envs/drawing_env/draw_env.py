@@ -19,8 +19,8 @@ def _decode_action(action):
 
     The 9 movements correspond to a 3x3 grid around the cursor.
     """
-    if action == 18:
-        return 0, 0, 0, 1 # dx, dy, is_pen_down, is_stop
+    #if action == 18:
+    #    return 0, 0, 0, 1 # dx, dy, is_pen_down, is_stop
 
     is_pen_down = action >= 9
 
@@ -44,7 +44,9 @@ class DrawingAgentEnv(gym.Env):
         self.current_step = 0
         self.max_hp = config.get("max_hp", 1000000)
         self.stroke_budget = config.get("stroke_budget", 1)
-        self.pen_lift_budget = self.stroke_budget - 1
+        self.used_budgets = 0
+        self.similarity_weight = config.get("similarity_weight", 1)
+        self.budget_weight = config.get("budget_weight", 1)
 
         self.hp = self.max_hp
         self.target_sketches_path = config.get("target_sketches_path", None)
@@ -63,7 +65,7 @@ class DrawingAgentEnv(gym.Env):
         #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
         #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
         #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
-        self.action_space = spaces.Discrete(19) # 0-17 for movement, 18 for stop
+        self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
 
         self.observation_space = spaces.Box(
             low=0,
@@ -114,7 +116,7 @@ class DrawingAgentEnv(gym.Env):
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_position_mask[y, x] = 255
 
-        stroke_budget_channel = np.full(self.canvas_size, self.pen_lift_budget, dtype=np.uint8)
+        stroke_budget_channel = np.full(self.canvas_size, self.stroke_budget-1, dtype=np.uint8)
 
         observation = np.stack([
             self.canvas.copy(),
@@ -128,7 +130,8 @@ class DrawingAgentEnv(gym.Env):
     def _get_info(self):
         return {
             "similarity": self.last_pixel_similarity,
-            "episode_end": self.episode_end
+            "episode_end": self.episode_end,
+            "used_budgets": self.used_budgets,
         }
 
     def reset(self, seed=None, options=None):
@@ -138,7 +141,7 @@ class DrawingAgentEnv(gym.Env):
         self.hp = self.max_hp
         self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)
         self.episode_end = False
-        self.pen_lift_budget = self.stroke_budget - 1
+        self.used_budgets = 0
         self.pen_was_down = False
         self.is_pen_down = False
 
@@ -182,13 +185,14 @@ class DrawingAgentEnv(gym.Env):
             self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
             if self.pen_was_down and not is_pen_down:
-                self.pen_lift_budget -= 1
+                self.used_budgets += 1
+                self.used_budgets = min(255, self.used_budgets)
 
             self.is_pen_down = is_pen_down
 
-            if self.pen_lift_budget < 0:
-                self.is_pen_down = False
-                terminated = True
+            # if self.pen_lift_budget < 0:
+            #     self.is_pen_down = False
+            #     terminated = True
 
             self.pen_was_down = self.is_pen_down
 
@@ -200,15 +204,18 @@ class DrawingAgentEnv(gym.Env):
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
 
-            #current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-            #reward += (current_pixel_similarity - self.last_pixel_similarity)
-            #self.last_pixel_similarity = current_pixel_similarity
+            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+            #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity)
+            self.last_pixel_similarity = current_pixel_similarity
 
         if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True
 
         if terminated or truncated:
             self.episode_end = True
+            if self.used_budgets <= self.stroke_budget:
+                reward += self.budget_weight * 1.0
+
             if not is_stop_action:
                  reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
             self._update_block_level(self.last_pixel_similarity)

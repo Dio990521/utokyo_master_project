@@ -14,6 +14,7 @@ class TensorboardCallbackDraw(BaseCallback):
         self.shortest_steps_per_episode = []
         self.ratio_success = []
         self.similarity = []
+        self.used_budgets = []
         self.save_file_name = save_file_name + ".csv"
 
     def _on_step(self) -> bool:
@@ -22,6 +23,7 @@ class TensorboardCallbackDraw(BaseCallback):
             if key == "episode_end":
                 if info[key]:
                     self.similarity.append(info["similarity"])
+                    self.used_budgets.append(info["used_budgets"])
             else:
                 self.logger.record(str(key), info[key])
         return True
@@ -30,9 +32,12 @@ class TensorboardCallbackDraw(BaseCallback):
         with open(self.save_file_name, "w") as f:
             for value in self.similarity:
                 f.write(f"{value}\n")
-            print(f"[Callback] Saved clicked_targets to {self.save_file_name}")
+        with open("used_budgets" + self.save_file_name, "w") as f:
+            for value in self.used_budgets:
+                f.write(f"{value}\n")
+        print(f"[Callback] Saved")
 
-VERSION = "_test6"
+VERSION = "_debug_no_stop_2"
 LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION

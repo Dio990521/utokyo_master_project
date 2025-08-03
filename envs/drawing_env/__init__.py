@@ -10,6 +10,8 @@ register(
         "max_steps": 1000,
         "stroke_budget": 1,
         "render_mode": None,
+        "budget_weight": 1,
+        "similarity_weight": 1,
         "mode": "training",
         "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
