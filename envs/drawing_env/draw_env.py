@@ -62,22 +62,18 @@ class DrawingAgentEnv(gym.Env):
             8: 0.75,
         }
 
-        #low_action = np.array([-5.0, -5.0, 0.0], dtype=np.float32)
-        #high_action = np.array([5.0, 5.0, 1.0], dtype=np.float32)
-        #self.action_space = spaces.Box(low=low_action, high=high_action, shape=(3,), dtype=np.float32)
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
-
-        # self.observation_space = spaces.Box(
-        #     low=0,
-        #     high=255,
-        #     shape=(4, *self.canvas_size), # (4, H, W)
-        #     dtype=np.uint8
-        # )
-        self.observation_space = spaces.Dict({
-            "image": spaces.Box(low=0, high=255, shape=(3, *self.canvas_size), dtype=np.uint8),
-            # canvas, target, pen_mask
-            "vector": spaces.Box(low=0, high=self.stroke_budget, shape=(1,), dtype=np.float32)  # budget
-        })
+        self.observation_space = spaces.Box(
+            low=0,
+            high=1.0,
+            shape=(4, *self.canvas_size), # (4, H, W)
+            dtype=np.float32
+        )
+        # self.observation_space = spaces.Dict({
+        #     "image": spaces.Box(low=0, high=255, shape=(3, *self.canvas_size), dtype=np.uint8),
+        #     # canvas, target, pen_mask
+        #     "vector": spaces.Box(low=0, high=self.stroke_budget, shape=(1,), dtype=np.float32)  # budget
+        # })
 
         self.canvas = None
         self.target_sketch = None
@@ -100,7 +96,10 @@ class DrawingAgentEnv(gym.Env):
                 filepath = os.path.join(self.target_sketches_path, filename)
                 try:
                     sketch = Image.open(filepath).resize(self.canvas_size).convert('L')
-                    sketches.append(np.array(sketch))
+                    #255 (white) -> 1.0, 0 (black) -> 0.0
+                    sketch_array = np.array(sketch)
+                    normalized_sketch = (sketch_array / 255.0).astype(np.float32)
+                    sketches.append(normalized_sketch)
                 except Exception as e:
                     print(f"Error loading sketch {filepath}: {e}")
         print(f"Loaded {len(sketches)} target sketches.")
@@ -116,30 +115,31 @@ class DrawingAgentEnv(gym.Env):
                 print(f"Grid is updated to: {self.current_block_size}x{self.current_block_size}")
 
     def _get_obs(self):
-        pen_position_mask = np.full(self.canvas_size, 0, dtype=np.uint8)
+        pen_position_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)
         y, x = self.cursor[1], self.cursor[0]
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
-            pen_position_mask[y, x] = 255
+            pen_position_mask[y, x] = 1.0
 
-        # stroke_budget_channel = np.full(self.canvas_size, self.stroke_budget-1, dtype=np.uint8)
-        #
-        # observation = np.stack([
-        #     self.canvas.copy(),
-        #     self.target_sketch.copy(),
-        #     pen_position_mask,
-        #     stroke_budget_channel
-        # ], axis=-1)
-        # observation = observation.transpose(2, 0, 1)
-        # return observation
-        image_obs = np.stack([
+        normalized_budget = self.stroke_budget / 255.0
+        stroke_budget_channel = np.full(self.canvas_size, normalized_budget, dtype=np.float32)
+
+        observation = np.stack([
             self.canvas.copy(),
             self.target_sketch.copy(),
-            pen_position_mask
-        ], axis=-1).transpose(2, 0, 1)
-
-        vector_obs = np.array([self.stroke_budget-1], dtype=np.float32)
-
-        return {"image": image_obs, "vector": vector_obs}
+            pen_position_mask,
+            stroke_budget_channel
+        ], axis=-1)
+        observation = observation.transpose(2, 0, 1)
+        return observation
+        # image_obs = np.stack([
+        #     self.canvas.copy(),
+        #     self.target_sketch.copy(),
+        #     pen_position_mask
+        # ], axis=-1).transpose(2, 0, 1)
+        #
+        # vector_obs = np.array([self.stroke_budget-1], dtype=np.float32)
+        #
+        # return {"image": image_obs, "vector": vector_obs}
 
     def _get_info(self):
         return {
@@ -153,7 +153,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.current_step = 0
         self.hp = self.max_hp
-        self.canvas = np.full(self.canvas_size, 255, dtype=np.uint8)
+        self.canvas = np.full(self.canvas_size, 1.0, dtype=np.float32)
         self.episode_end = False
         self.used_budgets = 0
         self.pen_was_down = False
@@ -212,26 +212,25 @@ class DrawingAgentEnv(gym.Env):
 
             if self.is_pen_down:
                 x, y = self.cursor
-                if self.canvas[y, x] == 255:
-                    self.canvas[y, x] = 0
-                    reward += 0.1 if self.target_sketch[y, x] == 0 else -0.1
+                if int(self.canvas[y, x]) == 1:
+                    self.canvas[y, x] = 0.0
+                    reward += 0.1 if int(self.target_sketch[y, x]) == 0 else -0.1
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
-
-            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-            #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity) * 10.0
-            self.last_pixel_similarity = current_pixel_similarity
+        current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity) * 10.0
+        self.last_pixel_similarity = current_pixel_similarity
 
         if self.current_step >= self.max_steps or self.hp <= 0:
             truncated = True
 
         if terminated or truncated:
             self.episode_end = True
-            if self.used_budgets <= self.stroke_budget:
-                reward += 1.0 * self.last_pixel_similarity
+            #if self.used_budgets <= self.stroke_budget:
+            #    reward += 1.0 * self.last_pixel_similarity
 
             if not is_stop_action:
-                reward += self.similarity_weight * self.last_pixel_similarity
+                #reward += self.similarity_weight * self.last_pixel_similarity
                 reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
             self._update_block_level(self.last_pixel_similarity)
 

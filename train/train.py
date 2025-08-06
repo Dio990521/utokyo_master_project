@@ -37,7 +37,7 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
         print(f"[Callback] Saved")
 
-VERSION = "_test_scale_rb_3"
+VERSION = "_test_norm_obs_1"
 LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
@@ -55,7 +55,7 @@ policy_kwargs = dict(
 )
 
 model = PPO(
-    "CnnPolicy",
+    "MultiInputPolicy",
     env,
     learning_rate=0.0003,
     n_steps=2048,
