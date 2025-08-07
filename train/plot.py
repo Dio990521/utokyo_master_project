@@ -1,8 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-OPTION = "similarity" # "used_budget"
-df = pd.read_csv("similarity_test_norm_obs_1.csv", header=None)
+OPTION = "used_budget" # "used_budget, similarity"
+df = pd.read_csv("used_budgetssimilarity_no_block_1.csv", header=None)
 df.columns = ['similarity']
 df['step'] = df.index
 

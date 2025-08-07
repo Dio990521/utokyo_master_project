@@ -37,12 +37,12 @@ class TensorboardCallbackDraw(BaseCallback):
                 f.write(f"{value}\n")
         print(f"[Callback] Saved")
 
-VERSION = "_test_norm_obs_1"
+VERSION = "_no_block_10000000_steps"
 LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
 MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
 SAVE_FILE_NAME = "similarity" + VERSION
 MAX_EPISODE_STEPS = 1000
-TOTAL_TIME_STEPS = 5000000
+TOTAL_TIME_STEPS = 10000000
 
 os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -55,7 +55,7 @@ policy_kwargs = dict(
 )
 
 model = PPO(
-    "MultiInputPolicy",
+    "CnnPolicy",
     env,
     learning_rate=0.0003,
     n_steps=2048,

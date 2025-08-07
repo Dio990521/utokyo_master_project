@@ -226,13 +226,13 @@ class DrawingAgentEnv(gym.Env):
 
         if terminated or truncated:
             self.episode_end = True
-            #if self.used_budgets <= self.stroke_budget:
-            #    reward += 1.0 * self.last_pixel_similarity
+            if self.used_budgets <= self.stroke_budget:
+                reward += 1.0 * self.last_pixel_similarity
 
-            if not is_stop_action:
+            #if not is_stop_action:
                 #reward += self.similarity_weight * self.last_pixel_similarity
-                reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
-            self._update_block_level(self.last_pixel_similarity)
+                #reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
+            #self._update_block_level(self.last_pixel_similarity)
 
         observation = self._get_obs()
         info = self._get_info()
