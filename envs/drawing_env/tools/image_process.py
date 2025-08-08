@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 from PIL import Image, ImageDraw
 import cv2
@@ -38,12 +40,17 @@ def calculate_iou_similarity(target_sketch, canvas, black_pixel_value=0) -> floa
     iou = intersection / union
     return iou
 
-def find_starting_point(sketch):
-    foreground_pixels = np.argwhere(sketch == 0)
-    sorted_indices = np.lexsort((foreground_pixels[:, 1], foreground_pixels[:, 0]))
-    top_left_pixel = foreground_pixels[sorted_indices[0]]
 
-    return [top_left_pixel[1], top_left_pixel[0]]
+def find_starting_point(sketch: np.ndarray):
+    foreground_pixels = np.argwhere(np.isclose(sketch, 0.0))
+
+    if len(foreground_pixels) == 0:
+        return [0, 0]
+
+    random_index = random.randint(0, len(foreground_pixels) - 1)
+    random_pixel_yx = foreground_pixels[random_index]
+
+    return [random_pixel_yx[1], random_pixel_yx[0]]
 
 def calculate_pixel_similarity(canvas, target_sketch):
     total_target_pixels = np.sum(target_sketch == 0)

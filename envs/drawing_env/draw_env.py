@@ -173,10 +173,13 @@ class DrawingAgentEnv(gym.Env):
             if self.clock is None:
                 self.clock = pygame.time.Clock()
 
-            self.canvas_surface = pygame.surfarray.make_surface(
-                np.stack([self.canvas] * 3, axis=-1))
-            self.target_sketch_surface = pygame.surfarray.make_surface(np.stack([self.target_sketch] * 3, axis=-1))
+            canvas_to_render = (self.canvas * 255).astype(np.uint8)
+            target_to_render = (self.target_sketch * 255).astype(np.uint8)
 
+            self.canvas_surface = pygame.surfarray.make_surface(
+                np.stack([canvas_to_render] * 3, axis=-1))
+            self.target_sketch_surface = pygame.surfarray.make_surface(
+                np.stack([target_to_render] * 3, axis=-1))
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
@@ -218,6 +221,7 @@ class DrawingAgentEnv(gym.Env):
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
         current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        print(current_pixel_similarity - self.last_pixel_similarity)
         #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity) * 10.0
         self.last_pixel_similarity = current_pixel_similarity
 
@@ -254,11 +258,13 @@ class DrawingAgentEnv(gym.Env):
                     self.close()
                     raise Exception("Pygame window closed by user.")
 
-            pil_canvas_rgb = Image.fromarray(self.canvas, 'L').convert('RGB')
+            canvas_to_render = (self.canvas * 255).astype(np.uint8)
+            target_to_render = (self.target_sketch * 255).astype(np.uint8)
+            pil_canvas_rgb = Image.fromarray(canvas_to_render, 'L').convert('RGB')
             self.canvas_surface = pygame.image.fromstring(pil_canvas_rgb.tobytes(), pil_canvas_rgb.size,
                                                           pil_canvas_rgb.mode)
 
-            pil_target_rgb = Image.fromarray(self.target_sketch, 'L').convert('RGB')
+            pil_target_rgb = Image.fromarray(target_to_render, 'L').convert('RGB')
             self.target_sketch_surface = pygame.image.fromstring(pil_target_rgb.tobytes(), pil_target_rgb.size,
                                                                  pil_target_rgb.mode)
 
