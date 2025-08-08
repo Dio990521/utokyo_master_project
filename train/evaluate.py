@@ -5,7 +5,7 @@ import os
 
 
 VERSION = "_test_norm_obs_1/"
-MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION
+MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000

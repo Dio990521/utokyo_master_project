@@ -2,45 +2,46 @@ import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
 import os
+import pandas as pd
 
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
-
-class TensorboardCallbackDraw(BaseCallback):
-
-    def __init__(self, env, save_file_name="test"):
+class TrainingDataCallback(BaseCallback):
+    def __init__(self, save_path: str):
         super().__init__()
-        self.env = env
-        self.shortest_steps_per_episode = []
-        self.ratio_success = []
-        self.similarity = []
-        self.used_budgets = []
-        self.save_file_name = save_file_name + ".csv"
+        self.save_path = save_path
+        self.episode_data = []
 
     def _on_step(self) -> bool:
-        info = self.locals.get("infos", [{}])[0]
-        for key in info:
-            if key == "episode_end":
-                if info[key]:
-                    self.similarity.append(info["similarity"])
-                    self.used_budgets.append(info["used_budgets"])
-            else:
-                self.logger.record(str(key), info[key])
+        if self.locals["dones"][0]:
+            info = self.locals.get("infos", [{}])[0]
+            data_row = {
+                "similarity": info.get("similarity"),
+                "used_budgets": info.get("used_budgets")
+            }
+            self.episode_data.append(data_row)
         return True
 
     def _on_training_end(self) -> None:
-        with open(self.save_file_name, "w") as f:
-            for value in self.similarity:
-                f.write(f"{value}\n")
-        with open("used_budgets" + self.save_file_name, "w") as f:
-            for value in self.used_budgets:
-                f.write(f"{value}\n")
-        print(f"[Callback] Saved")
+        print("\nTraining ended. Saving collected training data...")
+        if not self.episode_data:
+            print("[Callback] No episode data was collected. Nothing to save.")
+            return
+
+        df = pd.DataFrame(self.episode_data)
+
+        try:
+            df.to_csv(self.save_path, index_label="episode")
+            print(f"[Callback] Successfully saved training data to {self.save_path}")
+        except Exception as e:
+            print(f"[Callback] Error saving data: {e}")
 
 VERSION = "_test"
-LOG_DIR = "../envs/drawing_env/training/saved_logs/" + VERSION + "/"
-MODELS_DIR = "../envs/drawing_env/training/saved_models/" + VERSION + "/"
-SAVE_FILE_NAME = "similarity" + VERSION
+BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
+LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
+MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
+EPISODE_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "episode_data.csv")
+
 MAX_EPISODE_STEPS = 1000
 TOTAL_TIME_STEPS = 5000000
 
@@ -69,19 +70,12 @@ model = PPO(
     policy_kwargs=policy_kwargs,
 )
 
-# checkpoint_callback = CheckpointCallback(
-#     save_freq=MAX_EPISODE_STEPS * 100,
-#     save_path=MODELS_DIR,
-#     name_prefix="drawing_agent_checkpoint",
-#     save_replay_buffer=True,
-#     save_vecnormalize=True,
-# )
-
+training_callback = TrainingDataCallback(save_path=EPISODE_DATA_PATH)
 
 print("Start training...")
 model.learn(
     total_timesteps=TOTAL_TIME_STEPS,
-    callback=[TensorboardCallbackDraw(env, save_file_name=SAVE_FILE_NAME)],
+    callback=[training_callback],
 )
 print("Training finished.")
 
