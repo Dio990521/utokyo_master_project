@@ -56,52 +56,82 @@ class TrainingDataCallback(BaseCallback):
             print(f"[Callback] Error saving delta similarity data: {e}")
 
 
-VERSION = "_1"
-BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
-LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
-MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
-EPISODE_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "episode_data.csv")
-DELTA_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "delta_similarity_data.csv")
+def run_training(config: dict):
+    VERSION = config.get("VERSION", "_default_run")
+    TOTAL_TIME_STEPS = config.get("TOTAL_TIME_STEPS", 5000000)
+    LEARNING_RATE = config.get("LEARNING_RATE", 0.0003)
 
-MAX_EPISODE_STEPS = 1000
-TOTAL_TIME_STEPS = 5000000
+    env_config = config.get("ENV_CONFIG", {})
 
-os.makedirs(LOG_DIR, exist_ok=True)
-os.makedirs(MODELS_DIR, exist_ok=True)
+    print(f"\n==================================================")
+    print(f"  Starting Training Run: {VERSION}  ")
+    print(f"  Total Timesteps: {TOTAL_TIME_STEPS}  ")
+    print(f"  Learning Rate: {LEARNING_RATE}  ")
+    print(f"  Env Config: {env_config}  ")
+    print(f"==================================================")
 
-env = gym.make("DrawingEnv-v0")
+    BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
+    LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
+    MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
+    EPISODE_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "episode_data.csv")
+    DELTA_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "delta_similarity_data.csv")
 
-policy_kwargs = dict(
-    features_extractor_class=CustomCnnExtractor,
-    features_extractor_kwargs=dict(features_dim=128)
-)
+    os.makedirs(LOG_DIR, exist_ok=True)
+    os.makedirs(MODELS_DIR, exist_ok=True)
 
-model = PPO(
-    "CnnPolicy",
-    env,
-    learning_rate=0.0003,
-    n_steps=2048,
-    batch_size=64,
-    gamma=0.99,
-    gae_lambda=0.95,
-    clip_range=0.2,
-    ent_coef=0.01,
-    verbose=1,
-    tensorboard_log=LOG_DIR,
-    policy_kwargs=policy_kwargs,
-)
+    env = gym.make("DrawingEnv-v0", config=env_config)
 
-training_callback = TrainingDataCallback(
-    save_path=EPISODE_DATA_PATH,
-    delta_save_path = DELTA_DATA_PATH
-)
+    policy_kwargs = dict(
+        features_extractor_class=CustomCnnExtractor,
+        features_extractor_kwargs=dict(features_dim=128)
+    )
 
-print("Start training...")
-model.learn(
-    total_timesteps=TOTAL_TIME_STEPS,
-    callback=[training_callback],
-)
-print("Training finished.")
+    model = PPO(
+        "CnnPolicy",
+        env,
+        learning_rate=LEARNING_RATE,
+        n_steps=2048,
+        batch_size=64,
+        gamma=0.99,
+        gae_lambda=0.95,
+        clip_range=0.2,
+        ent_coef=0.01,
+        verbose=1,
+        tensorboard_log=LOG_DIR,
+        policy_kwargs=policy_kwargs,
+    )
 
-model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
-print("Model saved to models/drawing_agent_final.zip")
+    training_callback = TrainingDataCallback(
+        save_path=EPISODE_DATA_PATH,
+        delta_save_path=DELTA_DATA_PATH
+    )
+
+    model.learn(
+        total_timesteps=TOTAL_TIME_STEPS,
+        callback=[training_callback],
+    )
+
+    model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
+    print(f"Model for {VERSION} saved to {MODELS_DIR}")
+    env.close()
+
+
+if __name__ == '__main__':
+    default_config = {
+        "VERSION": "_1_1",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "ENV_CONFIG": {
+            "canvas_size": [32, 32],
+            "render": False,
+            "rgb": True,
+            "max_steps": 1000,
+            "stroke_budget": 1,
+            "render_mode": None,
+            "budget_weight": 1,
+            "similarity_weight": 1,
+            "mode": "training",
+            "target_sketches_path": "../envs/drawing_env/training/sketches/",
+        }
+    }
+    run_training(default_config)
