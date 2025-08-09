@@ -124,7 +124,6 @@ if __name__ == '__main__':
         "ENV_CONFIG": {
             "canvas_size": [32, 32],
             "render": False,
-            "rgb": True,
             "max_steps": 1000,
             "stroke_budget": 1,
             "render_mode": None,
