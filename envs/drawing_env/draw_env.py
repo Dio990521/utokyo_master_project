@@ -47,6 +47,8 @@ class DrawingAgentEnv(gym.Env):
         self.used_budgets = 0
         self.similarity_weight = config.get("similarity_weight", 1)
         self.budget_weight = config.get("budget_weight", 1)
+        self.block_similarity = 0
+        self.block_reward = 0
 
         self.hp = self.max_hp
         self.target_sketches_path = config.get("target_sketches_path", None)
@@ -54,12 +56,13 @@ class DrawingAgentEnv(gym.Env):
         if not self.target_sketches:
             raise ValueError(f"No target sketches found in {self.target_sketches_path}")
 
-        self.block_reward_levels = [16, 8, 4]
+        self.block_reward_levels = [16, 8, 4, 2]
         self.current_block_level_index = 0
         self.current_block_size = self.block_reward_levels[self.current_block_level_index]
         self.level_up_thresholds = {
-            16: 0.5,
-            8: 0.75,
+            16: 0.9,
+            8: 0.9,
+            4: 0.8,
         }
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
@@ -74,7 +77,7 @@ class DrawingAgentEnv(gym.Env):
         #     # canvas, target, pen_mask
         #     "vector": spaces.Box(low=0, high=self.stroke_budget, shape=(1,), dtype=np.float32)  # budget
         # })
-
+        self.delta_similarity_history = []
         self.canvas = None
         self.target_sketch = None
         self.cursor = [0, 0]
@@ -105,14 +108,15 @@ class DrawingAgentEnv(gym.Env):
         print(f"Loaded {len(sketches)} target sketches.")
         return sketches
 
-    def _update_block_level(self, final_similarity):
+    def _update_block_level(self, block_score):
         if self.current_block_level_index < len(self.block_reward_levels) - 1:
             threshold = self.level_up_thresholds.get(self.current_block_size)
 
-            if threshold is not None and final_similarity > threshold:
+            if threshold is not None and block_score > threshold:
                 self.current_block_level_index += 1
                 self.current_block_size = self.block_reward_levels[self.current_block_level_index]
-                print(f"Grid is updated to: {self.current_block_size}x{self.current_block_size}")
+                print(
+                    f"--- Level UP! Grid difficulty increased to: {self.current_block_size}x{self.current_block_size} ---")
 
     def _get_obs(self):
         pen_position_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)
@@ -142,14 +146,21 @@ class DrawingAgentEnv(gym.Env):
         # return {"image": image_obs, "vector": vector_obs}
 
     def _get_info(self):
-        return {
+        info_dict = {
             "similarity": self.last_pixel_similarity,
             "episode_end": self.episode_end,
             "used_budgets": self.used_budgets,
+            "block_similarity": self.block_similarity,
+            "block_size": self.current_block_size,
+            "block_reward": self.block_reward,
         }
+        if self.episode_end:
+            info_dict["delta_similarity_history"] = self.delta_similarity_history
+        return info_dict
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+        self.delta_similarity_history = []
 
         self.current_step = 0
         self.hp = self.max_hp
@@ -158,6 +169,8 @@ class DrawingAgentEnv(gym.Env):
         self.used_budgets = 0
         self.pen_was_down = False
         self.is_pen_down = False
+        self.block_similarity = 0
+        self.block_reward = 0
 
         self.target_sketch = random.choice(self.target_sketches)
         self.cursor = find_starting_point(self.target_sketch)
@@ -183,6 +196,18 @@ class DrawingAgentEnv(gym.Env):
         observation = self._get_obs()
         info = self._get_info()
         return observation, info
+
+    def _calculate_reward_scale(self, block_size: int) -> float:
+        max_size = self.block_reward_levels[0]  # 例如 16
+        base_scale = 0.5
+        exponent = 2.0
+
+        if block_size <= 0:
+            block_size = 1
+
+        scale = base_scale * (max_size / block_size) ** exponent
+
+        return scale
 
     def step(self, action):
         self.current_step += 1
@@ -221,8 +246,9 @@ class DrawingAgentEnv(gym.Env):
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
         current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-        print(current_pixel_similarity - self.last_pixel_similarity)
         #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity) * 10.0
+        delta = current_pixel_similarity - self.last_pixel_similarity
+        self.delta_similarity_history.append(delta)
         self.last_pixel_similarity = current_pixel_similarity
 
         if self.current_step >= self.max_steps or self.hp <= 0:
@@ -233,10 +259,13 @@ class DrawingAgentEnv(gym.Env):
             if self.used_budgets <= self.stroke_budget:
                 reward += 1.0 * self.last_pixel_similarity
 
-            #if not is_stop_action:
+            if not is_stop_action:
                 #reward += self.similarity_weight * self.last_pixel_similarity
-                #reward += calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
-            #self._update_block_level(self.last_pixel_similarity)
+                self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
+                reward_scale = self._calculate_reward_scale(self.current_block_size)
+                self.block_reward = self.block_similarity * reward_scale
+                reward += self.block_reward
+            self._update_block_level(self.last_pixel_similarity)
 
         observation = self._get_obs()
         info = self._get_info()
