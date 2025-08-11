@@ -2,19 +2,40 @@ from train import run_training
 
 experiments = [
     {
-        "VERSION": "exp_lr_high_0.001",
-        "TOTAL_TIME_STEPS": 1000000,
-        "LEARNING_RATE": 0.001,
-    },
-    {
-        "VERSION": "exp_lr_medium_0.0003",
-        "TOTAL_TIME_STEPS": 1000000,
+        "VERSION": "_1",
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
+        "ENT_COEF": 0.02,
+        "ENV_CONFIG": {
+            "canvas_size": [32, 32],
+            "render": False,
+            "max_steps": 1000,
+            "stroke_budget": 1,
+            "render_mode": None,
+            "budget_weight": 1,
+            "similarity_weight": 1,
+            "mode": "training",
+            "use_step_similarity_reward": True,
+            "target_sketches_path": "../envs/drawing_env/training/sketches/",
+        }
     },
     {
-        "VERSION": "exp_lr_low_0.00005",
-        "TOTAL_TIME_STEPS": 1000000,
-        "LEARNING_RATE": 0.00005,
+        "VERSION": "_2",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "ENT_COEF": 0.02,
+        "ENV_CONFIG": {
+            "canvas_size": [32, 32],
+            "render": False,
+            "max_steps": 1000,
+            "stroke_budget": 1,
+            "render_mode": None,
+            "budget_weight": 1,
+            "similarity_weight": 1,
+            "mode": "training",
+            "use_step_similarity_reward": False,
+            "target_sketches_path": "../envs/drawing_env/training/sketches/",
+        }
     },
 ]
 

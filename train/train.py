@@ -22,6 +22,7 @@ class TrainingDataCallback(BaseCallback):
                 "similarity": info.get("similarity"),
                 "used_budgets": info.get("used_budgets"),
                 "block_similarity": info.get("block_similarity"),
+                "block_size": info.get("block_size"),
                 "block_reward": info.get("block_reward"),
             }
             self.episode_data.append(data_row)
@@ -60,6 +61,7 @@ def run_training(config: dict):
     VERSION = config.get("VERSION", "_default_run")
     TOTAL_TIME_STEPS = config.get("TOTAL_TIME_STEPS", 5000000)
     LEARNING_RATE = config.get("LEARNING_RATE", 0.0003)
+    ENT_COEF = config.get("ENT_COEF", 0.01)
 
     env_config = config.get("ENV_CONFIG", {})
 
@@ -95,7 +97,7 @@ def run_training(config: dict):
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.01,
+        ent_coef=ENT_COEF,
         verbose=1,
         tensorboard_log=LOG_DIR,
         policy_kwargs=policy_kwargs,
@@ -118,9 +120,10 @@ def run_training(config: dict):
 
 if __name__ == '__main__':
     default_config = {
-        "VERSION": "_1_1",
+        "VERSION": "_1_3",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
+        "ENT_COEF": 0.01,
         "ENV_CONFIG": {
             "canvas_size": [32, 32],
             "render": False,
@@ -130,6 +133,7 @@ if __name__ == '__main__':
             "budget_weight": 1,
             "similarity_weight": 1,
             "mode": "training",
+            "use_step_similarity_reward": False,
             "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
     }

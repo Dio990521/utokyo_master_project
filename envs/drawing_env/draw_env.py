@@ -49,6 +49,7 @@ class DrawingAgentEnv(gym.Env):
         self.budget_weight = config.get("budget_weight", 1)
         self.block_similarity = 0
         self.block_reward = 0
+        self.use_step_similarity_reward = config.get("use_step_similarity_reward", False)
 
         self.hp = self.max_hp
         self.target_sketches_path = config.get("target_sketches_path", None)
@@ -61,7 +62,7 @@ class DrawingAgentEnv(gym.Env):
         self.current_block_size = self.block_reward_levels[self.current_block_level_index]
         self.level_up_thresholds = {
             16: 0.9,
-            8: 0.9,
+            8: 0.8,
             4: 0.8,
         }
 
@@ -242,12 +243,14 @@ class DrawingAgentEnv(gym.Env):
                 x, y = self.cursor
                 if int(self.canvas[y, x]) == 1:
                     self.canvas[y, x] = 0.0
-                    reward += 0.1 if int(self.target_sketch[y, x]) == 0 else -0.1
+                    if not self.use_step_similarity_reward:
+                        reward += 0.1 if int(self.target_sketch[y, x]) == 0 else -0.1
                     if self.target_sketch[y, x] != 0: self.hp -=1
 
         current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-        #reward += self.similarity_weight * (current_pixel_similarity - self.last_pixel_similarity) * 10.0
         delta = current_pixel_similarity - self.last_pixel_similarity
+        if self.use_step_similarity_reward:
+            reward += self.similarity_weight * delta * 100.0
         self.delta_similarity_history.append(delta)
         self.last_pixel_similarity = current_pixel_similarity
 
@@ -260,12 +263,11 @@ class DrawingAgentEnv(gym.Env):
                 reward += 1.0 * self.last_pixel_similarity
 
             if not is_stop_action:
-                #reward += self.similarity_weight * self.last_pixel_similarity
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.current_block_size)
-                reward_scale = self._calculate_reward_scale(self.current_block_size)
-                self.block_reward = self.block_similarity * reward_scale
+                #reward_scale = self._calculate_reward_scale(self.current_block_size)
+                self.block_reward = self.block_similarity * (self.current_block_level_index + 1)
                 reward += self.block_reward
-            self._update_block_level(self.last_pixel_similarity)
+            self._update_block_level(self.block_similarity)
 
         observation = self._get_obs()
         info = self._get_info()

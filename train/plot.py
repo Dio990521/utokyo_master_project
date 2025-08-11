@@ -6,10 +6,14 @@ import os
 
 VERSION = "_1"
 
-PLOT_MODE = "episode"
+PLOT_MODE = "episode" #delta_histogram, episode
+USE_MOVING_AVERAGE = False
+PLOT_STYLE = 'line'# Options: 'line' or 'scatter'
+COLUMN_TO_PLOT = "block_reward"  # similarity, used_budgets, block_similarity, block_size, block_reward
+
+plt.figure(figsize=(12, 6))
 
 if PLOT_MODE == 'episode':
-    COLUMN_TO_PLOT = "similarity" # similarity, used_budgets, block_similarity
     DATA_PATH = f"../training_outputs/{VERSION}/episode_data.csv"
 
     if not os.path.exists(DATA_PATH):
@@ -22,16 +26,28 @@ if PLOT_MODE == 'episode':
         print(f"Error: Column '{COLUMN_TO_PLOT}' not found.")
         exit()
 
-    window_size = 100
-    df['moving_avg'] = df[COLUMN_TO_PLOT].rolling(window=window_size).mean()
+    if USE_MOVING_AVERAGE:
+        window_size = 100
+        data_to_plot = df[COLUMN_TO_PLOT].rolling(window=window_size).mean()
+        #plot_label = f'{window_size}-Episode Moving Average'
+        title_suffix = "(Moving Average)"
+        plt.plot(data_to_plot.index, data_to_plot)
+    else:
+        data_to_plot = df[COLUMN_TO_PLOT]
+        if PLOT_STYLE == 'scatter':
+            #plot_label = 'Raw Data (Scatter)'
+            title_suffix = "(Raw Data Scatter)"
+            plt.scatter(data_to_plot.index, data_to_plot, alpha=0.4, s=15)
+        else:
+            #plot_label = 'Raw Data (Line)'
+            title_suffix = "(Raw Data Line)"
+            plt.plot(data_to_plot.index, data_to_plot)
 
-    plt.figure(figsize=(12, 6))
-    plt.plot(df.index, df['moving_avg'], label=f'{window_size}-Episode Moving Average')
     plt.xlabel("Episode")
-    plt.ylabel(COLUMN_TO_PLOT.title())
-    plt.title(f"{COLUMN_TO_PLOT.title()} during Training")
-    plt.legend()
+    plt.ylabel(COLUMN_TO_PLOT.replace('_', ' ').title())
+    plt.title(f"{COLUMN_TO_PLOT.replace('_', ' ').title()} {title_suffix} during Training")
     plt.grid(True)
+    plt.legend()
 
 elif PLOT_MODE == 'delta_histogram':
     DATA_PATH = f"../training_outputs/{VERSION}/delta_similarity_data.csv"
@@ -49,7 +65,7 @@ elif PLOT_MODE == 'delta_histogram':
 
     plt.xlabel("Delta Similarity (similarity_t - similarity_t-1)")
     plt.ylabel("Frequency (Count)")
-    plt.title("Distribution of Step-level Reward Signals")
+    plt.title("Distribution of Delta Similarity")
     plt.yscale('log')
     plt.grid(True)
     plt.legend()
