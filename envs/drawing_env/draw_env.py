@@ -50,6 +50,10 @@ class DrawingAgentEnv(gym.Env):
         self.block_similarity = 0
         self.block_reward = 0
         self.use_step_similarity_reward = config.get("use_step_similarity_reward", False)
+        self.use_stroke_reward = config.get("use_stroke_reward", False)
+        self.block_reward_scale = config.get("block_reward_scale", 1.0)
+        self.stroke_reward_scale = config.get("stroke_reward_scale", 1.0)
+        self.stroke_penalty = config.get("stroke_penalty", -20.0)
         self.step_rewards = 0
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.target_sketches = self._load_target_sketches()
@@ -253,21 +257,15 @@ class DrawingAgentEnv(gym.Env):
 
         if terminated or truncated:
             self.episode_end = True
-            # if self.used_budgets <= self.stroke_budget:
-            #     reward += 100.0 * self.last_pixel_similarity
-            # else:
-            #     reward -= 20.0
-
-            # self.block_similarity = calculate_qualified_block_similarity(
-            #     self.canvas,
-            #     self.target_sketch,
-            #     self.block_size,
-            # )
+            if self.use_stroke_reward:
+                if self.used_budgets <= self.stroke_budget:
+                    reward += self.stroke_reward_scale * self.last_pixel_similarity
+                else:
+                    reward += self.stroke_penalty
 
             self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
-            #reward_scale = self._calculate_reward_scale(self.current_block_size)
-            self.block_reward = self.block_similarity * 10.0# * (self.current_block_level_index + 1)
-            #reward += self.block_reward
+            self.block_reward = self.block_similarity * self.block_reward_scale
+            reward += self.block_reward
             #self._update_block_level(self.block_similarity)
 
         observation = self._get_obs()
