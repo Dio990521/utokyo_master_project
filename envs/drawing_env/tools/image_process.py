@@ -52,6 +52,22 @@ def find_starting_point(sketch: np.ndarray):
 
     return [random_pixel_yx[1], random_pixel_yx[0]]
 
+
+def calculate_qualified_block_similarity(canvas, target_sketch, block_size):
+    canvas_h, canvas_w = canvas.shape
+    score = 0
+    total_blocks = 0
+
+    for y in range(0, canvas_h, block_size):
+        for x in range(0, canvas_w, block_size):
+            total_blocks += 1
+            canvas_block = canvas[y:y + block_size, x:x + block_size]
+            target_block = target_sketch[y:y + block_size, x:x + block_size]
+            block_iou = calculate_iou_similarity(target_block, canvas_block)
+            score += block_iou
+
+    return score / total_blocks if total_blocks > 0 else 0.0
+
 def calculate_pixel_similarity(canvas, target_sketch):
     total_target_pixels = np.sum(target_sketch == 0)
 

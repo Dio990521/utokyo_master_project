@@ -4,12 +4,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "_1"
+VERSION = "_2"
 
 PLOT_MODE = "episode" #delta_histogram, episode
-USE_MOVING_AVERAGE = False
+USE_MOVING_AVERAGE = True
 PLOT_STYLE = 'line'# Options: 'line' or 'scatter'
-COLUMN_TO_PLOT = "block_reward"  # similarity, used_budgets, block_similarity, block_size, block_reward
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 
 plt.figure(figsize=(12, 6))
 

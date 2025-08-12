@@ -22,8 +22,8 @@ class TrainingDataCallback(BaseCallback):
                 "similarity": info.get("similarity"),
                 "used_budgets": info.get("used_budgets"),
                 "block_similarity": info.get("block_similarity"),
-                "block_size": info.get("block_size"),
                 "block_reward": info.get("block_reward"),
+                "step_rewards": info.get("step_rewards"),
             }
             self.episode_data.append(data_row)
             if "delta_similarity_history" in info:

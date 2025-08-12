@@ -2,10 +2,10 @@ from train import run_training
 
 experiments = [
     {
-        "VERSION": "_1",
+        "VERSION": "_3",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
-        "ENT_COEF": 0.02,
+        "ENT_COEF": 0.01,
         "ENV_CONFIG": {
             "canvas_size": [32, 32],
             "render": False,
@@ -16,14 +16,15 @@ experiments = [
             "similarity_weight": 1,
             "mode": "training",
             "use_step_similarity_reward": True,
+            "block_size": 16,
             "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
     },
     {
-        "VERSION": "_2",
+        "VERSION": "_4",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
-        "ENT_COEF": 0.02,
+        "ENT_COEF": 0.01,
         "ENV_CONFIG": {
             "canvas_size": [32, 32],
             "render": False,
@@ -34,6 +35,7 @@ experiments = [
             "similarity_weight": 1,
             "mode": "training",
             "use_step_similarity_reward": False,
+            "block_size": 16,
             "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
     },
