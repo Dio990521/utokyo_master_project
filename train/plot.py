@@ -1,13 +1,14 @@
 # train/plot.py
-
+import numpy
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "_2"
+VERSION = "_20251001_5"
 
 PLOT_MODE = "episode" #delta_histogram, episode
 USE_MOVING_AVERAGE = True
+WINDOW_SIZE = 100
 PLOT_STYLE = 'line'# Options: 'line' or 'scatter'
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 
@@ -27,8 +28,8 @@ if PLOT_MODE == 'episode':
         exit()
 
     if USE_MOVING_AVERAGE:
-        window_size = 100
-        data_to_plot = df[COLUMN_TO_PLOT].rolling(window=window_size).mean()
+        data_to_plot = df[COLUMN_TO_PLOT].rolling(window=WINDOW_SIZE).mean()
+        print(round(numpy.nanmax(data_to_plot.values), 4))
         #plot_label = f'{window_size}-Episode Moving Average'
         title_suffix = "(Moving Average)"
         plt.plot(data_to_plot.index, data_to_plot)

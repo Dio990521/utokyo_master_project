@@ -116,25 +116,3 @@ def run_training(config: dict):
     model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
     print(f"Model for {VERSION} saved to {MODELS_DIR}")
     env.close()
-
-
-if __name__ == '__main__':
-    default_config = {
-        "VERSION": "_1_3",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": {
-            "canvas_size": [32, 32],
-            "render": False,
-            "max_steps": 1000,
-            "stroke_budget": 1,
-            "render_mode": None,
-            "budget_weight": 1,
-            "similarity_weight": 1,
-            "mode": "training",
-            "use_step_similarity_reward": False,
-            "target_sketches_path": "../envs/drawing_env/training/sketches/",
-        }
-    }
-    run_training(default_config)

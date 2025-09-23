@@ -4,9 +4,9 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "_1/"
+VERSION = "_4"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/test_sketches/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 
@@ -42,16 +42,16 @@ obs, _ = eval_env.reset()
 print(obs.shape)
 eval_env.render()
 episode_reward = 0
-
+info = None
 for step in range(MAX_EPISODE_STEPS):
     action, _states = model.predict(obs, deterministic=False)
-    print(action)
+    print("action", action)
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
     episode_reward += reward
-
     if terminated or truncated:
         break
+print(info)
 
 eval_env.close()

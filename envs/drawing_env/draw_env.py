@@ -55,6 +55,7 @@ class DrawingAgentEnv(gym.Env):
         self.stroke_reward_scale = config.get("stroke_reward_scale", 1.0)
         self.stroke_penalty = config.get("stroke_penalty", -20.0)
         self.step_rewards = 0
+        self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.target_sketches = self._load_target_sketches()
         if not self.target_sketches:
@@ -258,10 +259,11 @@ class DrawingAgentEnv(gym.Env):
         if terminated or truncated:
             self.episode_end = True
             if self.use_stroke_reward:
-                if self.used_budgets <= self.stroke_budget:
-                    reward += self.stroke_reward_scale * self.last_pixel_similarity
-                else:
-                    reward += self.stroke_penalty
+                # if self.used_budgets <= self.stroke_budget:
+                #     reward += self.stroke_reward_scale * self.last_pixel_similarity
+                # else:
+                #     reward += self.stroke_penalty
+                reward += self.r_stroke_hyper / self.used_budgets
 
             self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
             self.block_reward = self.block_similarity * self.block_reward_scale
