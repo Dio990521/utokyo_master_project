@@ -2,8 +2,8 @@ from train import run_training
 
 experiments = [
     {
-        "VERSION": "_20251001_1",
-        "TOTAL_TIME_STEPS": 5000000,
+        "VERSION": "_20251001_test_simi",
+        "TOTAL_TIME_STEPS": 20000000,
         "LEARNING_RATE": 0.0003,
         "ENT_COEF": 0.01,
         "ENV_CONFIG": {
@@ -11,17 +11,19 @@ experiments = [
             "render": False,
             "max_steps": 1000,
             "stroke_budget": 100,
-            "r_stroke_hyper": 100,
+            "r_stroke_hyper": 0,
             "render_mode": None,
             "budget_weight": 1,
             "similarity_weight": 1,
             "mode": "training",
-            "use_step_similarity_reward": False,
-            "use_stroke_reward": True,
+            "use_step_similarity_reward": True,
+            "use_stroke_reward": False,
             "block_reward_scale": 0.0,
-            "stroke_reward_scale": 1.0,
+            "stroke_reward_scale": 0.0,
             "stroke_penalty": 0.0,
             "block_size": 8,
+            "local_reward_block_size": 4,
+            "use_local_reward_block": False,
             "target_sketches_path": "../envs/drawing_env/training/sketches/",
         }
     },

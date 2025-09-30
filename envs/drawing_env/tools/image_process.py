@@ -135,3 +135,24 @@ def draw_line_on_canvas(canvas: np.ndarray, x1: int, y1: int, x2: int, y2: int, 
     draw.line((x1, y1, x2, y2), fill=color, width=brush_size)
 
     canvas[:] = np.array(img)
+
+
+def calculate_density_cap_reward(canvas_after, target_sketch, cursor_pos, block_size):
+    x, y = cursor_pos
+    h, w = target_sketch.shape
+
+    half_size = block_size // 2
+    x_start, x_end = max(0, x - half_size), min(w, x + half_size + 1)
+    y_start, y_end = max(0, y - half_size), min(h, y + half_size + 1)
+
+    target_block = target_sketch[y_start:y_end, x_start:x_end]
+    canvas_block_after = canvas_after[y_start:y_end, x_start:x_end]
+
+    num_black_target = np.sum(np.isclose(target_block, 0.0))
+
+    num_black_canvas = np.sum(np.isclose(canvas_block_after, 0.0))
+
+    if num_black_target >= num_black_canvas:
+        return 0.1
+    else:
+        return -0.1

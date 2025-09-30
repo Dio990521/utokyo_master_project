@@ -8,7 +8,7 @@ import pygame
 
 from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
     calculate_block_reward, visualize_obs, calculate_iou_similarity, \
-    calculate_qualified_block_similarity
+    calculate_qualified_block_similarity, calculate_density_cap_reward
 
 
 def _decode_action(action):
@@ -62,6 +62,8 @@ class DrawingAgentEnv(gym.Env):
             raise ValueError(f"No target sketches found in {self.target_sketches_path}")
 
         self.block_size = config.get("block_size", 16)
+        self.local_reward_block_size = config.get("local_reward_block_size", 1)
+        self.use_local_reward_block = config.get("use_local_reward_block", False)
         # self.block_reward_levels = [16, 8, 4, 2]
         # self.current_block_level_index = 0
         # self.current_block_size = self.block_reward_levels[self.current_block_level_index]
@@ -232,18 +234,34 @@ class DrawingAgentEnv(gym.Env):
             #     terminated = True
 
             self.pen_was_down = self.is_pen_down
+            if not self.use_local_reward_block:
+                if self.is_pen_down:
+                    x, y = self.cursor
+                    if int(self.canvas[y, x]) == 1:
+                        self.canvas[y, x] = 0.0
+                        if not self.use_step_similarity_reward:
+                            if int(self.target_sketch[y, x]) == 0:
+                                reward += 0.1
+                                self.step_rewards += 0.1
+                            else:
+                                reward -= 0.1
+                                self.step_rewards -= 0.1
+            else:
+                tactical_reward = 0.0
+                if self.is_pen_down:
+                    x, y = self.cursor
 
-            if self.is_pen_down:
-                x, y = self.cursor
-                if int(self.canvas[y, x]) == 1:
-                    self.canvas[y, x] = 0.0
-                    if not self.use_step_similarity_reward:
-                        if int(self.target_sketch[y, x]) == 0:
-                            reward += 0.1
-                            self.step_rewards += 0.1
-                        else:
-                            reward -= 0.1
-                            self.step_rewards -= 0.1
+                    if np.isclose(self.canvas[y, x], 1.0):
+                        self.canvas[y, x] = 0.0
+
+                        tactical_reward = calculate_density_cap_reward(
+                            self.canvas,
+                            self.target_sketch,
+                            self.cursor,
+                            self.local_reward_block_size
+                        )
+                        self.step_rewards += tactical_reward
+                reward += tactical_reward
 
         current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
         delta = current_pixel_similarity - self.last_pixel_similarity
@@ -263,7 +281,8 @@ class DrawingAgentEnv(gym.Env):
                 #     reward += self.stroke_reward_scale * self.last_pixel_similarity
                 # else:
                 #     reward += self.stroke_penalty
-                reward += self.r_stroke_hyper / self.used_budgets
+                if self.used_budgets > 0:
+                    reward += self.r_stroke_hyper / self.used_budgets
 
             self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
             self.block_reward = self.block_similarity * self.block_reward_scale
