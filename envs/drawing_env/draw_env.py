@@ -282,7 +282,7 @@ class DrawingAgentEnv(gym.Env):
                 # else:
                 #     reward += self.stroke_penalty
                 if self.used_budgets > 0:
-                    reward += self.r_stroke_hyper / self.used_budgets
+                    reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
 
             self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
             self.block_reward = self.block_similarity * self.block_reward_scale
