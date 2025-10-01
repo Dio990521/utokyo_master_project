@@ -65,7 +65,7 @@ class ValidationCallback(BaseCallback):
                 obs, _ = eval_env.reset()
                 done = False
                 while not done:
-                    action, _ = self.model.predict(obs, deterministic=True)
+                    action, _ = self.model.predict(obs, deterministic=False)
                     obs, _, terminated, truncated, info = eval_env.step(action)
                     done = terminated or truncated
 

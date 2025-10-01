@@ -56,6 +56,7 @@ class DrawingAgentEnv(gym.Env):
         self.stroke_penalty = config.get("stroke_penalty", -20.0)
         self.step_rewards = 0
         self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
+        self.specific_sketch_file = config.get("specific_sketch_file", None)
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.target_sketches = self._load_target_sketches()
         if not self.target_sketches:
@@ -65,7 +66,6 @@ class DrawingAgentEnv(gym.Env):
         self.local_reward_block_size = config.get("local_reward_block_size", 1)
         self.use_local_reward_block = config.get("use_local_reward_block", False)
 
-        self.specific_sketch_file = config.get("specific_sketch_file", None)
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
         self.observation_space = spaces.Box(
