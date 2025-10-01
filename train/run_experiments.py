@@ -4,7 +4,54 @@ VALIDATION_SKETCH_DIR = "../envs/drawing_env/training/validation_sketches/"
 
 experiments = [
     {
-        "VERSION": "20251008_test",
+        "VERSION": "20251008_test_3",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+
+        "ENV_CONFIG": {
+            "target_sketches_path": TRAIN_SKETCH_DIR,
+            "canvas_size": [32, 32],
+            "max_steps": 1000,
+            "stroke_budget": 50,
+            "use_local_reward_block": False,
+            "local_reward_block_size": 3,
+            "r_stroke_hyper": 100,
+            "render_mode": None,
+            "budget_weight": 1,
+            "similarity_weight": 1,
+            "mode": "training",
+            "use_step_similarity_reward": True,
+            "use_stroke_reward": True,
+            "block_reward_scale": 0.0,
+            "stroke_reward_scale": 0.0,
+            "stroke_penalty": 0.0,
+            "block_size": 8,
+        },
+
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 2048 * 50,
+            "ENV_CONFIG": {
+                "target_sketches_path": VALIDATION_SKETCH_DIR,
+                "canvas_size": [32, 32],
+                "max_steps": 1000,
+                "stroke_budget": 50,
+                "use_local_reward_block": False,
+                "local_reward_block_size": 3,
+                "r_stroke_hyper": 100,
+                "render_mode": None,
+                "budget_weight": 1,
+                "similarity_weight": 1,
+                "mode": "training",
+                "use_step_similarity_reward": True,
+                "use_stroke_reward": True,
+                "block_reward_scale": 0.0,
+                "stroke_reward_scale": 0.0,
+                "stroke_penalty": 0.0,
+                "block_size": 8,            }
+        }
+    },
+    {
+        "VERSION": "20251008_test_4",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
 
@@ -21,7 +68,7 @@ experiments = [
             "similarity_weight": 1,
             "mode": "training",
             "use_step_similarity_reward": False,
-            "use_stroke_reward": False,
+            "use_stroke_reward": True,
             "block_reward_scale": 0.0,
             "stroke_reward_scale": 0.0,
             "stroke_penalty": 0.0,
@@ -43,11 +90,11 @@ experiments = [
                 "similarity_weight": 1,
                 "mode": "training",
                 "use_step_similarity_reward": False,
-                "use_stroke_reward": False,
+                "use_stroke_reward": True,
                 "block_reward_scale": 0.0,
                 "stroke_reward_scale": 0.0,
                 "stroke_penalty": 0.0,
-                "block_size": 8,            }
+                "block_size": 8, }
         }
     },
 ]

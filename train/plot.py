@@ -4,18 +4,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "_20251001_1"
+VERSION = "20251008_test_2"
 
-PLOT_MODE = "delta_histogram" #delta_histogram, episode
+PLOT_MODE = "episode" #delta_histogram, episode
 USE_MOVING_AVERAGE = True
 WINDOW_SIZE = 100
 PLOT_STYLE = 'line'# Options: 'line' or 'scatter'
-COLUMN_TO_PLOT = "step_rewards"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 
 plt.figure(figsize=(12, 6))
 
 if PLOT_MODE == 'episode':
-    DATA_PATH = f"../training_outputs/{VERSION}/episode_data.csv"
+    DATA_PATH = f"../training_outputs/{VERSION}/training_data.csv"
 
     if not os.path.exists(DATA_PATH):
         print(f"Error: Cannot find the data file at {DATA_PATH}")

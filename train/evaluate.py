@@ -6,7 +6,7 @@ import os
 
 VERSION = "_20251001_1"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/test_sketches/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/validation_sketches/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 
