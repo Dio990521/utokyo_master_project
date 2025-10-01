@@ -64,14 +64,8 @@ class DrawingAgentEnv(gym.Env):
         self.block_size = config.get("block_size", 16)
         self.local_reward_block_size = config.get("local_reward_block_size", 1)
         self.use_local_reward_block = config.get("use_local_reward_block", False)
-        # self.block_reward_levels = [16, 8, 4, 2]
-        # self.current_block_level_index = 0
-        # self.current_block_size = self.block_reward_levels[self.current_block_level_index]
-        # self.level_up_thresholds = {
-        #     16: 0.9,
-        #     8: 0.8,
-        #     4: 0.8,
-        # }
+
+        self.specific_sketch_file = config.get("specific_sketch_file", None)
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
         self.observation_space = spaces.Box(
@@ -80,11 +74,7 @@ class DrawingAgentEnv(gym.Env):
             shape=(4, *self.canvas_size), # (4, H, W)
             dtype=np.float32
         )
-        # self.observation_space = spaces.Dict({
-        #     "image": spaces.Box(low=0, high=255, shape=(3, *self.canvas_size), dtype=np.uint8),
-        #     # canvas, target, pen_mask
-        #     "vector": spaces.Box(low=0, high=self.stroke_budget, shape=(1,), dtype=np.float32)  # budget
-        # })
+
         self.delta_similarity_history = []
         self.canvas = None
         self.target_sketch = None
@@ -99,21 +89,27 @@ class DrawingAgentEnv(gym.Env):
 
     def _load_target_sketches(self):
         sketches = []
-        if not os.path.exists(self.target_sketches_path):
-            print(f"Warning: Target sketches path '{self.target_sketches_path}' does not exist.")
-            return sketches
-        for filename in os.listdir(self.target_sketches_path):
-            if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
-                filepath = os.path.join(self.target_sketches_path, filename)
-                try:
-                    sketch = Image.open(filepath).resize(self.canvas_size).convert('L')
-                    #255 (white) -> 1.0, 0 (black) -> 0.0
-                    sketch_array = np.array(sketch)
-                    normalized_sketch = (sketch_array / 255.0).astype(np.float32)
-                    sketches.append(normalized_sketch)
-                except Exception as e:
-                    print(f"Error loading sketch {filepath}: {e}")
-        print(f"Loaded {len(sketches)} target sketches.")
+        if self.specific_sketch_file:
+            try:
+                sketch = Image.open(self.specific_sketch_file).resize(self.canvas_size).convert('L')
+                sketch_array = np.array(sketch)
+                normalized_sketch = (sketch_array / 255.0).astype(np.float32)
+                sketches.append(normalized_sketch)
+                print(f"Loaded specific sketch: {self.specific_sketch_file}")
+            except Exception as e:
+                print(f"Error loading specific sketch {self.specific_sketch_file}: {e}")
+        elif self.target_sketches_path and os.path.exists(self.target_sketches_path):
+            for filename in os.listdir(self.target_sketches_path):
+                if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                    filepath = os.path.join(self.target_sketches_path, filename)
+                    try:
+                        sketch = Image.open(filepath).resize(self.canvas_size).convert('L')
+                        sketch_array = np.array(sketch)
+                        normalized_sketch = (sketch_array / 255.0).astype(np.float32)
+                        sketches.append(normalized_sketch)
+                    except Exception as e:
+                        print(f"Error loading sketch {filepath}: {e}")
+            print(f"Loaded {len(sketches)} target sketches from {self.target_sketches_path}.")
         return sketches
 
     def _update_block_level(self, block_score):
