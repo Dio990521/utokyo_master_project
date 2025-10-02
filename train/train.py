@@ -74,6 +74,9 @@ class ValidationCallback(BaseCallback):
                     "sketch": os.path.basename(sketch_file),
                     "similarity": info.get("similarity"),
                     "used_budgets": info.get("used_budgets"),
+                    "block_similarity": info.get("block_similarity"),
+                    "block_reward": info.get("block_reward"),
+                    "step_rewards": info.get("step_rewards"),
                 })
                 eval_env.close()
 
