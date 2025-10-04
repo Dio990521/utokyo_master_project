@@ -90,7 +90,6 @@ class DrawingAgentEnv(gym.Env):
         self.cursor = [0, 0]
 
     def _load_target_sketches(self):
-        """根据配置加载单个或多个sketch"""
         sketches = []
         if self.specific_sketch_file:
             if os.path.exists(self.specific_sketch_file):
@@ -193,7 +192,7 @@ class DrawingAgentEnv(gym.Env):
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_mask[y, x] = 1.0
 
-        normalized_budget = (self.stroke_budget - 1) / 255.0
+        normalized_budget = self.stroke_budget / 255.0
         stroke_budget_channel = np.full(self.canvas_size, normalized_budget, dtype=np.float32)
 
         obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=-1)

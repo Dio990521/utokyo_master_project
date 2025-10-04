@@ -6,6 +6,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 import os
 import pandas as pd
 import numpy as np
+from stable_baselines3.common.env_util import make_vec_env
 
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
@@ -17,16 +18,17 @@ class TrainingDataCallback(BaseCallback):
         self.episode_data = []
 
     def _on_step(self) -> bool:
-        if self.locals["dones"]:
-            info = self.locals["infos"][0]
-            if "similarity" in info:
-                self.episode_data.append({
-                    "similarity": info.get("similarity"),
-                    "used_budgets": info.get("used_budgets"),
-                    "block_similarity": info.get("block_similarity"),
-                    "block_reward": info.get("block_reward"),
-                    "step_rewards": info.get("step_rewards"),
-                })
+        for i, done in enumerate(self.locals["dones"]):
+            if done:
+                info = self.locals["infos"][i]
+                if "similarity" in info:
+                    self.episode_data.append({
+                        "similarity": info.get("similarity"),
+                        "used_budgets": info.get("used_budgets"),
+                        "block_similarity": info.get("block_similarity"),
+                        "block_reward": info.get("block_reward"),
+                        "step_rewards": info.get("step_rewards"),
+                    })
         return True
 
     def _on_training_end(self) -> None:
@@ -100,6 +102,8 @@ def run_training(config: dict):
     TOTAL_TIME_STEPS = config.get("TOTAL_TIME_STEPS", 5000000)
     LEARNING_RATE = config.get("LEARNING_RATE", 0.0003)
     ENT_COEF = config.get("ENT_COEF", 0.01)
+    NUM_ENVS = config.get("NUM_ENVS", 1)
+    print(f"  Parallel Environments: {NUM_ENVS}")
 
     env_config = config.get("ENV_CONFIG", {})
     validation_config = config.get("VALIDATION_CONFIG", None)
@@ -113,7 +117,12 @@ def run_training(config: dict):
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(MODELS_DIR, exist_ok=True)
 
-    env = gym.make("DrawingEnv-v0", config=env_config)
+    #env = gym.make("DrawingEnv-v0", config=env_config)
+    env = make_vec_env(
+        "DrawingEnv-v0",
+        n_envs=NUM_ENVS,
+        env_kwargs={"config": env_config}
+    )
 
     policy_kwargs = dict(features_extractor_class=CustomCnnExtractor, features_extractor_kwargs=dict(features_dim=128))
 
@@ -122,7 +131,7 @@ def run_training(config: dict):
         env,
         learning_rate=LEARNING_RATE,
         n_steps=2048,
-        batch_size=64,
+        batch_size=64 * NUM_ENVS,
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
