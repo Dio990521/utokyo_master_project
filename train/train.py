@@ -131,7 +131,7 @@ def run_training(config: dict):
         env,
         learning_rate=LEARNING_RATE,
         n_steps=2048,
-        batch_size=64 * NUM_ENVS,
+        batch_size=32 * NUM_ENVS,
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
@@ -141,7 +141,6 @@ def run_training(config: dict):
         policy_kwargs=policy_kwargs,
     )
 
-    # --- 核心修改：设置回调函数列表 ---
     callbacks = [TrainingDataCallback(save_path=TRAINING_DATA_PATH)]
     if validation_config:
         callbacks.append(ValidationCallback(
