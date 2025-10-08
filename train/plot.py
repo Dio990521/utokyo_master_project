@@ -1,78 +1,68 @@
-# train/plot.py
-import numpy
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "20251008_test_3"
+VERSION = "20251008_test_block"
+PLOT_VALIDATION_DATA = False
+COLUMN_TO_PLOT = "used_budgets"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+TRAIN_WINDOW_SIZE = 100
 
-PLOT_MODE = "episode" #delta_histogram, episode
-USE_MOVING_AVERAGE = True
-VALIDATION = True
-WINDOW_SIZE = 100
-PLOT_STYLE = 'line'# Options: 'line' or 'scatter'
-COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
-
-plt.figure(figsize=(12, 6))
-
-if PLOT_MODE == 'episode':
-    DATA_PATH = f"../training_outputs/{VERSION}/training_data.csv"
-    if VALIDATION:
-        DATA_PATH = f"../training_outputs/{VERSION}/validation_data.csv"
-
+def plot_training_data():
+    DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")
     if not os.path.exists(DATA_PATH):
-        print(f"Error: Cannot find the data file at {DATA_PATH}")
-        exit()
+        print(f"Error: Training data file not found at {DATA_PATH}")
+        return
 
-    df = pd.read_csv(DATA_PATH, index_col="episode")
-
+    df = pd.read_csv(DATA_PATH)
     if COLUMN_TO_PLOT not in df.columns:
-        print(f"Error: Column '{COLUMN_TO_PLOT}' not found.")
-        exit()
+        print(f"Error: Column '{COLUMN_TO_PLOT}' not found in training data.")
+        return
 
-    if USE_MOVING_AVERAGE:
-        data_to_plot = df[COLUMN_TO_PLOT].rolling(window=WINDOW_SIZE).mean()
-        print(round(numpy.nanmax(data_to_plot.values), 4))
-        #plot_label = f'{window_size}-Episode Moving Average'
-        title_suffix = "(Moving Average)"
-        plt.plot(data_to_plot.index, data_to_plot)
-    else:
-        data_to_plot = df[COLUMN_TO_PLOT]
-        if PLOT_STYLE == 'scatter':
-            #plot_label = 'Raw Data (Scatter)'
-            title_suffix = "(Raw Data Scatter)"
-            plt.scatter(data_to_plot.index, data_to_plot, alpha=0.4, s=15)
-        else:
-            #plot_label = 'Raw Data (Line)'
-            title_suffix = "(Raw Data Line)"
-            plt.plot(data_to_plot.index, data_to_plot)
+    plt.figure(figsize=(15, 7))
 
+    data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
+
+    plt.plot(df.index, data_to_plot, label=f'Training (MA {TRAIN_WINDOW_SIZE} episodes)')
+    plt.title(f"Training Performance: {COLUMN_TO_PLOT.replace('_', ' ').title()} (Moving Average)")
     plt.xlabel("Episode")
     plt.ylabel(COLUMN_TO_PLOT.replace('_', ' ').title())
-    plt.title(f"{COLUMN_TO_PLOT.replace('_', ' ').title()} {title_suffix} during Training")
-    plt.grid(True)
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-elif PLOT_MODE == 'delta_histogram':
-    DATA_PATH = f"../training_outputs/{VERSION}/delta_similarity_data.csv"
 
+def plot_validation_data():
+    DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "validation_data.csv")
     if not os.path.exists(DATA_PATH):
-        print(f"Error: Cannot find the data file at {DATA_PATH}")
-        exit()
+        print(f"Error: Validation data file not found at {DATA_PATH}")
+        return
 
-    df_delta = pd.read_csv(DATA_PATH)
+    df = pd.read_csv(DATA_PATH)
+    if COLUMN_TO_PLOT not in df.columns:
+        print(f"Error: Column '{COLUMN_TO_PLOT}' not found in validation data.")
+        return
 
-    plt.figure(figsize=(12, 7))
-    filtered_data = df_delta[df_delta['delta_similarity'].abs() > 1e-6]['delta_similarity']
+    plt.figure(figsize=(15, 7))
 
-    plt.hist(filtered_data, bins=100, alpha=0.75, label='Delta Similarity per Step')
+    val_agg = df.groupby('step')[COLUMN_TO_PLOT].mean()
 
-    plt.xlabel("Delta Similarity (similarity_t - similarity_t-1)")
-    plt.ylabel("Frequency (Count)")
-    plt.title("Distribution of Delta Similarity")
-    plt.yscale('log')
-    plt.grid(True)
+    plt.plot(val_agg.index, val_agg.values, 'o-', label='Validation Score', markersize=6)
+    plt.scatter(val_agg.index, val_agg.values)
+
+    plt.title(f"Validation Performance: {COLUMN_TO_PLOT.replace('_', ' ').title()}")
+    plt.xlabel("Training Timestep")
+    plt.ylabel(COLUMN_TO_PLOT.replace('_', ' ').title())
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-plt.tight_layout()
-plt.show()
+
+if __name__ == '__main__':
+    if PLOT_VALIDATION_DATA:
+        print(f"Plotting VALIDATION data for version: {VERSION}")
+        plot_validation_data()
+    else:
+        print(f"Plotting TRAINING data for version: {VERSION}")
+        plot_training_data()

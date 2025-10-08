@@ -39,6 +39,7 @@ class DrawingAgentEnv(gym.Env):
         super(DrawingAgentEnv, self).__init__()
         self._init_config(config)
         self._init_state_variables()
+        self.render_scale = 10
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
         self.observation_space = spaces.Box(
@@ -137,6 +138,7 @@ class DrawingAgentEnv(gym.Env):
             self.last_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
 
         observation = self._get_obs()
+        #visualize_obs(observation)
         info = self._get_info()
 
         if self.render_mode == "human":
@@ -194,9 +196,8 @@ class DrawingAgentEnv(gym.Env):
 
         normalized_budget = self.stroke_budget / 255.0
         stroke_budget_channel = np.full(self.canvas_size, normalized_budget, dtype=np.float32)
-
-        obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=-1)
-        return obs.transpose(2, 0, 1)
+        obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=0)
+        return obs
 
     def _get_info(self):
         info_dict = {
@@ -214,7 +215,9 @@ class DrawingAgentEnv(gym.Env):
         if self.window is None:
             pygame.init()
             pygame.display.init()
-            self.window = pygame.display.set_mode((self.canvas_size[0] * 2 + 10, self.canvas_size[1]))
+            WINDOW_WIDTH = (self.canvas_size[1] * 2 + 10) * self.render_scale
+            WINDOW_HEIGHT = self.canvas_size[0] * self.render_scale
+            self.window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
             pygame.display.set_caption("Drawing Agent RL")
         if self.clock is None:
             self.clock = pygame.time.Clock()
@@ -230,20 +233,28 @@ class DrawingAgentEnv(gym.Env):
 
         self.window.fill((105, 105, 105))
         self._draw_surface(self.target_sketch, (0, 0))
-        self._draw_surface(self.canvas, (self.canvas_size[0] + 10, 0))
+        self._draw_surface(self.canvas, ((self.canvas_size[0] + 10) * self.render_scale, 0))
 
         cursor_color = (255, 0, 0) if self.is_pen_down else (0, 0, 255)
-        pygame.draw.circle(self.window, cursor_color, (self.canvas_size[0] + 10 + self.cursor[0], self.cursor[1]), 2)
+        pygame.draw.circle(
+            self.window, cursor_color,
+            (self.canvas_size[1] * self.render_scale + 10 * self.render_scale + self.cursor[0] * self.render_scale,
+             self.cursor[1] * self.render_scale),
+            2 * self.render_scale
+        )
         pygame.display.flip()
         self.clock.tick(self.metadata["render_fps"])
 
     def _draw_surface(self, array, position):
-        array_transposed = array.T
-
-        array_rgb = np.stack([array_transposed * 255] * 3, axis=-1).astype(np.uint8)
-
+        array_rgb = np.stack([(array.T * 255)] * 3, axis=-1).astype(np.uint8)
         surface = pygame.surfarray.make_surface(array_rgb)
-        self.window.blit(surface, position)
+
+        scaled_surface = pygame.transform.scale(
+            surface,
+            (self.canvas_size[1] * self.render_scale, self.canvas_size[0] * self.render_scale)
+        )
+
+        self.window.blit(scaled_surface, position)
 
     def close(self):
         if self.window is not None:
