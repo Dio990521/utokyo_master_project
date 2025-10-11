@@ -40,14 +40,20 @@ class DrawingAgentEnv(gym.Env):
         self._init_config(config)
         self._init_state_variables()
         self.render_scale = 10
+        self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
+        self.use_budget_channel = config.get("use_budget_channel", True)
+        num_obs_channels = 4 if self.use_budget_channel else 3
         self.observation_space = spaces.Box(
-            low=0,
-            high=1.0,
-            shape=(4, *self.canvas_size), # (4, H, W)
-            dtype=np.float32
+            low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
         )
+        # self.observation_space = spaces.Box(
+        #     low=0,
+        #     high=1.0,
+        #     shape=(4, *self.canvas_size), # (4, H, W)
+        #     dtype=np.float32
+        # )
 
         self.window = None
         self.clock = None
@@ -178,8 +184,9 @@ class DrawingAgentEnv(gym.Env):
 
         is_episode_over = self.current_step >= self.max_steps
         if is_episode_over:
-            if self.use_stroke_reward and self.used_budgets > 0:
-                reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
+            reward += self._calculate_final_reward()
+            # if self.use_stroke_reward and self.used_budgets > 0:
+            #     reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
             if self.block_reward_scale > 0:
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
                 self.block_reward = self.block_similarity * self.block_reward_scale
@@ -188,15 +195,35 @@ class DrawingAgentEnv(gym.Env):
         self.step_rewards += reward
         return reward
 
+    def _calculate_final_reward(self):
+        final_reward = 0.0
+
+        if self.use_stroke_reward:
+            diff = self.used_budgets - self.stroke_budget
+            stroke_reward = np.exp(- (diff ** 2) / (2 * 5.0 ** 2))
+            final_reward += self.last_pixel_similarity * stroke_reward
+
+        return final_reward
+
     def _get_obs(self):
         pen_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)
         y, x = self.cursor[1], self.cursor[0]
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_mask[y, x] = 1.0
 
-        normalized_budget = self.stroke_budget / 255.0
-        stroke_budget_channel = np.full(self.canvas_size, normalized_budget, dtype=np.float32)
-        obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=0)
+        budget_value = 0.0
+        if self.dynamic_budget_channel:
+            budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
+                            if self.stroke_budget > 0 else 0.0)
+        else:
+            budget_value = self.stroke_budget / 255.0
+
+        stroke_budget_channel = np.full(self.canvas_size, budget_value, dtype=np.float32)
+
+        if not self.use_budget_channel:
+            obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask], axis=0)
+        else:
+            obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=0)
         return obs
 
     def _get_info(self):
@@ -240,7 +267,7 @@ class DrawingAgentEnv(gym.Env):
             self.window, cursor_color,
             (self.canvas_size[1] * self.render_scale + 10 * self.render_scale + self.cursor[0] * self.render_scale,
              self.cursor[1] * self.render_scale),
-            2 * self.render_scale
+            1 * self.render_scale
         )
         pygame.display.flip()
         self.clock.tick(self.metadata["render_fps"])
