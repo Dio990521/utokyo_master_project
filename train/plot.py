@@ -2,9 +2,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "20251015_dynamic_stroke10"
+VERSION = "20251015_test_new_step_reward"
 PLOT_VALIDATION_DATA = False
-COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "used_budgets"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
 def plot_training_data():

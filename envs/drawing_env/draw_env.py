@@ -135,7 +135,7 @@ class DrawingAgentEnv(gym.Env):
 
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
 
-        reward = self._calculate_reward()
+        reward = self._calculate_reward(dx, dy)
 
         terminated = is_stop_action
         truncated = self.current_step >= self.max_steps
@@ -163,17 +163,30 @@ class DrawingAgentEnv(gym.Env):
             self.is_pen_down = is_pen_down
             self.pen_was_down = self.is_pen_down
 
-    def _calculate_reward(self):
+    def _calculate_reward(self, dx, dy):
         reward = 0.0
 
-        if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
+        agent_is_moving = (dx != 0 or dy != 0)
+        pen_is_drawing_on_new_pixel = self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0)
+
+        if pen_is_drawing_on_new_pixel and agent_is_moving:
+            is_correct_pixel = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
+            if is_correct_pixel:
+                reward += 0.1
+            else:
+                reward += -0.1
+
+        # 在这里画下像素点
+        if pen_is_drawing_on_new_pixel:
             self.canvas[self.cursor[1], self.cursor[0]] = 0.0
-            if self.use_local_reward_block:
-                reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
-                                                       self.local_reward_block_size)
-            elif not self.use_step_similarity_reward:
-                is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
-                reward += 0.1 if is_correct else -0.1
+        # if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
+        #     self.canvas[self.cursor[1], self.cursor[0]] = 0.0
+        #     if self.use_local_reward_block:
+        #         reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
+        #                                                self.local_reward_block_size)
+        #     elif not self.use_step_similarity_reward:
+        #         is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
+        #         reward += 0.1 if is_correct else -0.1
 
         current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
         if self.use_step_similarity_reward:
@@ -185,8 +198,8 @@ class DrawingAgentEnv(gym.Env):
         is_episode_over = self.current_step >= self.max_steps
         if is_episode_over:
             reward += self._calculate_final_reward()
-            # if self.use_stroke_reward and self.used_budgets > 0:
-            #     reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
+            #if self.use_stroke_reward and self.used_budgets > 0:
+            #    reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
             if self.block_reward_scale > 0:
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
                 self.block_reward = self.block_similarity * self.block_reward_scale
