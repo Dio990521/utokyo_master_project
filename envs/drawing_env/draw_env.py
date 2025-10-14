@@ -137,10 +137,10 @@ class DrawingAgentEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
-        if self.terminate_on_budget_limit and self.used_budgets >= self.stroke_budget:
-            terminated = True
+        # if self.terminate_on_budget_limit and self.used_budgets >= self.stroke_budget:
+        #     terminated = True
 
-        truncated = self.current_step >= self.max_steps or self.last_pixel_similarity >= 0.9
+        truncated = self.current_step >= self.max_steps or self.last_pixel_similarity > 0.9
 
         reward = self._calculate_reward(dx, dy, terminated, truncated)
 
@@ -190,23 +190,24 @@ class DrawingAgentEnv(gym.Env):
             #if self.use_local_reward_block:
             #    reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
             #                                           self.local_reward_block_size)
+            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+
             if not self.use_step_similarity_reward:
                 is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
                 reward += 0.1 if is_correct else -0.1
             else:
-                current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
                 if self.use_step_similarity_reward:
                     delta = current_pixel_similarity - self.last_pixel_similarity
                     reward += self.similarity_weight * delta
                     self.delta_similarity_history.append(delta)
-                self.last_pixel_similarity = current_pixel_similarity
+            self.last_pixel_similarity = current_pixel_similarity
 
         if truncated or terminated:
             #final_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
             #reward += final_similarity * self.similarity_weight
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
-                reward += self.r_stroke_hyper / self.used_budgets * current_pixel_similarity
+                reward += self.r_stroke_hyper / self.used_budgets * calculate_iou_similarity(self.canvas, self.target_sketch)
             if self.block_reward_scale > 0:
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
                 self.block_reward = self.block_similarity * self.block_reward_scale
