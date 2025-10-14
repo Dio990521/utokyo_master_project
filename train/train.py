@@ -103,6 +103,7 @@ def run_training(config: dict):
     LEARNING_RATE = config.get("LEARNING_RATE", 0.0003)
     ENT_COEF = config.get("ENT_COEF", 0.01)
     NUM_ENVS = config.get("NUM_ENVS", 1)
+    BATCH_SIZE = config.get("BATCH_SIZE", 32)
     print(f"  Parallel Environments: {NUM_ENVS}")
 
     env_config = config.get("ENV_CONFIG", {})
@@ -131,7 +132,7 @@ def run_training(config: dict):
         env,
         learning_rate=LEARNING_RATE,
         n_steps=2048,
-        batch_size=32 * NUM_ENVS,
+        batch_size=BATCH_SIZE,
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
