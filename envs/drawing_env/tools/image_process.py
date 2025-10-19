@@ -4,6 +4,16 @@ import numpy as np
 from PIL import Image, ImageDraw
 import cv2
 import matplotlib.pyplot as plt
+from scipy.ndimage import distance_transform_edt
+
+
+def calculate_penalty_map(target_sketch, safe_distance=2):
+
+    distance_map = distance_transform_edt(target_sketch)
+
+    # Penalty map is True where distance is greater than the safe_distance.
+    penalty_map = distance_map > safe_distance
+    return penalty_map
 
 def visualize_obs(obs):
     canvas = obs[0]

@@ -8,7 +8,7 @@ import pygame
 
 from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
     calculate_block_reward, visualize_obs, calculate_iou_similarity, \
-    calculate_qualified_block_similarity, calculate_density_cap_reward
+    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_penalty_map
 
 
 def _decode_action(action):
@@ -31,36 +31,6 @@ def _decode_action(action):
 
     return dx, dy, int(is_pen_down), 0
 
-
-# def _decode_action(action):
-#     """
-#     Decodes a discrete action (0-15) into dx, dy, pen_state, and stop_action.
-#     - Actions 0-7: Pen is UP.
-#     - Actions 8-15: Pen is DOWN.
-#
-#     The 8 movements correspond to the 8 pixels surrounding the cursor (no (0,0)).
-#     """
-#     is_pen_down = action >= 8
-#
-#     sub_action = action % 8
-#
-#     # (dy, dx)
-#     movements = [
-#         (-1, -1),  # 0: 左上
-#         (-1, 0),  # 1: 上
-#         (-1, 1),  # 2: 右上
-#         (0, -1),  # 3: 左
-#         (0, 1),  # 4: 右
-#         (1, -1),  # 5: 左下
-#         (1, 0),  # 6: 下
-#         (1, 1)  # 7: 右下
-#     ]
-#
-#     dy, dx = movements[sub_action]
-#
-#     return dx, dy, int(is_pen_down), 0
-
-
 class DrawingAgentEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
@@ -78,12 +48,6 @@ class DrawingAgentEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
         )
-        # self.observation_space = spaces.Box(
-        #     low=0,
-        #     high=1.0,
-        #     shape=(4, *self.canvas_size), # (4, H, W)
-        #     dtype=np.float32
-        # )
 
         self.window = None
         self.clock = None
@@ -107,9 +71,11 @@ class DrawingAgentEnv(gym.Env):
 
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.specific_sketch_file = config.get("specific_sketch_file", None)
-        self.target_sketches = self._load_target_sketches()
-        if not self.target_sketches:
-            raise ValueError("No target sketches were loaded!")
+        # self.target_sketches = self._load_target_sketches()
+        # if not self.target_sketches:
+        #     raise ValueError("No target sketches were loaded!")
+        self.target_square_size = config.get("target_square_size", 15)
+        self.penalty_safe_distance = config.get("penalty_safe_distance", 2)
 
     def _init_state_variables(self):
         self.current_step = 0
@@ -147,10 +113,18 @@ class DrawingAgentEnv(gym.Env):
         super().reset(seed=seed)
         self._init_state_variables()
 
-        if len(self.target_sketches) == 1:
-            self.target_sketch = self.target_sketches[0]
-        else:
-            self.target_sketch = random.choice(self.target_sketches)
+        max_coord = self.canvas_size[0] - self.target_square_size
+        y0 = self.np_random.integers(0, max_coord + 1)
+        x0 = self.np_random.integers(0, max_coord + 1)
+
+        self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        self.target_sketch[y0:y0 + self.target_square_size, x0:x0 + self.target_square_size] = 0.0
+        self.penalty_map = calculate_penalty_map(self.target_sketch, self.penalty_safe_distance)
+
+        # if len(self.target_sketches) == 1:
+        #     self.target_sketch = self.target_sketches[0]
+        # else:
+        #     self.target_sketch = random.choice(self.target_sketches)
 
         self.cursor = find_starting_point(self.target_sketch)
 
@@ -195,6 +169,16 @@ class DrawingAgentEnv(gym.Env):
                 self.used_budgets = min(255, self.used_budgets + 1)
 
             self.is_pen_down = is_pen_down
+
+            if self.is_pen_down:
+                y_start = max(0, self.cursor[1] - 1)
+                y_end = min(self.canvas_size[1], self.cursor[1] + 2)
+                x_start = max(0, self.cursor[0] - 1)
+                x_end = min(self.canvas_size[0], self.cursor[0] + 2)
+
+                # Set the 3x3 area on the canvas to black (0.0)
+                self.canvas[y_start:y_end, x_start:x_end] = 0.0
+
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, dx, dy, terminated, truncated):
