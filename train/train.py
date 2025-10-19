@@ -1,5 +1,3 @@
-# train/train.py
-
 import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import BaseCallback
@@ -7,6 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
+import json
 
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
@@ -103,7 +102,9 @@ def run_training(config: dict):
     LEARNING_RATE = config.get("LEARNING_RATE", 0.0003)
     ENT_COEF = config.get("ENT_COEF", 0.01)
     NUM_ENVS = config.get("NUM_ENVS", 1)
-    BATCH_SIZE = config.get("BATCH_SIZE", 32)
+    BATCH_BASE_SIZE = config.get("BATCH_SIZE", 32)
+    SEED = config.get("SEED", None)
+
     print(f"  Parallel Environments: {NUM_ENVS}")
 
     env_config = config.get("ENV_CONFIG", {})
@@ -132,7 +133,7 @@ def run_training(config: dict):
         env,
         learning_rate=LEARNING_RATE,
         n_steps=2048,
-        batch_size=NUM_ENVS * 32,
+        batch_size=BATCH_BASE_SIZE * NUM_ENVS,#128
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
@@ -140,7 +141,14 @@ def run_training(config: dict):
         verbose=1,
         tensorboard_log=LOG_DIR,
         policy_kwargs=policy_kwargs,
+        seed=SEED,
     )
+
+    config["SEED"] = model.seed
+    config_save_path = os.path.join(BASE_OUTPUT_DIR, "config.json")
+    with open(config_save_path, 'w') as f:
+        json.dump(config, f, indent=4)
+    print(f"Configuration saved to {config_save_path}")
 
     callbacks = [TrainingDataCallback(save_path=TRAINING_DATA_PATH)]
     if validation_config:

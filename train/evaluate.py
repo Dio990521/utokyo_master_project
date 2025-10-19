@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251015_fix_budget10_1"
+VERSION = "20251023_envs8_32_2_redo"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
@@ -32,14 +32,14 @@ eval_env = DrawingAgentEnv(
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
             "use_budget_channel": True,
-            "dynamic_budget_channel": True,
-            "terminate_on_budget_limit": True,
-            "stroke_budget": 10,
+            "dynamic_budget_channel": False,
+            "terminate_on_budget_limit": False,
+            "stroke_budget": 20,
             "use_local_reward_block": False,
             "local_reward_block_size": 3,
             "r_stroke_hyper": 100,
             "budget_weight": 1,
-            "similarity_weight": 1,
+            "similarity_weight": 0,
             "mode": "training",
             "use_step_similarity_reward": False,
             "use_stroke_reward": False,
@@ -51,6 +51,7 @@ eval_env = DrawingAgentEnv(
     )
 
 model = PPO.load(model_path, env=eval_env)
+print("seed", model.seed)
 print(f"Model loaded from {model_path}")
 
 obs, _ = eval_env.reset()

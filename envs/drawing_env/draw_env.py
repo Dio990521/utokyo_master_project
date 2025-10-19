@@ -32,6 +32,35 @@ def _decode_action(action):
     return dx, dy, int(is_pen_down), 0
 
 
+# def _decode_action(action):
+#     """
+#     Decodes a discrete action (0-15) into dx, dy, pen_state, and stop_action.
+#     - Actions 0-7: Pen is UP.
+#     - Actions 8-15: Pen is DOWN.
+#
+#     The 8 movements correspond to the 8 pixels surrounding the cursor (no (0,0)).
+#     """
+#     is_pen_down = action >= 8
+#
+#     sub_action = action % 8
+#
+#     # (dy, dx)
+#     movements = [
+#         (-1, -1),  # 0: 左上
+#         (-1, 0),  # 1: 上
+#         (-1, 1),  # 2: 右上
+#         (0, -1),  # 3: 左
+#         (0, 1),  # 4: 右
+#         (1, -1),  # 5: 左下
+#         (1, 0),  # 6: 下
+#         (1, 1)  # 7: 右下
+#     ]
+#
+#     dy, dx = movements[sub_action]
+#
+#     return dx, dy, int(is_pen_down), 0
+
+
 class DrawingAgentEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
@@ -43,7 +72,7 @@ class DrawingAgentEnv(gym.Env):
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.terminate_on_budget_limit = config.get("terminate_on_budget_limit", False)
 
-        self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
+        self.action_space = spaces.Discrete(16) # 0-17 for movement, 18 for stop
         self.use_budget_channel = config.get("use_budget_channel", True)
         num_obs_channels = 4 if self.use_budget_channel else 3
         self.observation_space = spaces.Box(
@@ -187,27 +216,25 @@ class DrawingAgentEnv(gym.Env):
 
         if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
             self.canvas[self.cursor[1], self.cursor[0]] = 0.0
-            #if self.use_local_reward_block:
-            #    reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
-            #                                           self.local_reward_block_size)
-            current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-
+            # if self.use_local_reward_block:
+            #     reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
+            #                                            self.local_reward_block_size)
             if not self.use_step_similarity_reward:
                 is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
                 reward += 0.1 if is_correct else -0.1
-            else:
-                if self.use_step_similarity_reward:
-                    delta = current_pixel_similarity - self.last_pixel_similarity
-                    reward += self.similarity_weight * delta
-                    self.delta_similarity_history.append(delta)
-            self.last_pixel_similarity = current_pixel_similarity
+
+        current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        if self.use_step_similarity_reward:
+            delta = current_pixel_similarity - self.last_pixel_similarity
+            reward += self.similarity_weight * delta
+            self.delta_similarity_history.append(delta)
+        self.last_pixel_similarity = current_pixel_similarity
 
         if truncated or terminated:
-            #final_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-            #reward += final_similarity * self.similarity_weight
+            #reward += self.last_pixel_similarity * self.similarity_weight
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
-                reward += self.r_stroke_hyper / self.used_budgets * calculate_iou_similarity(self.canvas, self.target_sketch)
+                reward += self.r_stroke_hyper / self.used_budgets * self.last_pixel_similarity
             if self.block_reward_scale > 0:
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
                 self.block_reward = self.block_similarity * self.block_reward_scale
