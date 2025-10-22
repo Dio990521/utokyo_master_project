@@ -8,7 +8,7 @@ import pygame
 
 from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
     calculate_block_reward, visualize_obs, calculate_iou_similarity, \
-    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_penalty_map
+    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_reward_map
 
 
 def _decode_action(action):
@@ -39,11 +39,8 @@ class DrawingAgentEnv(gym.Env):
         self._init_config(config)
         self._init_state_variables()
         self.render_scale = 10
-        self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
-        self.terminate_on_budget_limit = config.get("terminate_on_budget_limit", False)
 
-        self.action_space = spaces.Discrete(16) # 0-17 for movement, 18 for stop
-        self.use_budget_channel = config.get("use_budget_channel", True)
+        self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
         num_obs_channels = 4 if self.use_budget_channel else 3
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
@@ -57,15 +54,22 @@ class DrawingAgentEnv(gym.Env):
         self.max_steps = config.get("max_steps", 1000)
         self.render_mode = config.get("render_mode", None)
         self.stroke_budget = config.get("stroke_budget", 1)
+        self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
+        self.use_budget_channel = config.get("use_budget_channel", True)
+
+        self.brush_size = config.get("brush_size", 1)
+        self.target_square_size = config.get("target_square_size", 15)
+        self.use_reward_map_reward = config.get("use_reward_map_reward", False)
+        self.reward_map_on_target = config.get("reward_map_on_target", 0.1)
+        self.reward_map_near_target = config.get("reward_map_near_target", 0.0)
+        self.reward_map_far_target = config.get("reward_map_far_target", -0.1)
+        self.reward_map_near_distance = config.get("reward_map_near_distance", 2)
 
         self.use_step_similarity_reward = config.get("use_step_similarity_reward", False)
         self.use_stroke_reward = config.get("use_stroke_reward", False)
-        self.use_local_reward_block = config.get("use_local_reward_block", False)
-        self.local_reward_block_size = config.get("local_reward_block_size", 3)
         self.block_reward_scale = config.get("block_reward_scale", 1.0)
         self.block_size = config.get("block_size", 16)
         self.stroke_reward_scale = config.get("stroke_reward_scale", 1.0)
-        self.stroke_penalty = config.get("stroke_penalty", -20.0)
         self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
         self.similarity_weight = config.get("similarity_weight", 100.0)
 
@@ -74,8 +78,6 @@ class DrawingAgentEnv(gym.Env):
         # self.target_sketches = self._load_target_sketches()
         # if not self.target_sketches:
         #     raise ValueError("No target sketches were loaded!")
-        self.target_square_size = config.get("target_square_size", 15)
-        self.penalty_safe_distance = config.get("penalty_safe_distance", 2)
 
     def _init_state_variables(self):
         self.current_step = 0
@@ -119,8 +121,13 @@ class DrawingAgentEnv(gym.Env):
 
         self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
         self.target_sketch[y0:y0 + self.target_square_size, x0:x0 + self.target_square_size] = 0.0
-        self.penalty_map = calculate_penalty_map(self.target_sketch, self.penalty_safe_distance)
-
+        self.reward_map = calculate_reward_map(
+            self.target_sketch,
+            reward_on_target=self.reward_map_on_target,
+            reward_near_target=self.reward_map_near_target,
+            reward_far_target=self.reward_map_far_target,
+            near_distance=self.reward_map_near_distance
+        )
         # if len(self.target_sketches) == 1:
         #     self.target_sketch = self.target_sketches[0]
         # else:
@@ -140,16 +147,33 @@ class DrawingAgentEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
-        # if self.terminate_on_budget_limit and self.used_budgets >= self.stroke_budget:
-        #     terminated = True
+        canvas_before = self.canvas.copy()
+        potential_affected_pixels = []
+        brush_radius = self.brush_size // 2
+        current_cursor = self.cursor
+        if is_pen_down:
+            y_start = max(0, current_cursor[1] - brush_radius)
+            y_end = min(self.canvas_size[1], current_cursor[1] + brush_radius + 1)
+            x_start = max(0, current_cursor[0] - brush_radius)
+            x_end = min(self.canvas_size[0], current_cursor[0] + brush_radius + 1)
+            self.canvas[y_start:y_end, x_start:x_end] = 0.0
+            for r in range(y_start, y_end):
+                for c in range(x_start, x_end):
+                    potential_affected_pixels.append((r, c))
 
-        truncated = self.current_step >= self.max_steps or self.last_pixel_similarity > 0.9
+        self._update_agent_state(dx, dy, is_pen_down, is_stop_action)
+        reward = self._calculate_reward(
+            terminated, False,
+            is_pen_down, potential_affected_pixels, canvas_before
+        )
 
-        reward = self._calculate_reward(dx, dy, terminated, truncated)
+        truncated = self.current_step >= self.max_steps or np.isclose(self.last_pixel_similarity, 1.0)
+
+        #reward = self._calculate_reward(dx, dy, terminated, truncated)
 
         if terminated or truncated:
             self.episode_end = True
-            self.last_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+            self.last_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
 
         observation = self._get_obs()
         #visualize_obs(observation)
@@ -169,45 +193,37 @@ class DrawingAgentEnv(gym.Env):
                 self.used_budgets = min(255, self.used_budgets + 1)
 
             self.is_pen_down = is_pen_down
-
-            if self.is_pen_down:
-                y_start = max(0, self.cursor[1] - 1)
-                y_end = min(self.canvas_size[1], self.cursor[1] + 2)
-                x_start = max(0, self.cursor[0] - 1)
-                x_end = min(self.canvas_size[0], self.cursor[0] + 2)
-
-                # Set the 3x3 area on the canvas to black (0.0)
-                self.canvas[y_start:y_end, x_start:x_end] = 0.0
-
             self.pen_was_down = self.is_pen_down
 
-    def _calculate_reward(self, dx, dy, terminated, truncated):
+    def _calculate_reward(self, terminated, truncated,
+                          is_pen_down, potential_affected_pixels, canvas_before):
         reward = 0.0
 
-        # agent_is_moving = (dx != 0 or dy != 0)
-        # is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
-        # pen_is_drawing_on_new_pixel = self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0)
-        # if pen_is_drawing_on_new_pixel:
-        #     if is_correct:
-        #         reward += 0.1
-        #         if agent_is_moving:
-        #             reward += 0.1
-        #     else:
-        #         reward -= 0.0
-        #
-        # if pen_is_drawing_on_new_pixel:
+        if self.use_reward_map_reward:
+            step_reward = 0.0
+            newly_blackened_pixels_exist = False
+
+            if is_pen_down and potential_affected_pixels:
+                for r, c in potential_affected_pixels:
+                    was_white = np.isclose(canvas_before[r, c], 1.0)
+                    is_now_black = np.isclose(self.canvas[r, c], 0.0)
+
+                    if was_white and is_now_black:
+                        newly_blackened_pixels_exist = True
+                        step_reward += self.reward_map[r, c]
+
+            reward += step_reward if newly_blackened_pixels_exist else 0.0
+
+        # if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
         #     self.canvas[self.cursor[1], self.cursor[0]] = 0.0
+        #     # if self.use_local_reward_block:
+        #     #     reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
+        #     #                                            self.local_reward_block_size)
+        #     if not self.use_step_similarity_reward:
+        #         is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
+        #         reward += 0.1 if is_correct else -0.1
 
-        if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
-            self.canvas[self.cursor[1], self.cursor[0]] = 0.0
-            # if self.use_local_reward_block:
-            #     reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
-            #                                            self.local_reward_block_size)
-            if not self.use_step_similarity_reward:
-                is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
-                reward += 0.1 if is_correct else -0.1
-
-        current_pixel_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        current_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
         if self.use_step_similarity_reward:
             delta = current_pixel_similarity - self.last_pixel_similarity
             reward += self.similarity_weight * delta
@@ -215,7 +231,7 @@ class DrawingAgentEnv(gym.Env):
         self.last_pixel_similarity = current_pixel_similarity
 
         if truncated or terminated:
-            #reward += self.last_pixel_similarity * self.similarity_weight
+            reward += self.last_pixel_similarity * self.similarity_weight
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
                 reward += self.r_stroke_hyper / self.used_budgets * self.last_pixel_similarity
@@ -226,16 +242,6 @@ class DrawingAgentEnv(gym.Env):
 
         self.step_rewards += reward
         return reward
-
-    # def _calculate_final_reward(self):
-    #     final_reward = 0.0
-    #
-    #     if self.use_stroke_reward:
-    #         diff = self.used_budgets - self.stroke_budget
-    #         stroke_reward = np.exp(- (diff ** 2) / (2 * 5.0 ** 2))
-    #         final_reward += self.last_pixel_similarity * stroke_reward
-    #
-    #     return final_reward
 
     def _get_obs(self):
         pen_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)

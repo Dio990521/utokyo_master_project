@@ -133,7 +133,7 @@ def run_training(config: dict):
         env,
         learning_rate=LEARNING_RATE,
         n_steps=2048,
-        batch_size=BATCH_BASE_SIZE * NUM_ENVS,#128
+        batch_size=BATCH_BASE_SIZE, #128
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,

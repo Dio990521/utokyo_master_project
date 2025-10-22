@@ -7,13 +7,14 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 
 
-def calculate_penalty_map(target_sketch, safe_distance=2):
-
+def calculate_reward_map(target_sketch, reward_on_target=0.1, reward_near_target=0.0, reward_far_target=-0.1, near_distance=2):
     distance_map = distance_transform_edt(target_sketch)
 
-    # Penalty map is True where distance is greater than the safe_distance.
-    penalty_map = distance_map > safe_distance
-    return penalty_map
+    reward_map = np.full(target_sketch.shape, reward_far_target, dtype=np.float32)
+    reward_map[(distance_map <= near_distance) & (distance_map > 0)] = reward_near_target
+    reward_map[distance_map == 0] = reward_on_target
+
+    return reward_map
 
 def visualize_obs(obs):
     canvas = obs[0]

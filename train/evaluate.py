@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251023_envs8_32_2_redo"
+VERSION = "20251023_square_envs16_1"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
@@ -31,21 +31,22 @@ eval_env = DrawingAgentEnv(
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
-            "use_budget_channel": True,
+            "brush_size": 3,
+            "target_square_size": 15,
+            "use_reward_map_reward": True,
+            "reward_map_on_target": 0.1,
+            "reward_map_near_target": 0.0,
+            "reward_map_far_target": -0.1,
+            "reward_map_near_distance": 2,
+            "use_budget_channel": False,
             "dynamic_budget_channel": False,
-            "terminate_on_budget_limit": False,
-            "stroke_budget": 20,
-            "use_local_reward_block": False,
-            "local_reward_block_size": 3,
-            "r_stroke_hyper": 100,
-            "budget_weight": 1,
-            "similarity_weight": 0,
-            "mode": "training",
-            "use_step_similarity_reward": False,
+            "stroke_budget": 100,
             "use_stroke_reward": False,
-            "block_reward_scale": 0.0,
+            "r_stroke_hyper": 100,
             "stroke_reward_scale": 1.0,
-            "stroke_penalty": 0.0,
+            "similarity_weight": 0,
+            "use_step_similarity_reward": False,
+            "block_reward_scale": 0.0,
             "block_size": 8,
         }
     )
