@@ -98,6 +98,8 @@ class DrawingAgentEnv(gym.Env):
         self.delta_similarity_history = []
         self.target_sketch = None
         self.cursor = [0, 0]
+        self.episode_total_painted = 0
+        self.episode_correctly_painted = 0
 
     def _load_target_sketches(self):
         sketches = []
@@ -222,6 +224,9 @@ class DrawingAgentEnv(gym.Env):
                     is_now_black = np.isclose(self.canvas[r, c], 0.0)
 
                     if was_white and is_now_black:
+                        self.episode_total_painted += 1
+                        if np.isclose(self.target_sketch[r, c], 0.0):
+                            self.episode_correctly_painted += 1
                         newly_blackened_pixels_exist = True
                         step_reward += self.reward_map[r, c]
 
@@ -286,7 +291,9 @@ class DrawingAgentEnv(gym.Env):
             "step_rewards": self.step_rewards,
         }
         if self.episode_end:
-            info_dict["delta_similarity_history"] = self.delta_similarity_history
+            # info_dict["delta_similarity_history"] = self.delta_similarity_history
+            info_dict["total_painted"] = self.episode_total_painted
+            info_dict["correctly_painted"] = self.episode_correctly_painted
         return info_dict
 
     def _init_pygame(self):

@@ -27,6 +27,8 @@ class TrainingDataCallback(BaseCallback):
                         "block_similarity": info.get("block_similarity"),
                         "block_reward": info.get("block_reward"),
                         "step_rewards": info.get("step_rewards"),
+                        "total_painted": info.get("total_painted", 0),
+                        "correctly_painted": info.get("correctly_painted", 0),
                     })
         return True
 
