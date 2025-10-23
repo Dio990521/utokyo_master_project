@@ -115,6 +115,7 @@ def run_training(config: dict):
     MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
     TRAINING_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "training_data.csv")
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
+    model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(MODELS_DIR, exist_ok=True)
@@ -128,21 +129,34 @@ def run_training(config: dict):
 
     policy_kwargs = dict(features_extractor_class=CustomCnnExtractor, features_extractor_kwargs=dict(features_dim=128))
 
-    model = PPO(
-        "CnnPolicy",
-        env,
-        learning_rate=LEARNING_RATE,
-        n_steps=2048,
-        batch_size=BATCH_BASE_SIZE, #128
-        gamma=0.99,
-        gae_lambda=0.95,
-        clip_range=0.2,
-        ent_coef=ENT_COEF,
-        verbose=1,
-        tensorboard_log=LOG_DIR,
-        policy_kwargs=policy_kwargs,
-        seed=SEED,
-    )
+    if os.path.exists(model_path):
+        print(f"Found existing model at {model_path}. Loading and resuming training...")
+        model = PPO.load(
+            model_path,
+            env=env,
+            custom_objects={"policy_kwargs": policy_kwargs},
+            tensorboard_log=LOG_DIR
+        )
+        print("Model loaded successfully.")
+    else:
+        print(f"No existing model found at {model_path}. Creating a new model...")
+        model = PPO(
+            "CnnPolicy",
+            env,
+            learning_rate=LEARNING_RATE,
+            n_steps=2048,
+            batch_size=BATCH_BASE_SIZE,  # 128
+            gamma=0.99,
+            gae_lambda=0.95,
+            clip_range=0.2,
+            ent_coef=ENT_COEF,
+            verbose=1,
+            tensorboard_log=LOG_DIR,
+            policy_kwargs=policy_kwargs,
+            seed=SEED,
+        )
+        print("New model created.")
+
 
     config["SEED"] = model.seed
     config_save_path = os.path.join(BASE_OUTPUT_DIR, "config.json")
@@ -158,7 +172,7 @@ def run_training(config: dict):
             save_path=VALIDATION_DATA_PATH
         ))
 
-    model.learn(total_timesteps=TOTAL_TIME_STEPS, callback=callbacks)
+    model.learn(total_timesteps=TOTAL_TIME_STEPS, callback=callbacks, reset_num_timesteps=False)
 
     model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
     print(f"Model for {VERSION} saved to {MODELS_DIR}")

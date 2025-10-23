@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-VERSION = "20251023_square_envs16_1"
+VERSION = "20251023_2squares_1"
 PLOT_VALIDATION_DATA = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100

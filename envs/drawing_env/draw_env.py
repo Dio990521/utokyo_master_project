@@ -5,7 +5,6 @@ from PIL import Image, ImageDraw
 import os
 import random
 import pygame
-
 from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
     calculate_block_reward, visualize_obs, calculate_iou_similarity, \
     calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_reward_map
@@ -56,6 +55,12 @@ class DrawingAgentEnv(gym.Env):
         self.stroke_budget = config.get("stroke_budget", 1)
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.use_budget_channel = config.get("use_budget_channel", True)
+
+        self.num_rectangles = config.get("num_rectangles", 2)
+        self.rect_min_width = config.get("rect_min_width", 5)
+        self.rect_max_width = config.get("rect_max_width", 15)
+        self.rect_min_height = config.get("rect_min_height", 5)
+        self.rect_max_height = config.get("rect_max_height", 15)
 
         self.brush_size = config.get("brush_size", 1)
         self.target_square_size = config.get("target_square_size", 15)
@@ -115,12 +120,20 @@ class DrawingAgentEnv(gym.Env):
         super().reset(seed=seed)
         self._init_state_variables()
 
-        max_coord = self.canvas_size[0] - self.target_square_size
-        y0 = self.np_random.integers(0, max_coord + 1)
-        x0 = self.np_random.integers(0, max_coord + 1)
-
         self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
-        self.target_sketch[y0:y0 + self.target_square_size, x0:x0 + self.target_square_size] = 0.0
+
+        for _ in range(self.num_rectangles):
+            rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
+            rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
+
+            max_x0 = self.canvas_size[0] - rect_width
+            max_y0 = self.canvas_size[1] - rect_height
+
+            x0 = self.np_random.integers(0, max_x0 + 1)
+            y0 = self.np_random.integers(0, max_y0 + 1)
+
+            self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
+
         self.reward_map = calculate_reward_map(
             self.target_sketch,
             reward_on_target=self.reward_map_on_target,
