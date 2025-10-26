@@ -20,15 +20,19 @@ class TrainingDataCallback(BaseCallback):
         for i, done in enumerate(self.locals["dones"]):
             if done:
                 info = self.locals["infos"][i]
-                if "similarity" in info:
+                if "used_budgets" in info:
                     self.episode_data.append({
-                        "similarity": info.get("similarity"),
+                        "pixel_similarity": info.get("pixel_similarity"),
+                        "iou_similarity": info.get("iou_similarity"),
+                        "recall_black": info.get("recall_black"),
+                        "recall_white": info.get("recall_white"),
+                        "balanced_accuracy": info.get("balanced_accuracy"),
                         "used_budgets": info.get("used_budgets"),
                         "block_similarity": info.get("block_similarity"),
                         "block_reward": info.get("block_reward"),
                         "step_rewards": info.get("step_rewards"),
-                        "total_painted": info.get("total_painted", 0),
-                        "correctly_painted": info.get("correctly_painted", 0),
+                        "total_painted": info.get("total_painted"),
+                        "correctly_painted": info.get("correctly_painted"),
                     })
         return True
 
@@ -49,7 +53,7 @@ class ValidationCallback(BaseCallback):
         self.eval_env_config = eval_env_config
         self.validation_data = []
 
-        val_path = self.eval_env_config["target_sketches_path"]
+        val_path = self.eval_env_config["val_sketches_path"]
         self.val_sketch_files = [os.path.join(val_path, f) for f in os.listdir(val_path) if
                                  f.endswith(('.png', '.jpg'))]
         if not self.val_sketch_files:
@@ -75,17 +79,23 @@ class ValidationCallback(BaseCallback):
                 results.append({
                     "step": self.num_timesteps,
                     "sketch": os.path.basename(sketch_file),
-                    "similarity": info.get("similarity"),
+                    "pixel_similarity": info.get("pixel_similarity"),
+                    "iou_similarity": info.get("iou_similarity"),
+                    "recall_black": info.get("recall_black"),
+                    "recall_white": info.get("recall_white"),
+                    "balanced_accuracy": info.get("balanced_accuracy"),
                     "used_budgets": info.get("used_budgets"),
                     "block_similarity": info.get("block_similarity"),
                     "block_reward": info.get("block_reward"),
                     "step_rewards": info.get("step_rewards"),
+                    "total_painted": info.get("total_painted"),
+                    "correctly_painted": info.get("correctly_painted"),
                 })
                 eval_env.close()
 
             self.validation_data.extend(results)
-            avg_sim = np.mean([res["similarity"] for res in results])
-            self.logger.record("validation/avg_similarity", avg_sim)
+            avg_sim = np.mean([res["pixel_similarity"] for res in results])
+            self.logger.record("validation/avg_pixel_similarity", avg_sim)
             self.logger.dump(self.num_timesteps)
             print(f"--- Validation Complete. Average Similarity: {avg_sim:.4f} ---")
         return True

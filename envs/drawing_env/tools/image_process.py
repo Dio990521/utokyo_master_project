@@ -7,7 +7,38 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 
 
+def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel_value=1.0):
+    if target_sketch.shape != canvas.shape:
+        raise ValueError("Target sketch and canvas must have the same shape.")
+
+    total_pixels = target_sketch.size
+    target_is_black = np.isclose(target_sketch, black_pixel_value)
+    canvas_is_black = np.isclose(canvas, black_pixel_value)
+    target_is_white = np.isclose(target_sketch, white_pixel_value)
+    canvas_is_white = np.isclose(canvas, white_pixel_value)
+
+    # TP, TN, FP, FN
+    tp = np.sum(target_is_black & canvas_is_black)
+    tn = np.sum(target_is_white & canvas_is_white)
+    fp = np.sum(target_is_white & canvas_is_black)
+    fn = np.sum(target_is_black & canvas_is_white)
+
+    recall_black = tp / (tp + fn)
+    recall_white = tn / (tn + fp)
+
+    accuracy = (tp + tn) / total_pixels
+    balanced_accuracy = (recall_black + recall_white) / 2.0
+
+    return recall_black, recall_white, balanced_accuracy, accuracy
+
 def calculate_reward_map(target_sketch, reward_on_target=0.1, reward_near_target=0.0, reward_far_target=-0.1, near_distance=2):
+    if reward_near_target == reward_far_target:
+        reward_map = np.where(
+            np.isclose(target_sketch, 0),
+            reward_on_target,  # Value if True
+            reward_far_target  # Value if False
+        )
+        return reward_map.astype(np.float32)
     distance_map = distance_transform_edt(target_sketch)
 
     reward_map = np.full(target_sketch.shape, reward_far_target, dtype=np.float32)
@@ -78,17 +109,6 @@ def calculate_qualified_block_similarity(canvas, target_sketch, block_size):
             score += block_iou
 
     return score / total_blocks if total_blocks > 0 else 0.0
-
-def calculate_pixel_similarity(canvas, target_sketch):
-    total_target_pixels = np.sum(target_sketch == 0)
-
-    if total_target_pixels == 0:
-        return 1.0
-
-    overlapping_pixels = np.sum((canvas == 0) & (target_sketch == 0))
-    similarity = overlapping_pixels / total_target_pixels
-
-    return similarity
 
 def load_image_as_array(image_path):
     # Convert to grayscale and binary (0: black, 255: white)

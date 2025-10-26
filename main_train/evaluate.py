@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251023_2squares_2"
+VERSION = "20251029_2squares_2"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
@@ -39,13 +39,13 @@ eval_env = DrawingAgentEnv(
             "rect_max_height": 15,
             "use_reward_map_reward": True,
             "reward_map_on_target": 0.1,
-            "reward_map_near_target": -0.0,
+            "reward_map_near_target": 0.0,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
             "use_budget_channel": True,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
-            "use_stroke_reward": False,
+            "use_stroke_reward": True,
             "r_stroke_hyper": 100,
             "stroke_reward_scale": 1.0,
             "similarity_weight": 0,

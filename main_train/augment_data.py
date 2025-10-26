@@ -1,4 +1,4 @@
-# train/augment_data.py
+# main_train/augment_data.py
 
 import os
 from PIL import Image

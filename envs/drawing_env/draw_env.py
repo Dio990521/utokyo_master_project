@@ -5,9 +5,10 @@ from PIL import Image, ImageDraw
 import os
 import random
 import pygame
-from envs.drawing_env.tools.image_process import find_starting_point, calculate_pixel_similarity, \
+from envs.drawing_env.tools.image_process import find_starting_point, \
     calculate_block_reward, visualize_obs, calculate_iou_similarity, \
-    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_reward_map
+    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_reward_map, \
+    calculate_accuracy
 
 
 def _decode_action(action):
@@ -62,6 +63,11 @@ class DrawingAgentEnv(gym.Env):
         self.rect_min_height = config.get("rect_min_height", 5)
         self.rect_max_height = config.get("rect_max_height", 15)
 
+        self.use_penalty_scaling = config.get("use_penalty_scaling", False)
+        self.penalty_scale_min = config.get("penalty_scale_min", 0.1)
+        self.penalty_scale_max = config.get("penalty_scale_max", 1.0)
+        self.penalty_scale_ratio_threshold = config.get("penalty_scale_ratio_threshold", 0.5)
+
         self.brush_size = config.get("brush_size", 1)
         self.target_square_size = config.get("target_square_size", 15)
         self.use_reward_map_reward = config.get("use_reward_map_reward", False)
@@ -91,7 +97,13 @@ class DrawingAgentEnv(gym.Env):
         self.is_pen_down = False
         self.pen_was_down = False
         self.episode_end = False
-        self.last_pixel_similarity = 0
+
+        self.last_pixel_similarity = 0.0
+        self.last_iou_similarity = 0.0
+        self.last_balanced_accuracy = 0.0
+        self.last_recall_black = 0.0
+        self.last_recall_white = 0.0
+
         self.block_similarity = 0
         self.block_reward = 0
         self.step_rewards = 0
@@ -150,6 +162,11 @@ class DrawingAgentEnv(gym.Env):
 
         self.cursor = find_starting_point(self.target_sketch)
 
+        rb, rw, ba, _ = calculate_accuracy(self.target_sketch, self.canvas)
+        self.last_recall_black = rb
+        self.last_recall_white = rw
+        self.last_balanced_accuracy = ba
+
         if self.render_mode == "human":
             self._init_pygame()
 
@@ -176,19 +193,28 @@ class DrawingAgentEnv(gym.Env):
                 for c in range(x_start, x_end):
                     potential_affected_pixels.append((r, c))
 
-        self._update_agent_state(dx, dy, is_pen_down, is_stop_action)
+        current_iou_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        current_recall_black, current_recall_white, current_ba, current_pixel_similarity = calculate_accuracy(
+            self.target_sketch,
+            self.canvas)
+
+        self.last_pixel_similarity = current_pixel_similarity
+        self.last_iou_similarity = current_iou_similarity
+        self.last_recall_black = current_recall_black
+        self.last_recall_white = current_recall_white
+        self.last_balanced_accuracy = current_ba
+
         reward = self._calculate_reward(
             terminated, False,
             is_pen_down, potential_affected_pixels, canvas_before
         )
 
-        truncated = self.current_step >= self.max_steps or np.isclose(self.last_pixel_similarity, 1.0)
+        truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
 
         #reward = self._calculate_reward(dx, dy, terminated, truncated)
 
         if terminated or truncated:
             self.episode_end = True
-            self.last_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
 
         observation = self._get_obs()
         #visualize_obs(observation)
@@ -228,7 +254,14 @@ class DrawingAgentEnv(gym.Env):
                         if np.isclose(self.target_sketch[r, c], 0.0):
                             self.episode_correctly_painted += 1
                         newly_blackened_pixels_exist = True
-                        step_reward += self.reward_map[r, c]
+                        base_reward_value = self.reward_map[r, c]
+                        final_reward_value = base_reward_value
+                        current_penalty_scale = 0.0 if self.last_recall_black < 0.95 else 1.0
+                        if base_reward_value < 0:
+                            final_reward_value = base_reward_value * current_penalty_scale
+
+
+                        step_reward += final_reward_value
 
             reward += step_reward if newly_blackened_pixels_exist else 0.0
 
@@ -241,12 +274,10 @@ class DrawingAgentEnv(gym.Env):
         #         is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
         #         reward += 0.1 if is_correct else -0.1
 
-        current_pixel_similarity = calculate_pixel_similarity(self.canvas, self.target_sketch)
-        if self.use_step_similarity_reward:
-            delta = current_pixel_similarity - self.last_pixel_similarity
-            reward += self.similarity_weight * delta
-            self.delta_similarity_history.append(delta)
-        self.last_pixel_similarity = current_pixel_similarity
+        # if self.use_step_similarity_reward:
+        #     delta = current_pixel_similarity - self.last_pixel_similarity
+        #     reward += self.similarity_weight * delta
+        #     self.delta_similarity_history.append(delta)
 
         if truncated or terminated:
             reward += self.last_pixel_similarity * self.similarity_weight
@@ -284,16 +315,18 @@ class DrawingAgentEnv(gym.Env):
 
     def _get_info(self):
         info_dict = {
-            "similarity": self.last_pixel_similarity,
+            "pixel_similarity": self.last_pixel_similarity,
+            "iou_similarity": self.last_iou_similarity,
+            "recall_black": self.last_recall_black,
+            "recall_white": self.last_recall_white,
+            "balanced_accuracy": self.last_balanced_accuracy,
             "used_budgets": self.used_budgets,
             "block_similarity": self.block_similarity,
             "block_reward": self.block_reward,
             "step_rewards": self.step_rewards,
+            "total_painted": self.episode_total_painted,
+            "correctly_painted": self.episode_correctly_painted,
         }
-        if self.episode_end:
-            # info_dict["delta_similarity_history"] = self.delta_similarity_history
-            info_dict["total_painted"] = self.episode_total_painted
-            info_dict["correctly_painted"] = self.episode_correctly_painted
         return info_dict
 
     def _init_pygame(self):
