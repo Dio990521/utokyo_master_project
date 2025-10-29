@@ -1,10 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import numpy as np
 
-VERSION = "20251029_2squares_3_0penalty"
+VERSION = "20251031_2squares_scale_penalty_4"
 PLOT_VALIDATION_DATA = False
-PLOT_PAINTED_PIXELS_TOGETHER = False
+PLOT_PAINTED_PIXELS_TOGETHER = True
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
@@ -60,15 +61,28 @@ def plot_training_data():
                 plt.close()
                 return
 
-            total_painted_ma = df["total_painted"].rolling(window=TRAIN_WINDOW_SIZE).mean()
-            correctly_painted_ma = df["correctly_painted"].rolling(window=TRAIN_WINDOW_SIZE).mean()
+            precision = np.divide(
+                df["correctly_painted"],
+                df["total_painted"],
+                out=np.zeros_like(df["correctly_painted"], dtype=float),
+                where=df["total_painted"]!=0
+            )
+            precision = np.nan_to_num(precision, nan=0.0, posinf=0.0, neginf=0.0)
 
-            plt.plot(df.index, total_painted_ma, label=f'Total Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
-            plt.plot(df.index, correctly_painted_ma, label=f'Correctly Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
+            # Calculate moving average of precision
+            precision_ma = pd.Series(precision).rolling(window=TRAIN_WINDOW_SIZE).mean()
+            recall_black_ma = df["recall_black"].rolling(window=TRAIN_WINDOW_SIZE).mean()
 
-            plt.title(f"Training Performance: Painted Pixels Count (Moving Average) - {VERSION}")
+            # Plot both metrics
+            plt.plot(df.index, precision_ma, 'r-',
+                     label=f'Painting Precision (MA {TRAIN_WINDOW_SIZE})')  # Red solid line
+            plt.plot(df.index, recall_black_ma, 'g--', label=f'Black Recall (MA {TRAIN_WINDOW_SIZE})')
+
+            plt.title(f"Training Performance: Precision vs Black Recall (Moving Average) - {VERSION}")
             plt.xlabel("Episode")
-            plt.ylabel("Number of Pixels")
+            plt.ylabel("Metric Value (0-1)")
+            plt.ylim(-0.05, 1.05)
+
         else:
             if COLUMN_TO_PLOT not in df.columns:
                 print(f"Error: Column '{COLUMN_TO_PLOT}' not found in training data.")

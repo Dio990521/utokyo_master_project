@@ -63,11 +63,6 @@ class DrawingAgentEnv(gym.Env):
         self.rect_min_height = config.get("rect_min_height", 5)
         self.rect_max_height = config.get("rect_max_height", 15)
 
-        self.use_penalty_scaling = config.get("use_penalty_scaling", False)
-        self.penalty_scale_min = config.get("penalty_scale_min", 0.1)
-        self.penalty_scale_max = config.get("penalty_scale_max", 1.0)
-        self.penalty_scale_ratio_threshold = config.get("penalty_scale_ratio_threshold", 0.5)
-
         self.brush_size = config.get("brush_size", 1)
         self.target_square_size = config.get("target_square_size", 15)
         self.use_reward_map_reward = config.get("use_reward_map_reward", False)
@@ -86,9 +81,9 @@ class DrawingAgentEnv(gym.Env):
 
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.specific_sketch_file = config.get("specific_sketch_file", None)
-        # self.target_sketches = self._load_target_sketches()
-        # if not self.target_sketches:
-        #     raise ValueError("No target sketches were loaded!")
+        self.target_sketches = self._load_target_sketches()
+        if not self.target_sketches:
+            raise ValueError("No target sketches were loaded!")
 
     def _init_state_variables(self):
         self.current_step = 0
@@ -103,6 +98,7 @@ class DrawingAgentEnv(gym.Env):
         self.last_balanced_accuracy = 0.0
         self.last_recall_black = 0.0
         self.last_recall_white = 0.0
+        self.last_precision_black = 0.0
 
         self.block_similarity = 0
         self.block_reward = 0
@@ -148,6 +144,12 @@ class DrawingAgentEnv(gym.Env):
 
             self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
 
+
+        # if len(self.target_sketches) == 1:
+        #     self.target_sketch = self.target_sketches[0]
+        # else:
+        #     self.target_sketch = random.choice(self.target_sketches)
+
         self.reward_map = calculate_reward_map(
             self.target_sketch,
             reward_on_target=self.reward_map_on_target,
@@ -155,10 +157,6 @@ class DrawingAgentEnv(gym.Env):
             reward_far_target=self.reward_map_far_target,
             near_distance=self.reward_map_near_distance
         )
-        # if len(self.target_sketches) == 1:
-        #     self.target_sketch = self.target_sketches[0]
-        # else:
-        #     self.target_sketch = random.choice(self.target_sketches)
 
         self.cursor = find_starting_point(self.target_sketch)
 
@@ -202,6 +200,10 @@ class DrawingAgentEnv(gym.Env):
         self.last_iou_similarity = current_iou_similarity
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
+        if self.episode_total_painted > 0:
+            self.last_precision_black = self.episode_correctly_painted / self.episode_total_painted
+        else:
+            self.last_precision_black = 0.0
         self.last_balanced_accuracy = current_ba
 
         reward = self._calculate_reward(
@@ -210,9 +212,6 @@ class DrawingAgentEnv(gym.Env):
         )
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
-
-        #reward = self._calculate_reward(dx, dy, terminated, truncated)
-
         if terminated or truncated:
             self.episode_end = True
 
@@ -256,7 +255,11 @@ class DrawingAgentEnv(gym.Env):
                         newly_blackened_pixels_exist = True
                         base_reward_value = self.reward_map[r, c]
                         final_reward_value = base_reward_value
-                        current_penalty_scale = 0.0 if self.last_recall_black < 0.95 else 1.0
+                        current_penalty_scale = 0.0
+                        if 0.9 <= self.last_recall_black < 1.0:
+                            current_penalty_scale = self.last_precision_black
+                        elif self.last_recall_black >= 1.0:
+                            current_penalty_scale = 1.0
                         if base_reward_value < 0:
                             final_reward_value = base_reward_value * current_penalty_scale
 
@@ -280,10 +283,10 @@ class DrawingAgentEnv(gym.Env):
         #     self.delta_similarity_history.append(delta)
 
         if truncated or terminated:
-            reward += self.last_pixel_similarity * self.similarity_weight
+            reward += self.last_recall_black * self.similarity_weight
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
-                reward += self.r_stroke_hyper / self.used_budgets * self.last_pixel_similarity
+                reward += self.r_stroke_hyper / self.used_budgets * self.last_recall_black
             if self.block_reward_scale > 0:
                 self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
                 self.block_reward = self.block_similarity * self.block_reward_scale
