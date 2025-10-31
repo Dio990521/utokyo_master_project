@@ -130,25 +130,25 @@ class DrawingAgentEnv(gym.Env):
         super().reset(seed=seed)
         self._init_state_variables()
 
-        self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        # self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        #
+        # for _ in range(self.num_rectangles):
+        #     rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
+        #     rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
+        #
+        #     max_x0 = self.canvas_size[0] - rect_width
+        #     max_y0 = self.canvas_size[1] - rect_height
+        #
+        #     x0 = self.np_random.integers(0, max_x0 + 1)
+        #     y0 = self.np_random.integers(0, max_y0 + 1)
+        #
+        #     self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
 
-        for _ in range(self.num_rectangles):
-            rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
-            rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
 
-            max_x0 = self.canvas_size[0] - rect_width
-            max_y0 = self.canvas_size[1] - rect_height
-
-            x0 = self.np_random.integers(0, max_x0 + 1)
-            y0 = self.np_random.integers(0, max_y0 + 1)
-
-            self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
-
-
-        # if len(self.target_sketches) == 1:
-        #     self.target_sketch = self.target_sketches[0]
-        # else:
-        #     self.target_sketch = random.choice(self.target_sketches)
+        if len(self.target_sketches) == 1:
+            self.target_sketch = self.target_sketches[0]
+        else:
+            self.target_sketch = random.choice(self.target_sketches)
 
         self.reward_map = calculate_reward_map(
             self.target_sketch,
@@ -181,7 +181,7 @@ class DrawingAgentEnv(gym.Env):
         potential_affected_pixels = []
         brush_radius = self.brush_size // 2
         current_cursor = self.cursor
-        if is_pen_down:
+        if self.use_reward_map_reward and is_pen_down:
             y_start = max(0, current_cursor[1] - brush_radius)
             y_end = min(self.canvas_size[1], current_cursor[1] + brush_radius + 1)
             x_start = max(0, current_cursor[0] - brush_radius)
@@ -256,7 +256,7 @@ class DrawingAgentEnv(gym.Env):
                         base_reward_value = self.reward_map[r, c]
                         final_reward_value = base_reward_value
                         current_penalty_scale = 0.0
-                        if 0.9 <= self.last_recall_black < 1.0:
+                        if self.last_recall_black < 1.0:
                             current_penalty_scale = self.last_precision_black
                         elif self.last_recall_black >= 1.0:
                             current_penalty_scale = 1.0
@@ -267,15 +267,17 @@ class DrawingAgentEnv(gym.Env):
                         step_reward += final_reward_value
 
             reward += step_reward if newly_blackened_pixels_exist else 0.0
-
-        # if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
-        #     self.canvas[self.cursor[1], self.cursor[0]] = 0.0
-        #     # if self.use_local_reward_block:
-        #     #     reward += calculate_density_cap_reward(self.canvas, self.target_sketch, self.cursor,
-        #     #                                            self.local_reward_block_size)
-        #     if not self.use_step_similarity_reward:
-        #         is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
-        #         reward += 0.1 if is_correct else -0.1
+        else:
+            if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
+                self.canvas[self.cursor[1], self.cursor[0]] = 0.0
+                if not self.use_step_similarity_reward:
+                    is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
+                    current_penalty_scale = 0.0
+                    if 0.9 <= self.last_recall_black < 1.0:
+                        current_penalty_scale = self.last_precision_black
+                    elif self.last_recall_black >= 1.0:
+                        current_penalty_scale = 1.0
+                    reward += 0.1 if is_correct else -0.1 * current_penalty_scale
 
         # if self.use_step_similarity_reward:
         #     delta = current_pixel_similarity - self.last_pixel_similarity
@@ -283,7 +285,7 @@ class DrawingAgentEnv(gym.Env):
         #     self.delta_similarity_history.append(delta)
 
         if truncated or terminated:
-            reward += self.last_recall_black * self.similarity_weight
+            reward += self.last_precision_black * self.similarity_weight
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
                 reward += self.r_stroke_hyper / self.used_budgets * self.last_recall_black
