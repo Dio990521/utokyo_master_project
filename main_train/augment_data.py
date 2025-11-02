@@ -10,7 +10,7 @@ def create_augmented_validation_set(train_dir, val_dir, num_augmentations_per_im
     augmentation_transform = transforms.Compose([
         transforms.RandomAffine(
             degrees=0,
-            translate=(0.1, 0.1),
+            translate=(0.2, 0.2),
             fill=255
         )
     ])
@@ -41,9 +41,9 @@ def create_augmented_validation_set(train_dir, val_dir, num_augmentations_per_im
 
 
 if __name__ == '__main__':
-    TRAIN_SKETCHES_DIR = "../envs/drawing_env/training/sketches/"
-    VALIDATION_SKETCHES_DIR = "../envs/drawing_env/training/sketches/"
+    TRAIN_SKETCHES_DIR = "../envs/drawing_env/training/sketch_num_augment/"
+    VALIDATION_SKETCHES_DIR = "../envs/drawing_env/training/sketch_num_augment/"
 
-    VERSIONS_PER_IMAGE = 7
+    VERSIONS_PER_IMAGE = 100
 
     create_augmented_validation_set(TRAIN_SKETCHES_DIR, VALIDATION_SKETCHES_DIR, VERSIONS_PER_IMAGE)

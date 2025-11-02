@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251029_2squares_scale_penalty_1_redo2"
+VERSION = "20251031_2square_scale_penalty2_1"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
 CANVAS_SIZE = (32, 32)
@@ -31,7 +31,7 @@ eval_env = DrawingAgentEnv(
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
-            "brush_size": 1,
+            "brush_size": 3,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
