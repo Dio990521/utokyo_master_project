@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "20251105_2squares_0threshold8_4_redo"
-PLOT_VALIDATION_DATA = True
+VERSION = "test2"
+PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
