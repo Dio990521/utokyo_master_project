@@ -101,6 +101,7 @@ class DrawingAgentEnv(gym.Env):
         self.pen_was_down = False
         self.episode_end = False
         self.navigation_reward = 0
+        self.current_combo_count = 0
 
         self.last_pixel_similarity = 0.0
         self.last_iou_similarity = 0.0
@@ -268,41 +269,49 @@ class DrawingAgentEnv(gym.Env):
                           is_pen_down, potential_affected_pixels,
                           canvas_changed_this_step):
         reward = 0.0
-
-        if self.use_dynamic_distance_map_reward:
-            if canvas_changed_this_step:
-                self.needs_distance_map_update = True
-
-            if self.needs_distance_map_update:
-                self._update_dynamic_distance_map()
-
-            current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
-
-            if not is_pen_down:
-                self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
-                reward += self.navigation_reward
-
-            self.last_distance = current_distance
-
         drawing_reward = 0.0
+        positive_reward_this_step = 0.0
+        negative_reward_this_step = 0.0
         if is_pen_down:
+            hit_correct_pixel = False
             if potential_affected_pixels:
                 for r, c in potential_affected_pixels:
                     self.episode_total_painted += 1
-                    if np.isclose(self.target_sketch[r, c], 0.0):
-                        self.episode_correctly_painted += 1
-
                     base_reward_value = self.reward_map[r, c]
-                    final_reward_value = base_reward_value
-                    current_penalty_scale = 0.0
-                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
-                    elif self.last_recall_black >= 1.0:
-                        current_penalty_scale = 1.0
-                    if base_reward_value < 0:
-                        final_reward_value = base_reward_value * current_penalty_scale
 
-                    drawing_reward += final_reward_value
+                    if base_reward_value > 0:
+                        self.episode_correctly_painted += 1
+                        hit_correct_pixel = True
+                        positive_reward_this_step += base_reward_value
+                    else:
+                        current_penalty_scale = 0.0
+                        if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                            current_penalty_scale = self.last_precision_black
+                        elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                            current_penalty_scale = 1.0
+
+                        negative_reward_this_step += (base_reward_value * current_penalty_scale)
+
+            if hit_correct_pixel:
+                self.current_combo_count += 1
+                drawing_reward = (positive_reward_this_step * self.current_combo_count) + negative_reward_this_step
+            else:
+                self.current_combo_count = 0
+                drawing_reward = positive_reward_this_step + negative_reward_this_step  # (此时 positive 必为 0)
+
+            if canvas_changed_this_step and hit_correct_pixel:
+                self.needs_distance_map_update = True
+        else:
+            self.current_combo_count = 0
+            if self.use_dynamic_distance_map_reward:
+                if self.needs_distance_map_update:
+                    self._update_dynamic_distance_map()
+
+                current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
+                self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
+                reward += self.navigation_reward
+
+                self.last_distance = current_distance
 
         reward += drawing_reward
 
