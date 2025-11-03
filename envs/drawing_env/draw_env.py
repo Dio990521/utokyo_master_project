@@ -1,3 +1,4 @@
+import json
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -6,9 +7,8 @@ import os
 import random
 import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
-    calculate_block_reward, visualize_obs, calculate_iou_similarity, \
-    calculate_qualified_block_similarity, calculate_density_cap_reward, calculate_reward_map, \
-    calculate_accuracy
+    calculate_block_reward, calculate_iou_similarity, calculate_reward_map, \
+    calculate_accuracy, calculate_dynamic_distance_map
 
 
 def _decode_action(action):
@@ -33,6 +33,7 @@ def _decode_action(action):
 
 class DrawingAgentEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
+    _episode_counter = 0
 
     def __init__(self, config=None):
         super(DrawingAgentEnv, self).__init__()
@@ -57,6 +58,9 @@ class DrawingAgentEnv(gym.Env):
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.use_budget_channel = config.get("use_budget_channel", True)
 
+        self.use_dynamic_distance_map_reward = config.get("use_dynamic_distance_map_reward", False)
+        self.navigation_reward_scale = config.get("navigation_reward_scale", 0.05)
+
         self.num_rectangles = config.get("num_rectangles", 2)
         self.rect_min_width = config.get("rect_min_width", 5)
         self.rect_max_width = config.get("rect_max_width", 15)
@@ -66,7 +70,6 @@ class DrawingAgentEnv(gym.Env):
 
         self.brush_size = config.get("brush_size", 1)
         self.target_square_size = config.get("target_square_size", 15)
-        self.use_reward_map_reward = config.get("use_reward_map_reward", False)
         self.reward_map_on_target = config.get("reward_map_on_target", 0.1)
         self.reward_map_near_target = config.get("reward_map_near_target", 0.0)
         self.reward_map_far_target = config.get("reward_map_far_target", -0.1)
@@ -86,6 +89,10 @@ class DrawingAgentEnv(gym.Env):
         if not self.target_sketches:
             raise ValueError("No target sketches were loaded!")
 
+        self.step_debug_path = config.get("step_debug_path", None)
+        self.episode_save_limit = config.get("episode_save_limit", 100)
+        self.current_episode_num = 0
+
     def _init_state_variables(self):
         self.current_step = 0
         self.canvas = np.full(self.canvas_size, 1.0, dtype=np.float32)
@@ -93,6 +100,7 @@ class DrawingAgentEnv(gym.Env):
         self.is_pen_down = False
         self.pen_was_down = False
         self.episode_end = False
+        self.navigation_reward = 0
 
         self.last_pixel_similarity = 0.0
         self.last_iou_similarity = 0.0
@@ -109,6 +117,12 @@ class DrawingAgentEnv(gym.Env):
         self.cursor = [0, 0]
         self.episode_total_painted = 0
         self.episode_correctly_painted = 0
+
+        self.current_episode_step_data = []
+
+        self.dynamic_distance_map = None
+        self.last_distance = 0.0
+        self.needs_distance_map_update = True
 
     def _load_target_sketches(self):
         sketches = []
@@ -129,27 +143,29 @@ class DrawingAgentEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
+
+        DrawingAgentEnv._episode_counter += 1
+        self.current_episode_num = DrawingAgentEnv._episode_counter
         self._init_state_variables()
 
-        self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        # self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        # for _ in range(self.num_rectangles):
+        #     rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
+        #     rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
+        #
+        #     max_x0 = self.canvas_size[0] - rect_width
+        #     max_y0 = self.canvas_size[1] - rect_height
+        #
+        #     x0 = self.np_random.integers(0, max_x0 + 1)
+        #     y0 = self.np_random.integers(0, max_y0 + 1)
+        #
+        #     self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
 
-        for _ in range(self.num_rectangles):
-            rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
-            rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
 
-            max_x0 = self.canvas_size[0] - rect_width
-            max_y0 = self.canvas_size[1] - rect_height
-
-            x0 = self.np_random.integers(0, max_x0 + 1)
-            y0 = self.np_random.integers(0, max_y0 + 1)
-
-            self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
-
-
-        # if len(self.target_sketches) == 1:
-        #     self.target_sketch = self.target_sketches[0]
-        # else:
-        #     self.target_sketch = random.choice(self.target_sketches)
+        if len(self.target_sketches) == 1:
+            self.target_sketch = self.target_sketches[0]
+        else:
+            self.target_sketch = random.choice(self.target_sketches)
 
         self.reward_map = calculate_reward_map(
             self.target_sketch,
@@ -159,12 +175,16 @@ class DrawingAgentEnv(gym.Env):
             near_distance=self.reward_map_near_distance
         )
 
+        self._update_dynamic_distance_map()
         self.cursor = find_starting_point(self.target_sketch)
+        self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
 
         rb, rw, ba, _ = calculate_accuracy(self.target_sketch, self.canvas)
         self.last_recall_black = rb
         self.last_recall_white = rw
         self.last_balanced_accuracy = ba
+
+        self._save_step_data(is_reset=True)
 
         if self.render_mode == "human":
             self._init_pygame()
@@ -180,17 +200,23 @@ class DrawingAgentEnv(gym.Env):
 
         canvas_before = self.canvas.copy()
         potential_affected_pixels = []
-        brush_radius = self.brush_size // 2
-        current_cursor = self.cursor
-        if self.use_reward_map_reward and is_pen_down:
+        canvas_changed_this_step = False
+
+        if is_pen_down and not terminated:
+            current_cursor = self.cursor
+            brush_radius = self.brush_size // 2
+
             y_start = max(0, current_cursor[1] - brush_radius)
             y_end = min(self.canvas_size[1], current_cursor[1] + brush_radius + 1)
             x_start = max(0, current_cursor[0] - brush_radius)
             x_end = min(self.canvas_size[0], current_cursor[0] + brush_radius + 1)
-            self.canvas[y_start:y_end, x_start:x_end] = 0.0
+
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
-                    potential_affected_pixels.append((r, c))
+                    if np.isclose(canvas_before[r, c], 1.0):
+                        self.canvas[r, c] = 0.0
+                        canvas_changed_this_step = True
+                        potential_affected_pixels.append((r, c))
 
         current_iou_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
         current_recall_black, current_recall_white, current_ba, current_pixel_similarity = calculate_accuracy(
@@ -209,15 +235,17 @@ class DrawingAgentEnv(gym.Env):
 
         reward = self._calculate_reward(
             terminated, False,
-            is_pen_down, potential_affected_pixels, canvas_before
+            is_pen_down, potential_affected_pixels, canvas_changed_this_step
         )
+
+        self._save_step_data(action=action, reward=reward)
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
             self.episode_end = True
+            self._save_step_log_file()
 
         observation = self._get_obs()
-        #visualize_obs(observation)
         info = self._get_info()
 
         if self.render_mode == "human":
@@ -237,53 +265,46 @@ class DrawingAgentEnv(gym.Env):
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, terminated, truncated,
-                          is_pen_down, potential_affected_pixels, canvas_before):
+                          is_pen_down, potential_affected_pixels,
+                          canvas_changed_this_step):
         reward = 0.0
 
-        if self.use_reward_map_reward:
-            step_reward = 0.0
-            newly_blackened_pixels_exist = False
+        if self.use_dynamic_distance_map_reward:
+            if canvas_changed_this_step:
+                self.needs_distance_map_update = True
 
-            if is_pen_down and potential_affected_pixels:
+            if self.needs_distance_map_update:
+                self._update_dynamic_distance_map()
+
+            current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
+
+            if not is_pen_down:
+                self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
+                reward += self.navigation_reward
+
+            self.last_distance = current_distance
+
+        drawing_reward = 0.0
+        if is_pen_down:
+            if potential_affected_pixels:
                 for r, c in potential_affected_pixels:
-                    was_white = np.isclose(canvas_before[r, c], 1.0)
-                    is_now_black = np.isclose(self.canvas[r, c], 0.0)
+                    self.episode_total_painted += 1
+                    if np.isclose(self.target_sketch[r, c], 0.0):
+                        self.episode_correctly_painted += 1
 
-                    if was_white and is_now_black:
-                        self.episode_total_painted += 1
-                        if np.isclose(self.target_sketch[r, c], 0.0):
-                            self.episode_correctly_painted += 1
-                        newly_blackened_pixels_exist = True
-                        base_reward_value = self.reward_map[r, c]
-                        final_reward_value = base_reward_value
-                        current_penalty_scale = 0.0
-                        if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                            current_penalty_scale = self.last_precision_black
-                        elif self.last_recall_black >= 1.0:
-                            current_penalty_scale = 1.0
-                        if base_reward_value < 0:
-                            final_reward_value = base_reward_value * current_penalty_scale
-
-
-                        step_reward += final_reward_value
-
-            reward += step_reward if newly_blackened_pixels_exist else 0.0
-        else:
-            if self.is_pen_down and np.isclose(self.canvas[self.cursor[1], self.cursor[0]], 1.0):
-                self.canvas[self.cursor[1], self.cursor[0]] = 0.0
-                if not self.use_step_similarity_reward:
-                    is_correct = np.isclose(self.target_sketch[self.cursor[1], self.cursor[0]], 0.0)
+                    base_reward_value = self.reward_map[r, c]
+                    final_reward_value = base_reward_value
                     current_penalty_scale = 0.0
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
                         current_penalty_scale = self.last_precision_black
                     elif self.last_recall_black >= 1.0:
                         current_penalty_scale = 1.0
-                    reward += 0.1 if is_correct else -0.1 * current_penalty_scale
+                    if base_reward_value < 0:
+                        final_reward_value = base_reward_value * current_penalty_scale
 
-        # if self.use_step_similarity_reward:
-        #     delta = current_pixel_similarity - self.last_pixel_similarity
-        #     reward += self.similarity_weight * delta
-        #     self.delta_similarity_history.append(delta)
+                    drawing_reward += final_reward_value
+
+        reward += drawing_reward
 
         if truncated or terminated:
             reward += self.last_precision_black * self.similarity_weight
@@ -297,6 +318,10 @@ class DrawingAgentEnv(gym.Env):
 
         self.step_rewards += reward
         return reward
+
+    def _update_dynamic_distance_map(self):
+        self.dynamic_distance_map = calculate_dynamic_distance_map(self.target_sketch, self.canvas)
+        self.needs_distance_map_update = False
 
     def _get_obs(self):
         pen_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)
@@ -340,6 +365,7 @@ class DrawingAgentEnv(gym.Env):
             "step_rewards": self.step_rewards,
             "total_painted": self.episode_total_painted,
             "correctly_painted": self.episode_correctly_painted,
+            "navigation_reward": self.navigation_reward
         }
         return info_dict
 
@@ -387,6 +413,55 @@ class DrawingAgentEnv(gym.Env):
         )
 
         self.window.blit(scaled_surface, position)
+
+    def _save_step_data(self, action=None, reward=None, is_reset=False):
+        if not self.step_debug_path or self.current_episode_num > self.episode_save_limit:
+            return
+
+        try:
+            episode_dir = os.path.join(self.step_debug_path, f"episode_{self.current_episode_num:04d}")
+            os.makedirs(episode_dir, exist_ok=True)
+
+            step_num = self.current_step if not is_reset else 0
+            if step_num >= self.max_steps:
+                img_path = os.path.join(episode_dir, f"result.png")
+                canvas_img_array = (self.canvas * 255).astype(np.uint8)
+                img = Image.fromarray(canvas_img_array, 'L')
+                img.save(img_path)
+
+            if is_reset:
+                target_img_path = os.path.join(episode_dir, "_target.png")
+                target_img_array = (self.target_sketch * 255).astype(np.uint8)
+                target_img = Image.fromarray(target_img_array, 'L')
+                target_img.save(target_img_path)
+
+            step_log = {
+                "step": step_num,
+                "action": int(action) if action is not None else None,
+                "reward": float(reward) if reward is not None else None,
+            }
+            self.current_episode_step_data.append(step_log)
+        except Exception as e:
+            print(
+                f"[StepLogger] Error saving step data for ep {self.current_episode_num}, step {self.current_step}: {e}")
+
+    def _save_step_log_file(self):
+        if not self.step_debug_path or self.current_episode_num > self.episode_save_limit:
+            return
+
+        if not self.current_episode_step_data:
+            print(f"[StepLogger] No step data to save for episode {self.current_episode_num}")
+            return
+
+        episode_dir = os.path.join(self.step_debug_path, f"episode_{self.current_episode_num:04d}")
+        log_path = os.path.join(episode_dir, "_step_log.json")
+
+        try:
+            with open(log_path, 'w') as f:
+                json.dump(self.current_episode_step_data, f, indent=4)
+            print(f"[StepLogger] Saved step log for episode {self.current_episode_num} to {log_path}")
+        except Exception as e:
+            print(f"[StepLogger] Error saving JSON log for episode {self.current_episode_num}: {e}")
 
     def close(self):
         if self.window is not None:

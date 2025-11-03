@@ -7,6 +7,15 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 
 
+def calculate_dynamic_distance_map(target_sketch: np.ndarray, canvas: np.ndarray) -> np.ndarray:
+    remaining_work_map = np.where(
+        (np.isclose(target_sketch, 0.0)) & (np.isclose(canvas, 1.0)),
+        0.0,
+        1.0
+    )
+
+    return distance_transform_edt(remaining_work_map)
+
 def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel_value=1.0):
     if target_sketch.shape != canvas.shape:
         raise ValueError("Target sketch and canvas must have the same shape.")

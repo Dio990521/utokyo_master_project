@@ -33,6 +33,7 @@ class TrainingDataCallback(BaseCallback):
                         "step_rewards": info.get("step_rewards"),
                         "total_painted": info.get("total_painted"),
                         "correctly_painted": info.get("correctly_painted"),
+                        "navigation_reward": info.get("navigation_reward")
                     })
         return True
 
@@ -90,6 +91,7 @@ class ValidationCallback(BaseCallback):
                     "step_rewards": info.get("step_rewards"),
                     "total_painted": info.get("total_painted"),
                     "correctly_painted": info.get("correctly_painted"),
+                    "navigation_reward": info.get("navigation_reward")
                 })
                 eval_env.close()
 
@@ -129,10 +131,14 @@ def run_training(config: dict):
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
     model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
+    STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
+    env_config["step_debug_path"] = STEP_DEBUG_DIR
+    env_config["episode_save_limit"] = 100
+
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(MODELS_DIR, exist_ok=True)
+    os.makedirs(STEP_DEBUG_DIR, exist_ok=True)
 
-    #env = gym.make("DrawingEnv-v0", config=env_config)
     env = make_vec_env(
         "DrawingEnv-v0",
         n_envs=NUM_ENVS,
