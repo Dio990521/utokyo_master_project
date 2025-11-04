@@ -7,7 +7,7 @@ config_2squares_1 = {
             "val_sketches_path": VALIDATION_SKETCH_DIR,
             "canvas_size": [32, 32],
             "max_steps": 1000,
-            "brush_size": 3,
+            "brush_size": 1,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
@@ -37,7 +37,7 @@ config_2squares_2 = {
             "val_sketches_path": VALIDATION_SKETCH_DIR,
             "canvas_size": [32, 32],
             "max_steps": 1000,
-            "brush_size": 1,
+            "brush_size": 3,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
@@ -67,7 +67,7 @@ config_2squares_3 = {
             "val_sketches_path": VALIDATION_SKETCH_DIR,
             "canvas_size": [32, 32],
             "max_steps": 1000,
-            "brush_size": 1,
+            "brush_size": 3,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
@@ -97,7 +97,7 @@ config_2squares_4 = {
             "val_sketches_path": VALIDATION_SKETCH_DIR,
             "canvas_size": [32, 32],
             "max_steps": 1000,
-            "brush_size": 1,
+            "brush_size": 3,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
@@ -126,16 +126,16 @@ test = {
             "target_sketches_path": TRAIN_SKETCH_DIR,
             "val_sketches_path": VALIDATION_SKETCH_DIR,
             "canvas_size": [32, 32],
-            "max_steps": 32*32,
-            "brush_size": 1,
+            "max_steps": 500,
+            "brush_size": 3,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
             "use_dynamic_distance_map_reward": True,
-            "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.5,
+            "navigation_reward_scale": 0.1,
+            "reward_map_on_target": 1.0,
             "reward_map_near_target": -0.5,
             "reward_map_far_target": -0.5,
             "reward_map_near_distance": 2,
@@ -154,7 +154,7 @@ test = {
 
 experiments = [
     # {
-    #     "VERSION": "20251105_aug_num_1",
+    #     "VERSION": "20251105_aug_num_1_size1",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
@@ -166,58 +166,58 @@ experiments = [
     #         "ENV_CONFIG": config_2squares_1,
     #     }
     # },
-    # {
-    #     "VERSION": "20251105_aug_num_2",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": config_2squares_2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 2048 * 25,
-    #         "ENV_CONFIG": config_2squares_2,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251105_aug_num_3",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": config_2squares_3,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 2048 * 25,
-    #         "ENV_CONFIG": config_2squares_3,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251105_aug_num_4",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": config_2squares_4,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 2048 * 25,
-    #         "ENV_CONFIG": config_2squares_4,
-    #     }
-    # },
     {
-        "VERSION": "test3",
+        "VERSION": "20251105_aug_num_2_redo",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
-        "ENV_CONFIG": test,
+        "ENV_CONFIG": config_2squares_2,
         "VALIDATION_CONFIG": {
             "EVAL_FREQ": 2048 * 25,
-            "ENV_CONFIG": test,
+            "ENV_CONFIG": config_2squares_2,
         }
     },
+    {
+        "VERSION": "20251105_aug_num_3_redo",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": config_2squares_3,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 2048 * 25,
+            "ENV_CONFIG": config_2squares_3,
+        }
+    },
+    {
+        "VERSION": "20251105_aug_num_4_redo",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": config_2squares_4,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 2048 * 25,
+            "ENV_CONFIG": config_2squares_4,
+        }
+    },
+    # {
+    #     "VERSION": "test4",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 2048 * 25,
+    #         "ENV_CONFIG": test,
+    #     }
+    # },
 ]
 
 if __name__ == '__main__':

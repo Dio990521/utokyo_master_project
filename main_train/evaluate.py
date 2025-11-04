@@ -4,11 +4,11 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "test2"
+VERSION = "20251105_aug_num_2"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/sketches/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/sketch_num_augment/"
 CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 1000
+MAX_EPISODE_STEPS = 500
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
@@ -37,13 +37,14 @@ eval_env = DrawingAgentEnv(
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
-            "use_dynamic_distance_map_reward": True,
+            "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
             "reward_map_on_target": 0.1,
-            "reward_map_near_target": 0.0,
+            "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "use_budget_channel": False,
+            "penalty_scale_threshold": 0.9,
+            "use_budget_channel": True,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
             "use_stroke_reward": False,

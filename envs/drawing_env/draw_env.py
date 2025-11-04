@@ -149,24 +149,24 @@ class DrawingAgentEnv(gym.Env):
         self.current_episode_num = DrawingAgentEnv._episode_counter
         self._init_state_variables()
 
-        self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
-        for _ in range(self.num_rectangles):
-            rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
-            rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
+        # self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+        # for _ in range(self.num_rectangles):
+        #     rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
+        #     rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
+        #
+        #     max_x0 = self.canvas_size[0] - rect_width
+        #     max_y0 = self.canvas_size[1] - rect_height
+        #
+        #     x0 = self.np_random.integers(0, max_x0 + 1)
+        #     y0 = self.np_random.integers(0, max_y0 + 1)
+        #
+        #     self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
 
-            max_x0 = self.canvas_size[0] - rect_width
-            max_y0 = self.canvas_size[1] - rect_height
 
-            x0 = self.np_random.integers(0, max_x0 + 1)
-            y0 = self.np_random.integers(0, max_y0 + 1)
-
-            self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
-
-
-        # if len(self.target_sketches) == 1:
-        #     self.target_sketch = self.target_sketches[0]
-        # else:
-        #     self.target_sketch = random.choice(self.target_sketches)
+        if len(self.target_sketches) == 1:
+            self.target_sketch = self.target_sketches[0]
+        else:
+            self.target_sketch = random.choice(self.target_sketches)
 
         self.reward_map = calculate_reward_map(
             self.target_sketch,
@@ -374,7 +374,8 @@ class DrawingAgentEnv(gym.Env):
             "step_rewards": self.step_rewards,
             "total_painted": self.episode_total_painted,
             "correctly_painted": self.episode_correctly_painted,
-            "navigation_reward": self.navigation_reward
+            "navigation_reward": self.navigation_reward,
+            "combo_count": self.current_combo_count
         }
         return info_dict
 

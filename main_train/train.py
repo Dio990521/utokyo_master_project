@@ -33,7 +33,8 @@ class TrainingDataCallback(BaseCallback):
                         "step_rewards": info.get("step_rewards"),
                         "total_painted": info.get("total_painted"),
                         "correctly_painted": info.get("correctly_painted"),
-                        "navigation_reward": info.get("navigation_reward")
+                        "navigation_reward": info.get("navigation_reward"),
+                        "combo_count": info.get("combo_count"),
                     })
         return True
 
@@ -91,7 +92,8 @@ class ValidationCallback(BaseCallback):
                     "step_rewards": info.get("step_rewards"),
                     "total_painted": info.get("total_painted"),
                     "correctly_painted": info.get("correctly_painted"),
-                    "navigation_reward": info.get("navigation_reward")
+                    "navigation_reward": info.get("navigation_reward"),
+                    "combo_count": info.get("combo_count")
                 })
                 eval_env.close()
 

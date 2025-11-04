@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "test2"
+VERSION = "test"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
@@ -20,7 +20,7 @@ def plot_training_data():
         plt.figure(figsize=(15, 7))
 
         if COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["iou_similarity", "recall_black", "recall_white"]
+            metrics_to_plot = ["recall_black", "recall_white"]
             plot_styles = {
                 "pixel_similarity": 'r-',
                 "similarity": 'b-',
@@ -49,22 +49,22 @@ def plot_training_data():
                 style = plot_styles.get(col, default_style)
                 plt.plot(df.index, metric_ma, style, label=plot_labels.get(col, col))
 
-            # required_columns = ["total_painted", "correctly_painted"]
-            # if not all(col in df.columns for col in required_columns):
-            #     print(f"Error: Missing required columns in data: {required_columns}")
-            #     plt.close()
-            #     return
-            #
-            # precision = np.divide(
-            #     df["correctly_painted"],
-            #     df["total_painted"],
-            #     out=np.zeros_like(df["correctly_painted"], dtype=float),
-            #     where=df["total_painted"] != 0
-            # )
-            # precision = np.nan_to_num(precision, nan=0.0, posinf=0.0, neginf=0.0)
-            # precision_ma = pd.Series(precision).rolling(window=TRAIN_WINDOW_SIZE).mean()
-            # plt.plot(df.index, precision_ma, 'k-',
-            #          label=f'Painting Precision (MA {TRAIN_WINDOW_SIZE})')
+            required_columns = ["total_painted", "correctly_painted"]
+            if not all(col in df.columns for col in required_columns):
+                print(f"Error: Missing required columns in data: {required_columns}")
+                plt.close()
+                return
+
+            precision = np.divide(
+                df["correctly_painted"],
+                df["total_painted"],
+                out=np.zeros_like(df["correctly_painted"], dtype=float),
+                where=df["total_painted"] != 0
+            )
+            precision = np.nan_to_num(precision, nan=0.0, posinf=0.0, neginf=0.0)
+            precision_ma = pd.Series(precision).rolling(window=TRAIN_WINDOW_SIZE).mean()
+            plt.plot(df.index, precision_ma, 'k-',
+                     label=f'Painting Precision (MA {TRAIN_WINDOW_SIZE})')
 
             plt.title(f"Training Performance: Similarity Metrics (Moving Average) - {VERSION}")
             plt.xlabel("Episode")
