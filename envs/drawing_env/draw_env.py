@@ -57,6 +57,11 @@ class DrawingAgentEnv(gym.Env):
         self.stroke_budget = config.get("stroke_budget", 1)
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.use_budget_channel = config.get("use_budget_channel", True)
+        self.use_combo = config.get("use_combo", False)
+
+        self.use_distance_map_obs = config.get("use_distance_map_obs", False)
+        max_dist = np.sqrt((self.canvas_size[0] - 1) ** 2 + (self.canvas_size[1] - 1) ** 2)
+        self.max_obs_distance = max(max_dist, 1.0)
 
         self.use_dynamic_distance_map_reward = config.get("use_dynamic_distance_map_reward", False)
         self.navigation_reward_scale = config.get("navigation_reward_scale", 0.05)
@@ -294,7 +299,10 @@ class DrawingAgentEnv(gym.Env):
 
             if hit_correct_pixel:
                 self.current_combo_count += 1
-                drawing_reward = (positive_reward_this_step * self.current_combo_count) + negative_reward_this_step
+                if self.use_combo:
+                    drawing_reward = (positive_reward_this_step * self.current_combo_count) + negative_reward_this_step
+                else:
+                    drawing_reward = positive_reward_this_step + negative_reward_this_step
             else:
                 self.current_combo_count = 0
                 drawing_reward = positive_reward_this_step + negative_reward_this_step
@@ -354,10 +362,16 @@ class DrawingAgentEnv(gym.Env):
 
         stroke_budget_channel = np.full(self.canvas_size, budget_value, dtype=np.float32)
 
-        if not self.use_budget_channel:
-            obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask], axis=0)
+        if self.use_distance_map_obs:
+            normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
+            obs_channel_2 = np.clip(normalized_dist_map, 0.0, 1.0).astype(np.float32)
         else:
-            obs = np.stack([self.canvas.copy(), self.target_sketch.copy(), pen_mask, stroke_budget_channel], axis=0)
+            obs_channel_2 = self.target_sketch.copy()
+
+        if not self.use_budget_channel:
+            obs = np.stack([self.canvas.copy(), obs_channel_2, pen_mask], axis=0)
+        else:
+            obs = np.stack([self.canvas.copy(), obs_channel_2, pen_mask, stroke_budget_channel], axis=0)
         return obs
 
     def _get_info(self):

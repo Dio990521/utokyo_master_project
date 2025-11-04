@@ -197,14 +197,14 @@ def calculate_density_cap_reward(canvas_after, target_sketch, cursor_pos, block_
     else:
         return -0.1
 
-target = np.array([[1, 1, 1, 0, 1],
-                   [1, 0, 1, 1, 1],
-                   [1, 1, 0, 1, 1],
-                   [1, 1, 1, 1, 0],
-                   [0, 1, 1, 1, 0]])
-canvas = np.array([[1, 1, 1, 0, 1],
-                   [1, 1, 1, 1, 1],
-                   [1, 1, 1, 1, 1],
-                   [1, 1, 1, 1, 1],
-                   [0, 1, 1, 1, 0]])
-print(calculate_dynamic_distance_map(target, canvas))
+# target = np.array([[1, 1, 1, 0, 1],
+#                    [1, 0, 1, 1, 1],
+#                    [1, 1, 0, 1, 1],
+#                    [1, 1, 1, 1, 0],
+#                    [0, 1, 1, 1, 0]])
+# canvas = np.array([[1, 1, 1, 0, 1],
+#                    [1, 1, 1, 1, 1],
+#                    [1, 1, 1, 1, 1],
+#                    [1, 1, 1, 1, 1],
+#                    [0, 1, 1, 1, 0]])
+# print(calculate_dynamic_distance_map(target, canvas))
