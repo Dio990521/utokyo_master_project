@@ -300,18 +300,17 @@ class DrawingAgentEnv(gym.Env):
                 drawing_reward = positive_reward_this_step + negative_reward_this_step
 
             if canvas_changed_this_step and hit_correct_pixel:
-                self.needs_distance_map_update = True
+                if self.use_dynamic_distance_map_reward:
+                    self._update_dynamic_distance_map()
         else:
             self.current_combo_count = 0
             if self.use_dynamic_distance_map_reward:
-                if self.needs_distance_map_update:
-                    self._update_dynamic_distance_map()
-
                 current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
                 self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
                 reward += self.navigation_reward
 
                 self.last_distance = current_distance
+
 
         reward += drawing_reward
 
