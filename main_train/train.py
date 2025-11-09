@@ -35,7 +35,9 @@ class TrainingDataCallback(BaseCallback):
                         "correctly_painted": info.get("correctly_painted"),
                         "navigation_reward": info.get("navigation_reward"),
                         "combo_count": info.get("combo_count"),
+                        "precision": info.get("precision"),
                     })
+                    self.logger.record("precision", info.get("precision"))
         return True
 
     def _on_training_end(self) -> None:
@@ -93,7 +95,8 @@ class ValidationCallback(BaseCallback):
                     "total_painted": info.get("total_painted"),
                     "correctly_painted": info.get("correctly_painted"),
                     "navigation_reward": info.get("navigation_reward"),
-                    "combo_count": info.get("combo_count")
+                    "combo_count": info.get("combo_count"),
+                    "precision": info.get("precision"),
                 })
                 eval_env.close()
 
@@ -148,8 +151,9 @@ def run_training(config: dict):
     )
 
     policy_kwargs = dict(features_extractor_class=CustomCnnExtractor, features_extractor_kwargs=dict(features_dim=128))
-
+    is_loaded = False
     if os.path.exists(model_path):
+        is_loaded = True
         print(f"Found existing model at {model_path}. Loading and resuming training...")
         model = PPO.load(
             model_path,
@@ -193,7 +197,9 @@ def run_training(config: dict):
         ))
 
     model.learn(total_timesteps=TOTAL_TIME_STEPS, callback=callbacks, reset_num_timesteps=False)
-
-    model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
+    if not is_loaded:
+        model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
+    else:
+        model.save(os.path.join(MODELS_DIR, "drawing_agent_final_new.zip"))
     print(f"Model for {VERSION} saved to {MODELS_DIR}")
     env.close()

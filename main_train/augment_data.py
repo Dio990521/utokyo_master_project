@@ -41,9 +41,9 @@ def create_augmented_validation_set(train_dir, val_dir, num_augmentations_per_im
 
 
 if __name__ == '__main__':
-    TRAIN_SKETCHES_DIR = "../envs/drawing_env/training/sketch_num_augment/"
-    VALIDATION_SKETCHES_DIR = "../envs/drawing_env/training/sketch_num_augment/"
+    TRAIN_SKETCHES_DIR = "../envs/drawing_env/training/test_sketches/"
+    VALIDATION_SKETCHES_DIR = "../envs/drawing_env/training/sketch_mix_augment/"
 
-    VERSIONS_PER_IMAGE = 100
+    VERSIONS_PER_IMAGE = 1000
 
     create_augmented_validation_set(TRAIN_SKETCHES_DIR, VALIDATION_SKETCHES_DIR, VERSIONS_PER_IMAGE)

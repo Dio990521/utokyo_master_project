@@ -42,7 +42,7 @@ class DrawingAgentEnv(gym.Env):
         self.render_scale = 10
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
-        num_obs_channels = 4 if self.use_budget_channel else 3
+        num_obs_channels = 3 + int(self.use_distance_map_obs) + int(self.use_budget_channel)
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
         )
@@ -58,6 +58,8 @@ class DrawingAgentEnv(gym.Env):
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.use_budget_channel = config.get("use_budget_channel", True)
         self.use_combo = config.get("use_combo", False)
+        self.use_triangles = config.get("use_triangles", False)
+        self.combo_rate = config.get("combo_rate", 0.1)
 
         self.use_distance_map_obs = config.get("use_distance_map_obs", False)
         max_dist = np.sqrt((self.canvas_size[0] - 1) ** 2 + (self.canvas_size[1] - 1) ** 2)
@@ -95,7 +97,7 @@ class DrawingAgentEnv(gym.Env):
             raise ValueError("No target sketches were loaded!")
 
         self.step_debug_path = config.get("step_debug_path", None)
-        self.episode_save_limit = config.get("episode_save_limit", 100)
+        self.episode_save_limit = config.get("episode_save_limit", 1000)
         self.current_episode_num = 0
 
     def _init_state_variables(self):
@@ -106,7 +108,7 @@ class DrawingAgentEnv(gym.Env):
         self.pen_was_down = False
         self.episode_end = False
         self.navigation_reward = 0
-        self.current_combo_count = 0
+        self.current_combo = 1.0
 
         self.last_pixel_similarity = 0.0
         self.last_iou_similarity = 0.0
@@ -154,24 +156,24 @@ class DrawingAgentEnv(gym.Env):
         self.current_episode_num = DrawingAgentEnv._episode_counter
         self._init_state_variables()
 
-        # self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
-        # for _ in range(self.num_rectangles):
-        #     rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
-        #     rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
-        #
-        #     max_x0 = self.canvas_size[0] - rect_width
-        #     max_y0 = self.canvas_size[1] - rect_height
-        #
-        #     x0 = self.np_random.integers(0, max_x0 + 1)
-        #     y0 = self.np_random.integers(0, max_y0 + 1)
-        #
-        #     self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
+        if self.use_triangles:
+            self.target_sketch = np.full(self.canvas_size, 1.0, dtype=np.float32)
+            for _ in range(self.num_rectangles):
+                rect_width = self.np_random.integers(self.rect_min_width, self.rect_max_width + 1)
+                rect_height = self.np_random.integers(self.rect_min_height, self.rect_max_height + 1)
 
+                max_x0 = self.canvas_size[0] - rect_width
+                max_y0 = self.canvas_size[1] - rect_height
 
-        if len(self.target_sketches) == 1:
-            self.target_sketch = self.target_sketches[0]
+                x0 = self.np_random.integers(0, max_x0 + 1)
+                y0 = self.np_random.integers(0, max_y0 + 1)
+
+                self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
         else:
-            self.target_sketch = random.choice(self.target_sketches)
+            if len(self.target_sketches) == 1:
+                self.target_sketch = self.target_sketches[0]
+            else:
+                self.target_sketch = random.choice(self.target_sketches)
 
         self.reward_map = calculate_reward_map(
             self.target_sketch,
@@ -298,20 +300,20 @@ class DrawingAgentEnv(gym.Env):
                         negative_reward_this_step += (base_reward_value * current_penalty_scale)
 
             if hit_correct_pixel:
-                self.current_combo_count += 1
+                self.current_combo += self.combo_rate
                 if self.use_combo:
-                    drawing_reward = (positive_reward_this_step * self.current_combo_count) + negative_reward_this_step
+                    drawing_reward = (positive_reward_this_step * self.current_combo) + negative_reward_this_step
                 else:
                     drawing_reward = positive_reward_this_step + negative_reward_this_step
             else:
-                self.current_combo_count = 0
+                self.current_combo = 1.0
                 drawing_reward = positive_reward_this_step + negative_reward_this_step
 
             if canvas_changed_this_step and hit_correct_pixel:
                 if self.use_dynamic_distance_map_reward:
                     self._update_dynamic_distance_map()
         else:
-            self.current_combo_count = 0
+            self.current_combo = 1.0
             if self.use_dynamic_distance_map_reward:
                 current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
                 self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
@@ -353,25 +355,38 @@ class DrawingAgentEnv(gym.Env):
             else:
                 pen_mask[y, x] = 1.0
 
-        budget_value = 0.0
-        if self.dynamic_budget_channel:
-            budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
-                            if self.stroke_budget > 0 else 0.0)
-        else:
-            budget_value = self.stroke_budget / 255.0
+        canvas_channel = self.canvas.copy()
+        target_channel = self.target_sketch.copy()
 
-        stroke_budget_channel = np.full(self.canvas_size, budget_value, dtype=np.float32)
+        normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
+        distance_map_channel = np.clip(normalized_dist_map, 0.0, 1.0).astype(np.float32)
 
-        if self.use_distance_map_obs:
-            normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
-            obs_channel_2 = np.clip(normalized_dist_map, 0.0, 1.0).astype(np.float32)
-        else:
-            obs_channel_2 = self.target_sketch.copy()
+        if self.use_budget_channel:
+            budget_value = 0.0
+            if self.dynamic_budget_channel:
+                budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
+                                if self.stroke_budget > 0 else 0.0)
+            else:
+                budget_value = self.stroke_budget / 255.0
 
-        if not self.use_budget_channel:
-            obs = np.stack([self.canvas.copy(), obs_channel_2, pen_mask], axis=0)
+            stroke_budget_channel = np.full(self.canvas_size, budget_value, dtype=np.float32)
+
+            obs = np.stack([canvas_channel,
+                            target_channel,
+                            distance_map_channel,
+                            pen_mask,
+                            stroke_budget_channel], axis=0)
         else:
-            obs = np.stack([self.canvas.copy(), obs_channel_2, pen_mask, stroke_budget_channel], axis=0)
+            if self.use_distance_map_obs:
+                obs = np.stack([canvas_channel,
+                            target_channel,
+                            distance_map_channel,
+                            pen_mask], axis=0)
+            else:
+                obs = np.stack([canvas_channel,
+                                target_channel,
+                                pen_mask], axis=0)
+
         return obs
 
     def _get_info(self):
@@ -388,7 +403,8 @@ class DrawingAgentEnv(gym.Env):
             "total_painted": self.episode_total_painted,
             "correctly_painted": self.episode_correctly_painted,
             "navigation_reward": self.navigation_reward,
-            "combo_count": self.current_combo_count
+            "combo_count": self.current_combo,
+            "precision": self.last_precision_black,
         }
         return info_dict
 

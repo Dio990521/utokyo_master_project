@@ -4,13 +4,13 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251105_aug_num_2"
+VERSION = "20251110_pen3x3transfer1x1_num_combo_1" #20251107_pen3x3transfer1x1_num_1_redo1
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketch_num_augment/"
 CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 500
+MAX_EPISODE_STEPS = 1000
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
 
 def make_env():
     return DrawingAgentEnv(
@@ -32,19 +32,22 @@ eval_env = DrawingAgentEnv(
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
             "brush_size": 1,
+            "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
+            "use_distance_map_obs": False,
+            "use_combo": True,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.1,
-            "reward_map_near_target": -0.1,
-            "reward_map_far_target": -0.1,
+            "reward_map_on_target": 0.5,
+            "reward_map_near_target": -0.5,
+            "reward_map_far_target": -0.5,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.9,
-            "use_budget_channel": True,
+            "penalty_scale_threshold": 1.9,
+            "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
             "use_stroke_reward": False,
@@ -66,11 +69,11 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=False)
-    print("action", action)
+    action, _states = model.predict(obs, deterministic=True)
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
+    print("action", action, "reward", reward)
     episode_reward += reward
     if terminated or truncated:
         break

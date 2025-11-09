@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "test5"
+VERSION = "20251110_pen3x3transfer1x1_num_combo02_1"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
@@ -138,10 +138,10 @@ def plot_validation_data():
         plt.figure(figsize=(15, 7))
 
         if COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["iou_similarity", "recall_black", "recall_white"]
+            metrics_to_plot = ["precision", "recall_black", "recall_white"]
             plot_styles = {
                 "pixel_similarity": 'r-o', # Added markers 'o' for validation points
-                "iou_similarity":   'b-o',
+                "precision":   'b-o',
                 "recall_black":     'g--o',
                 "recall_white":     'm:o',
                 "balanced_accuracy":'c-.o',
@@ -149,7 +149,7 @@ def plot_validation_data():
             default_style = 'k-o'
             plot_labels = {
                 "pixel_similarity": 'Mean Pixel Accuracy',
-                "iou_similarity":   'Mean IoU Similarity', # Changed key
+                "precision":   'Mean precision', # Changed key
                 "recall_black":     'Mean Black Recall',
                 "recall_white":     'Mean White Recall',
                 "balanced_accuracy":'Mean Balanced Accuracy'
