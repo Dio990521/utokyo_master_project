@@ -149,7 +149,7 @@ def run_training(config: dict):
     env = make_vec_env(
         "DrawingEnv-v0",
         n_envs=NUM_ENVS,
-        vec_env_cls=SubprocVecEnv,
+        vec_env_cls=DummyVecEnv,
         env_kwargs={"config": env_config}
     )
 

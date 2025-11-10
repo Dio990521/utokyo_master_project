@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "20251110_distance_map_num_test2"
+VERSION = "20251112_pen3x3transfer1x1_num_combo_1"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "used_budgets"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
 def plot_training_data():
@@ -17,6 +17,7 @@ def plot_training_data():
 
     try:
         df = pd.read_csv(DATA_PATH)
+        df = df.head(5000)
         plt.figure(figsize=(15, 7))
 
         if COLUMN_TO_PLOT == "similarity":

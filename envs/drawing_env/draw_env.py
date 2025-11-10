@@ -59,7 +59,8 @@ class DrawingAgentEnv(gym.Env):
         self.use_budget_channel = config.get("use_budget_channel", True)
         self.use_combo = config.get("use_combo", False)
         self.use_triangles = config.get("use_triangles", False)
-        self.combo_rate = config.get("combo_rate", 0.1)
+        self.combo_rate = config.get("combo_rate", 1.1)
+        self.use_time_penalty = config.get("use_time_penalty", False)
 
         self.use_distance_map_obs = config.get("use_distance_map_obs", False)
         max_dist = np.sqrt((self.canvas_size[0] - 1) ** 2 + (self.canvas_size[1] - 1) ** 2)
@@ -113,7 +114,7 @@ class DrawingAgentEnv(gym.Env):
         self.pen_was_down = False
         self.episode_end = False
         self.navigation_reward = 0
-        self.current_combo = 1.0
+        self.current_combo = 0
 
         self.last_pixel_similarity = 0.0
         self.last_iou_similarity = 0.0
@@ -214,7 +215,7 @@ class DrawingAgentEnv(gym.Env):
         self.last_recall_white = rw
         self.last_balanced_accuracy = ba
 
-        self._save_step_data(is_reset=True)
+        #self._save_step_data(is_reset=True)
 
         if self.render_mode == "human":
             self._init_pygame()
@@ -268,7 +269,7 @@ class DrawingAgentEnv(gym.Env):
             is_pen_down, potential_affected_pixels, canvas_changed_this_step
         )
 
-        self._save_step_data(action=action, reward=reward)
+        #self._save_step_data(action=action, reward=reward)
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
@@ -297,7 +298,7 @@ class DrawingAgentEnv(gym.Env):
     def _calculate_reward(self, terminated, truncated,
                           is_pen_down, potential_affected_pixels,
                           canvas_changed_this_step):
-        reward = 0.0
+        reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
         positive_reward_this_step = 0.0
         negative_reward_this_step = 0.0
@@ -322,20 +323,20 @@ class DrawingAgentEnv(gym.Env):
                         negative_reward_this_step += (base_reward_value * current_penalty_scale)
 
             if hit_correct_pixel:
-                self.current_combo += self.combo_rate
+                self.current_combo += 1
                 if self.use_combo:
-                    drawing_reward = (positive_reward_this_step * self.current_combo) + negative_reward_this_step
+                    drawing_reward = (positive_reward_this_step * (self.combo_rate ** self.current_combo)) + negative_reward_this_step
                 else:
                     drawing_reward = positive_reward_this_step + negative_reward_this_step
             else:
-                self.current_combo = 1.0
+                self.current_combo = 0
                 drawing_reward = positive_reward_this_step + negative_reward_this_step
 
             if canvas_changed_this_step and hit_correct_pixel:
                 if self.use_dynamic_distance_map_reward:
                     self._update_dynamic_distance_map()
         else:
-            self.current_combo = 1.0
+            self.current_combo = 0
             if self.use_dynamic_distance_map_reward:
                 current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
                 self.navigation_reward = (self.last_distance - current_distance) * self.navigation_reward_scale
