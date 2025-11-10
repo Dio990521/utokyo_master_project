@@ -7,6 +7,8 @@ import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 import json
 
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
 
@@ -38,6 +40,7 @@ class TrainingDataCallback(BaseCallback):
                         "precision": info.get("precision"),
                     })
                     self.logger.record("precision", info.get("precision"))
+                    self.logger.record("recall_black", info.get("recall_black"))
         return True
 
     def _on_training_end(self) -> None:
@@ -138,7 +141,6 @@ def run_training(config: dict):
 
     STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
     env_config["step_debug_path"] = STEP_DEBUG_DIR
-    env_config["episode_save_limit"] = 100
 
     os.makedirs(LOG_DIR, exist_ok=True)
     os.makedirs(MODELS_DIR, exist_ok=True)
@@ -147,6 +149,7 @@ def run_training(config: dict):
     env = make_vec_env(
         "DrawingEnv-v0",
         n_envs=NUM_ENVS,
+        vec_env_cls=SubprocVecEnv,
         env_kwargs={"config": env_config}
     )
 
@@ -181,12 +184,7 @@ def run_training(config: dict):
         )
         print("New model created.")
 
-
     config["SEED"] = model.seed
-    config_save_path = os.path.join(BASE_OUTPUT_DIR, "config.json")
-    with open(config_save_path, 'w') as f:
-        json.dump(config, f, indent=4)
-    print(f"Configuration saved to {config_save_path}")
 
     callbacks = [TrainingDataCallback(save_path=TRAINING_DATA_PATH)]
     if validation_config:

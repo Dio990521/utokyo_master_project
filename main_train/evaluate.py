@@ -69,7 +69,7 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=True)
+    action, _states = model.predict(obs, deterministic=False)
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)

@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 
-VERSION = "20251107_pen3x3transfer1x1_num_1"
+VERSION = "fps_test_2"
 
 def analyze_step_rewards(version: str):
     STEP_DEBUG_DIR = os.path.join(f"../training_outputs/{version}/", "step_debug/")

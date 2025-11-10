@@ -90,11 +90,16 @@ class DrawingAgentEnv(gym.Env):
         self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
         self.similarity_weight = config.get("similarity_weight", 100.0)
 
-        self.target_sketches_path = config.get("target_sketches_path", None)
-        self.specific_sketch_file = config.get("specific_sketch_file", None)
-        self.target_sketches = self._load_target_sketches()
-        if not self.target_sketches:
-            raise ValueError("No target sketches were loaded!")
+        self.target_data = config.get("precalculated_data", None)
+
+        if self.target_data is None:
+            print("[Warning] No 'precalculated_data' found. Falling back to slow loading inside env...")
+            self.target_sketches_path = config.get("target_sketches_path", None)
+            self.specific_sketch_file = config.get("specific_sketch_file", None)
+            self.target_data = self._load_target_sketches()
+
+        if not self.target_data:
+            raise ValueError("No target data was loaded or provided!")
 
         self.step_debug_path = config.get("step_debug_path", None)
         self.episode_save_limit = config.get("episode_save_limit", 1000)
@@ -169,23 +174,40 @@ class DrawingAgentEnv(gym.Env):
                 y0 = self.np_random.integers(0, max_y0 + 1)
 
                 self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
+            self.reward_map = calculate_reward_map(
+                self.target_sketch,
+                reward_on_target=self.reward_map_on_target,
+                reward_near_target=self.reward_map_near_target,
+                reward_far_target=self.reward_map_far_target,
+                near_distance=self.reward_map_near_distance
+            )
+
+            self._update_dynamic_distance_map()
         else:
-            if len(self.target_sketches) == 1:
-                self.target_sketch = self.target_sketches[0]
+            if isinstance(self.target_data[0], tuple):
+                chosen_data = random.choice(self.target_data)
+                self.target_sketch = chosen_data[0]
+                self.reward_map = chosen_data[1]
+                self.dynamic_distance_map = chosen_data[2]
             else:
-                self.target_sketch = random.choice(self.target_sketches)
+                if len(self.target_data) == 1:
+                    self.target_sketch = self.target_data[0]
+                else:
+                    self.target_sketch = random.choice(self.target_data)
 
-        self.reward_map = calculate_reward_map(
-            self.target_sketch,
-            reward_on_target=self.reward_map_on_target,
-            reward_near_target=self.reward_map_near_target,
-            reward_far_target=self.reward_map_far_target,
-            near_distance=self.reward_map_near_distance
-        )
+                self.reward_map = calculate_reward_map(
+                        self.target_sketch,
+                        reward_on_target=self.reward_map_on_target,
+                        reward_near_target=self.reward_map_near_target,
+                        reward_far_target=self.reward_map_far_target,
+                        near_distance=self.reward_map_near_distance
+                    )
+                self._update_dynamic_distance_map()
 
-        self._update_dynamic_distance_map()
+
         self.cursor = find_starting_point(self.target_sketch)
-        self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
+        if self.use_dynamic_distance_map_reward:
+            self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
 
         rb, rw, ba, _ = calculate_accuracy(self.target_sketch, self.canvas)
         self.last_recall_black = rb
@@ -251,7 +273,7 @@ class DrawingAgentEnv(gym.Env):
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
             self.episode_end = True
-            self._save_step_log_file()
+            #self._save_step_log_file()
 
         observation = self._get_obs()
         info = self._get_info()
@@ -342,52 +364,52 @@ class DrawingAgentEnv(gym.Env):
         self.needs_distance_map_update = False
 
     def _get_obs(self):
-        pen_mask = np.full(self.canvas_size, 0.0, dtype=np.float32)
+        if not hasattr(self, "_obs_initialized"):
+            self._obs_initialized = True
+
+            num_channels = 3
+            if self.use_distance_map_obs:
+                num_channels += 1
+            if self.use_budget_channel:
+                num_channels += 1
+
+            self._obs = np.zeros(
+                (num_channels, *self.canvas_size),
+                dtype=np.float32
+            )
+
+            self._obs[1] = self.target_sketch.astype(np.float32)
+
+            if self.use_budget_channel and not self.dynamic_budget_channel:
+                budget_value = self.stroke_budget / 255.0
+                self._obs[-1] = budget_value
+
+        pen_mask = self._obs[2]
+        pen_mask.fill(0.0)
         y, x = self.cursor[1], self.cursor[0]
         brush_radius = self.brush_size // 2
-        y_start = max(0, y - brush_radius)
-        y_end = min(y, y + brush_radius + 1)
-        x_start = max(0, x - brush_radius)
-        x_end = min(x, x + brush_radius + 1)
+
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
-            if self.brush_size > 1:
-                pen_mask[y_start:y_end, x_start:x_end] = 1.0
-            else:
-                pen_mask[y, x] = 1.0
+            y_start = max(0, y - brush_radius)
+            y_end = min(y + brush_radius + 1, self.canvas_size[0])
+            x_start = max(0, x - brush_radius)
+            x_end = min(x + brush_radius + 1, self.canvas_size[1])
+            pen_mask[y_start:y_end, x_start:x_end] = 1.0
 
-        canvas_channel = self.canvas.copy()
-        target_channel = self.target_sketch.copy()
+        self._obs[0][:] = self.canvas
 
-        normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
-        distance_map_channel = np.clip(normalized_dist_map, 0.0, 1.0).astype(np.float32)
+        ch_idx = 3  # 默认 distance map 在第4个通道
+        if self.use_distance_map_obs:
+            normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
+            np.clip(normalized_dist_map, 0.0, 1.0, out=self._obs[ch_idx])
+            ch_idx += 1
 
-        if self.use_budget_channel:
-            budget_value = 0.0
-            if self.dynamic_budget_channel:
-                budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
-                                if self.stroke_budget > 0 else 0.0)
-            else:
-                budget_value = self.stroke_budget / 255.0
+        if self.use_budget_channel and self.dynamic_budget_channel:
+            budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
+                            if self.stroke_budget > 0 else 0.0)
+            self._obs[ch_idx][:] = budget_value
 
-            stroke_budget_channel = np.full(self.canvas_size, budget_value, dtype=np.float32)
-
-            obs = np.stack([canvas_channel,
-                            target_channel,
-                            distance_map_channel,
-                            pen_mask,
-                            stroke_budget_channel], axis=0)
-        else:
-            if self.use_distance_map_obs:
-                obs = np.stack([canvas_channel,
-                            target_channel,
-                            distance_map_channel,
-                            pen_mask], axis=0)
-            else:
-                obs = np.stack([canvas_channel,
-                                target_channel,
-                                pen_mask], axis=0)
-
-        return obs
+        return self._obs
 
     def _get_info(self):
         info_dict = {
