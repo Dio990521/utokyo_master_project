@@ -5,10 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
-import json
-
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-
+from stable_baselines3.common.vec_env import DummyVecEnv
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
 

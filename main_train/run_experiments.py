@@ -266,45 +266,45 @@ experiments = [
     #         "ENV_CONFIG": test1,
     #     }
     # },
+    {
+        "VERSION": "20251112_pen3x3transfer1x1_mix_1",
+        "TOTAL_TIME_STEPS": 10000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": config_mix_1,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 2048 * 25,
+            "ENV_CONFIG": config_mix_1,
+        }
+    },
     # {
-    #     "VERSION": "20251112_pen3x3transfer1x1_mix_1",
-    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "VERSION": "20251112_pen3x3transfer1x1_num_combo_1_redo",
+    #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
     #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": config_mix_1,
+    #     "ENV_CONFIG": test1,
     #     "VALIDATION_CONFIG": {
     #         "EVAL_FREQ": 2048 * 25,
-    #         "ENV_CONFIG": config_mix_1,
+    #         "ENV_CONFIG": test1,
     #     }
     # },
-    {
-        "VERSION": "20251112_pen3x3transfer1x1_num_combo_1_redo",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test1,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 2048 * 25,
-            "ENV_CONFIG": test1,
-        }
-    },
-    {
-        "VERSION": "20251112_pen3x3transfer1x1_num_combo_2",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test2,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 2048 * 25,
-            "ENV_CONFIG": test2,
-        }
-    },
+    # {
+    #     "VERSION": "20251112_pen3x3transfer1x1_num_combo_2",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test2,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 2048 * 25,
+    #         "ENV_CONFIG": test2,
+    #     }
+    # },
 ]
 if __name__ == '__main__':
     total_experiments = len(experiments)
