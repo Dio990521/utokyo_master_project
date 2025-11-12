@@ -6,8 +6,8 @@ import numpy as np
 from PIL import Image
 from envs.drawing_env.tools.image_process import calculate_reward_map, calculate_dynamic_distance_map
 
-TRAIN_SKETCH_DIR = "../envs/drawing_env/training/sketch_num_augment/"
-VALIDATION_SKETCH_DIR = "../envs/drawing_env/training/sketch_num_augment/"
+TRAIN_SKETCH_DIR = "../envs/drawing_env/training/sketch_mix_augment/"
+VALIDATION_SKETCH_DIR = "../envs/drawing_env/training/sketch_mix_augment/"
 
 def _load_sketch_from_path(filepath, canvas_size):
     sketch = Image.open(filepath).resize(canvas_size).convert('L')
@@ -87,10 +87,11 @@ config_2squares_1 = {
         }
 
 config_mix_1 = {
-            "target_sketches_path": TRAIN_SKETCH_DIR,
-            "val_sketches_path": VALIDATION_SKETCH_DIR,
+            "target_sketches_path": "../envs/drawing_env/training/sketch_mix_augment/",
+            "val_sketches_path": "../envs/drawing_env/training/sketch_mix_augment/",
             "canvas_size": [32, 32],
             "max_steps": 1000,
+            "use_time_penalty": False,
             "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
@@ -103,7 +104,7 @@ config_mix_1 = {
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.1,
+            "reward_map_on_target": 0.5,
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
@@ -183,19 +184,19 @@ config_2squares_4 = {
         }
 
 test1 = {
-            "target_sketches_path": TRAIN_SKETCH_DIR,
-            "val_sketches_path": VALIDATION_SKETCH_DIR,
+            "target_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
+            "val_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
             "canvas_size": [32, 32],
             "max_steps": 1000,
             "use_time_penalty": False,
-            "brush_size": 1,
+            "brush_size": 3,
             "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
-            "use_combo": True,
+            "use_combo": False,
             "combo_rate": 1.1,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
@@ -204,7 +205,7 @@ test1 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 1.9,
+            "penalty_scale_threshold": 0.8,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -218,20 +219,20 @@ test1 = {
         }
 
 test2 = {
-            "target_sketches_path": TRAIN_SKETCH_DIR,
-            "val_sketches_path": VALIDATION_SKETCH_DIR,
+            "target_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
+            "val_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
             "canvas_size": [32, 32],
             "max_steps": 1000,
             "use_time_penalty": False,
-            "brush_size": 1,
+            "brush_size": 3,
             "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
-            "use_combo": True,
-            "combo_rate": 1.3,
+            "use_combo": False,
+            "combo_rate": 0.1,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
@@ -239,7 +240,7 @@ test2 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 1.9,
+            "penalty_scale_threshold": 0.7,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -266,21 +267,21 @@ experiments = [
     #         "ENV_CONFIG": test1,
     #     }
     # },
-    {
-        "VERSION": "20251112_pen3x3transfer1x1_mix_1",
-        "TOTAL_TIME_STEPS": 10000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": config_mix_1,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 2048 * 25,
-            "ENV_CONFIG": config_mix_1,
-        }
-    },
     # {
-    #     "VERSION": "20251112_pen3x3transfer1x1_num_combo_1_redo",
+    #     "VERSION": "202511122_pen3x3transfer1x1_mix_1_redo",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": config_mix_1,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 10000000,
+    #         "ENV_CONFIG": config_mix_1,
+    #     }
+    # },
+    # {
+    #     "VERSION": "20251114_pen3x3_num_threshold08",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
@@ -288,23 +289,23 @@ experiments = [
     #     "ENT_COEF": 0.01,
     #     "ENV_CONFIG": test1,
     #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 2048 * 25,
+    #         "EVAL_FREQ": 5000000,
     #         "ENV_CONFIG": test1,
     #     }
     # },
-    # {
-    #     "VERSION": "20251112_pen3x3transfer1x1_num_combo_2",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 2048 * 25,
-    #         "ENV_CONFIG": test2,
-    #     }
-    # },
+    {
+        "VERSION": "20251114_pen3x3_num_threshold07",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test2,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 5000000,
+            "ENV_CONFIG": test2,
+        }
+    },
 ]
 if __name__ == '__main__':
     total_experiments = len(experiments)
@@ -321,9 +322,9 @@ if __name__ == '__main__':
 
     for i, config in enumerate(experiments):
         print("Pre-loading ALL training data...")
-        PRECALCULATED_TRAIN_DATA = preload_all_data(TRAIN_SKETCH_DIR, config["ENV_CONFIG"])
+        PRECALCULATED_TRAIN_DATA = preload_all_data(config["ENV_CONFIG"]["target_sketches_path"], config["ENV_CONFIG"])
         print("\nPre-loading ALL validation data...")
-        PRECALCULATED_VAL_DATA = preload_all_data(VALIDATION_SKETCH_DIR, config["ENV_CONFIG"])
+        PRECALCULATED_VAL_DATA = preload_all_data(config["ENV_CONFIG"]["val_sketches_path"], config["ENV_CONFIG"])
 
         print(f"\n\n<<<<<<<<<< Starting Experiment {i+1}/{total_experiments} >>>>>>>>>>")
         config["ENV_CONFIG"]["precalculated_data"] = PRECALCULATED_TRAIN_DATA

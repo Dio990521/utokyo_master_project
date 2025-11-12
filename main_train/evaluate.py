@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251110_pen3x3transfer1x1_num_combo_1" #20251107_pen3x3transfer1x1_num_1_redo1
+VERSION = "202511122_pen3x3transfer1x1_num_1_redo" #20251107_pen3x3transfer1x1_num_1_redo1
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/sketch_num_augment/"
 CANVAS_SIZE = (32, 32)

@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "20251112_pen3x3transfer1x1_num_combo_1"
+VERSION = "202511122_pen3x3transfer1x1_num_combo01_redo"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "used_budgets"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
 def plot_training_data():

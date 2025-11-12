@@ -8,7 +8,7 @@ import random
 import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
     calculate_block_reward, calculate_iou_similarity, calculate_reward_map, \
-    calculate_accuracy, calculate_dynamic_distance_map
+    calculate_accuracy, calculate_dynamic_distance_map, visualize_obs
 
 
 def _decode_action(action):
@@ -315,17 +315,21 @@ class DrawingAgentEnv(gym.Env):
                         positive_reward_this_step += base_reward_value
                     else:
                         current_penalty_scale = 0.0
+                        constant = 0
                         if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
                             current_penalty_scale = self.last_precision_black
                         elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                             current_penalty_scale = 1.0
 
-                        negative_reward_this_step += (base_reward_value * current_penalty_scale)
+                        negative_reward_this_step += (base_reward_value * current_penalty_scale + constant)
 
             if hit_correct_pixel:
                 self.current_combo += 1
                 if self.use_combo:
-                    drawing_reward = (positive_reward_this_step * (self.combo_rate ** self.current_combo)) + negative_reward_this_step
+                    if self.combo_rate < 1.0:
+                        drawing_reward = (positive_reward_this_step * (1 + self.combo_rate * self.current_combo)) + negative_reward_this_step
+                    else:
+                        drawing_reward = (positive_reward_this_step * (self.combo_rate ** self.current_combo)) + negative_reward_this_step
                 else:
                     drawing_reward = positive_reward_this_step + negative_reward_this_step
             else:
