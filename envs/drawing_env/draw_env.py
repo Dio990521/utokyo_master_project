@@ -216,12 +216,10 @@ class DrawingAgentEnv(gym.Env):
         if self.use_dynamic_distance_map_reward:
             self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
 
-        rb, rw, ba, _ = calculate_accuracy(self.target_sketch, self.canvas)
+        rb, rw, pb = calculate_accuracy(self.target_sketch, self.canvas)
         self.last_recall_black = rb
         self.last_recall_white = rw
-        self.last_balanced_accuracy = ba
-
-        #self._save_step_data(is_reset=True)
+        self.last_precision_black = pb
 
         if self.render_mode == "human":
             self._init_pygame()
@@ -235,10 +233,7 @@ class DrawingAgentEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
-        canvas_before = self.canvas.copy()
-        potential_affected_pixels = []
         canvas_changed_this_step = False
-
         if is_pen_down and not terminated:
             current_cursor = self.cursor
             brush_radius = self.brush_size // 2
@@ -250,37 +245,25 @@ class DrawingAgentEnv(gym.Env):
 
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
-                    if np.isclose(canvas_before[r, c], 1.0):
-                        self.canvas[r, c] = 0.0
-                        canvas_changed_this_step = True
-                        potential_affected_pixels.append((r, c))
+                    self.canvas[r, c] = 0.0
+                    canvas_changed_this_step = True
 
-        #current_iou_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
-        current_recall_black, current_recall_white, current_ba, current_pixel_similarity = calculate_accuracy(
+        current_recall_black, current_recall_white, current_pixel_similarity = calculate_accuracy(
             self.target_sketch,
             self.canvas)
 
         self.last_pixel_similarity = current_pixel_similarity
-        #self.last_iou_similarity = current_iou_similarity
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
-        if self.episode_total_painted > 0:
-            self.last_precision_black = self.episode_correctly_painted / self.episode_total_painted
-        else:
-            self.last_precision_black = 0.0
-        self.last_balanced_accuracy = current_ba
 
         reward = self._calculate_reward(
             terminated, False,
-            is_pen_down, potential_affected_pixels, canvas_changed_this_step
+            is_pen_down, canvas_changed_this_step
         )
-
-        #self._save_step_data(action=action, reward=reward)
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
             self.episode_end = True
-            #self._save_step_log_file()
 
         observation = self._get_obs()
         info = self._get_info()
@@ -302,7 +285,7 @@ class DrawingAgentEnv(gym.Env):
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, terminated, truncated,
-                          is_pen_down, potential_affected_pixels,
+                          is_pen_down,
                           canvas_changed_this_step):
         reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
@@ -310,26 +293,48 @@ class DrawingAgentEnv(gym.Env):
         negative_reward_this_step = 0.0
         if is_pen_down:
             hit_correct_pixel = False
-            if potential_affected_pixels:
-                for r, c in potential_affected_pixels:
-                    self.episode_total_painted += 1
-                    base_reward_value = self.reward_map[r, c]
+            current_cursor = self.cursor
+            brush_radius = self.brush_size // 2
+            y_start = max(0, current_cursor[1] - brush_radius)
+            y_end = min(self.canvas_size[1], current_cursor[1] + brush_radius + 1)
+            x_start = max(0, current_cursor[0] - brush_radius)
+            x_end = min(self.canvas_size[0], current_cursor[0] + brush_radius + 1)
 
-                    if base_reward_value > 0:
-                        self.episode_correctly_painted += 1
-                        hit_correct_pixel = True
-                        positive_reward_this_step += base_reward_value
-                    else:
-                        current_penalty_scale = 0.0
-                        if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                            current_penalty_scale = self.last_precision_black
-                        elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
-                            current_penalty_scale = 1.0
+            target_area = self.target_sketch[y_start:y_end, x_start:x_end]
 
-                        negative_reward_this_step += (base_reward_value * current_penalty_scale)
+            if np.any(np.isclose(target_area, 0.0)):
+                hit_correct_pixel = True
+                positive_reward_this_step = 0.1
+            else:
+                current_penalty_scale = 0.0
+                if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                    current_penalty_scale = self.last_precision_black
+                elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                    current_penalty_scale = 1.0
+                negative_reward_this_step = -0.1 * current_penalty_scale
+
+            # if potential_affected_pixels:
+            #     for r, c in potential_affected_pixels:
+            #         self.episode_total_painted += 1
+            #         base_reward_value = self.reward_map[r, c]
+            #
+            #         if base_reward_value > 0:
+            #             self.episode_correctly_painted += 1
+            #             hit_correct_pixel = True
+            #             positive_reward_this_step += base_reward_value
+            #         else:
+            #             current_penalty_scale = 0.0
+            #             if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+            #                 current_penalty_scale = self.last_precision_black
+            #             elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+            #                 current_penalty_scale = 1.0
+            #
+            #             negative_reward_this_step += (base_reward_value * current_penalty_scale)
 
             if negative_reward_this_step < 0:
                 self.penalty_history.append(negative_reward_this_step)
+            else:
+                self.penalty_history.append(0)
 
             if len(self.penalty_history) > 0:
                 self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
@@ -435,10 +440,8 @@ class DrawingAgentEnv(gym.Env):
     def _get_info(self):
         info_dict = {
             "pixel_similarity": self.last_pixel_similarity,
-            "iou_similarity": self.last_iou_similarity,
             "recall_black": self.last_recall_black,
             "recall_white": self.last_recall_white,
-            "balanced_accuracy": self.last_balanced_accuracy,
             "used_budgets": self.used_budgets,
             "block_similarity": self.block_similarity,
             "block_reward": self.block_reward,

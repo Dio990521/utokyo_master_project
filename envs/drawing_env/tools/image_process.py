@@ -34,11 +34,11 @@ def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel
 
     recall_black = tp / (tp + fn)
     recall_white = tn / (tn + fp)
+    precision_black = tp / (tp + fp)
 
     accuracy = (tp + tn) / total_pixels
-    balanced_accuracy = (recall_black + recall_white) / 2.0
 
-    return recall_black, recall_white, balanced_accuracy, accuracy
+    return recall_black, recall_white, accuracy, precision_black
 
 def calculate_reward_map(target_sketch, reward_on_target=0.1, reward_near_target=0.0, reward_far_target=-0.1, near_distance=2):
     if reward_near_target == reward_far_target:

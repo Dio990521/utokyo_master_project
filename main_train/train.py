@@ -22,10 +22,8 @@ class TrainingDataCallback(BaseCallback):
                 if "used_budgets" in info:
                     self.episode_data.append({
                         "pixel_similarity": info.get("pixel_similarity"),
-                        "iou_similarity": info.get("iou_similarity"),
                         "recall_black": info.get("recall_black"),
                         "recall_white": info.get("recall_white"),
-                        "balanced_accuracy": info.get("balanced_accuracy"),
                         "used_budgets": info.get("used_budgets"),
                         "block_similarity": info.get("block_similarity"),
                         "block_reward": info.get("block_reward"),
@@ -84,10 +82,8 @@ class ValidationCallback(BaseCallback):
                     "step": self.num_timesteps,
                     "sketch": os.path.basename(sketch_file),
                     "pixel_similarity": info.get("pixel_similarity"),
-                    "iou_similarity": info.get("iou_similarity"),
                     "recall_black": info.get("recall_black"),
                     "recall_white": info.get("recall_white"),
-                    "balanced_accuracy": info.get("balanced_accuracy"),
                     "used_budgets": info.get("used_budgets"),
                     "block_similarity": info.get("block_similarity"),
                     "block_reward": info.get("block_reward"),
