@@ -16,6 +16,7 @@ def calculate_dynamic_distance_map(target_sketch: np.ndarray, canvas: np.ndarray
 
     return distance_transform_edt(remaining_work_map)
 
+
 def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel_value=1.0):
     if target_sketch.shape != canvas.shape:
         raise ValueError("Target sketch and canvas must have the same shape.")
@@ -32,14 +33,20 @@ def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel
     fp = np.sum(target_is_white & canvas_is_black)
     fn = np.sum(target_is_black & canvas_is_white)
 
-    recall_black = tp / (tp + fn)
-    recall_white = tn / (tn + fp)
-    precision_black = tp / (tp + fp)
+    # Denominator for recall_black is total actual positives (target black pixels)
+    total_target_black = tp + fn
+    recall_black = (tp / total_target_black) if total_target_black > 0 else 0.0
+
+    # Denominator for recall_white is total actual negatives (target white pixels)
+    total_target_white = tn + fp
+    recall_white = (tn / total_target_white) if total_target_white > 0 else 0.0
+
+    total_canvas_black = tp + fp
+    precision_black = (tp / total_canvas_black) if total_canvas_black > 0 else 0.0
 
     accuracy = (tp + tn) / total_pixels
 
     return recall_black, recall_white, accuracy, precision_black
-
 def calculate_reward_map(target_sketch, reward_on_target=0.1, reward_near_target=0.0, reward_far_target=-0.1, near_distance=2):
     if reward_near_target == reward_far_target:
         reward_map = np.where(

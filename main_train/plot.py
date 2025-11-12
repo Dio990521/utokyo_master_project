@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "20251114_pen3x3_num_threshold08"
+VERSION = "20251114_pen3x3_num_threshold09"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
-TRAIN_WINDOW_SIZE = 10
+COLUMN_TO_PLOT = "step_rewards"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+TRAIN_WINDOW_SIZE = 100
 
 def plot_training_data():
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")
@@ -17,11 +17,10 @@ def plot_training_data():
 
     try:
         df = pd.read_csv(DATA_PATH)
-        df = df.head(5000)
         plt.figure(figsize=(15, 7))
 
         if COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["recall_black", "recall_white"]
+            metrics_to_plot = ["precision", "recall_black", "recall_white"]
             plot_styles = {
                 "pixel_similarity": 'r-',
                 "similarity": 'b-',
@@ -32,7 +31,7 @@ def plot_training_data():
             default_style = 'k-'
             plot_labels = {
                 "pixel_similarity": f'Pixel Accuracy (MA {TRAIN_WINDOW_SIZE})',
-                "iou_similarity": f'IoU Similarity (MA {TRAIN_WINDOW_SIZE})',
+                "precision": f'Precision (MA {TRAIN_WINDOW_SIZE})',
                 "recall_black": f'Black Recall (MA {TRAIN_WINDOW_SIZE})',
                 "recall_white": f'White Recall (MA {TRAIN_WINDOW_SIZE})'
             }
@@ -49,23 +48,6 @@ def plot_training_data():
                 metric_ma = df[col].rolling(window=TRAIN_WINDOW_SIZE).mean()
                 style = plot_styles.get(col, default_style)
                 plt.plot(df.index, metric_ma, style, label=plot_labels.get(col, col))
-
-            required_columns = ["total_painted", "correctly_painted"]
-            if not all(col in df.columns for col in required_columns):
-                print(f"Error: Missing required columns in data: {required_columns}")
-                plt.close()
-                return
-
-            precision = np.divide(
-                df["correctly_painted"],
-                df["total_painted"],
-                out=np.zeros_like(df["correctly_painted"], dtype=float),
-                where=df["total_painted"] != 0
-            )
-            precision = np.nan_to_num(precision, nan=0.0, posinf=0.0, neginf=0.0)
-            precision_ma = pd.Series(precision).rolling(window=TRAIN_WINDOW_SIZE).mean()
-            plt.plot(df.index, precision_ma, 'k-',
-                     label=f'Painting Precision (MA {TRAIN_WINDOW_SIZE})')
 
             plt.title(f"Training Performance: Similarity Metrics (Moving Average) - {VERSION}")
             plt.xlabel("Episode")

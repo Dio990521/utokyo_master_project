@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="lab gpu libra-x0" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+  <component name="PublishConfigData" serverName="lab gpu libra-x2" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
       <paths name="chengzhangdong@libra-x1:22 agent">
@@ -17,10 +17,24 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="chengzhangdong@libra-x2:22 agent">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_958" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="lab gpu libra-x0">
         <serverdata>
           <mappings>
             <mapping deploy="/home/chengzhangdong/utokyo_env_project" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="lab gpu libra-x2">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/chengzhangdong/utokyo_env_project" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
