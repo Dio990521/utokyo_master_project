@@ -87,10 +87,10 @@ config_2squares_1 = {
         }
 
 config_mix_1 = {
-            "target_sketches_path": "../envs/drawing_env/training/sketch_mix_augment/",
-            "val_sketches_path": "../envs/drawing_env/training/sketch_mix_augment/",
-            "canvas_size": [32, 32],
-            "max_steps": 1000,
+            "target_sketches_path": "../envs/drawing_env/training/test/",
+            "val_sketches_path": "../envs/drawing_env/training/test/",
+            "canvas_size": [8, 8],
+            "max_steps": 64,
             "use_time_penalty": False,
             "brush_size": 1,
             "use_triangles": False,
@@ -99,14 +99,14 @@ config_mix_1 = {
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
-            "use_combo": True,
+            "use_combo": False,
             "combo_rate": 1.1,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.5,
-            "reward_map_near_target": -0.1,
-            "reward_map_far_target": -0.1,
+            "reward_map_on_target": 1.0,
+            "reward_map_near_target": -1.0,
+            "reward_map_far_target": -1.0,
             "reward_map_near_distance": 2,
             "penalty_scale_threshold": 1.9,
             "use_budget_channel": False,
@@ -267,19 +267,19 @@ experiments = [
     #         "ENV_CONFIG": test1,
     #     }
     # },
-    # {
-    #     "VERSION": "202511122_pen3x3transfer1x1_mix_1_redo",
-    #     "TOTAL_TIME_STEPS": 10000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": config_mix_1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 10000000,
-    #         "ENV_CONFIG": config_mix_1,
-    #     }
-    # },
+    {
+        "VERSION": "20251112_test_1",
+        "TOTAL_TIME_STEPS": 1000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 1,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": config_mix_1,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 10000000,
+            "ENV_CONFIG": config_mix_1,
+        }
+    },
     # {
     #     "VERSION": "20251114_pen3x3_num_threshold08",
     #     "TOTAL_TIME_STEPS": 5000000,
@@ -293,19 +293,19 @@ experiments = [
     #         "ENV_CONFIG": test1,
     #     }
     # },
-    {
-        "VERSION": "20251114_pen3x3_num_threshold07",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test2,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 5000000,
-            "ENV_CONFIG": test2,
-        }
-    },
+    # {
+    #     "VERSION": "20251114_pen3x3_num_threshold07",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test2,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 5000000,
+    #         "ENV_CONFIG": test2,
+    #     }
+    # },
 ]
 if __name__ == '__main__':
     total_experiments = len(experiments)
@@ -318,14 +318,12 @@ if __name__ == '__main__':
             json.dump(config, f, indent=4)
         print(f"Configuration saved to {config_save_path}")
 
-
-
     for i, config in enumerate(experiments):
         print("Pre-loading ALL training data...")
         PRECALCULATED_TRAIN_DATA = preload_all_data(config["ENV_CONFIG"]["target_sketches_path"], config["ENV_CONFIG"])
         print("\nPre-loading ALL validation data...")
         PRECALCULATED_VAL_DATA = preload_all_data(config["ENV_CONFIG"]["val_sketches_path"], config["ENV_CONFIG"])
-
+        print(PRECALCULATED_TRAIN_DATA)
         print(f"\n\n<<<<<<<<<< Starting Experiment {i+1}/{total_experiments} >>>>>>>>>>")
         config["ENV_CONFIG"]["precalculated_data"] = PRECALCULATED_TRAIN_DATA
         if config["VALIDATION_CONFIG"]:

@@ -9,7 +9,7 @@ import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
     calculate_block_reward, calculate_iou_similarity, calculate_reward_map, \
     calculate_accuracy, calculate_dynamic_distance_map, visualize_obs
-
+from collections import deque
 
 def _decode_action(action):
     """
@@ -61,6 +61,9 @@ class DrawingAgentEnv(gym.Env):
         self.use_triangles = config.get("use_triangles", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.use_time_penalty = config.get("use_time_penalty", False)
+
+        self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
+        self.mvg_penalty_window_size = config.get("mvg_penalty_window_size", 100)
 
         self.use_distance_map_obs = config.get("use_distance_map_obs", False)
         max_dist = np.sqrt((self.canvas_size[0] - 1) ** 2 + (self.canvas_size[1] - 1) ** 2)
@@ -131,6 +134,9 @@ class DrawingAgentEnv(gym.Env):
         self.cursor = [0, 0]
         self.episode_total_painted = 0
         self.episode_correctly_painted = 0
+
+        self.penalty_history = deque(maxlen=self.mvg_penalty_window_size)
+        self.current_mvg_penalty = 0.0
 
         self.current_episode_step_data = []
 
@@ -249,13 +255,13 @@ class DrawingAgentEnv(gym.Env):
                         canvas_changed_this_step = True
                         potential_affected_pixels.append((r, c))
 
-        current_iou_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
+        #current_iou_similarity = calculate_iou_similarity(self.canvas, self.target_sketch)
         current_recall_black, current_recall_white, current_ba, current_pixel_similarity = calculate_accuracy(
             self.target_sketch,
             self.canvas)
 
         self.last_pixel_similarity = current_pixel_similarity
-        self.last_iou_similarity = current_iou_similarity
+        #self.last_iou_similarity = current_iou_similarity
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
         if self.episode_total_painted > 0:
@@ -315,13 +321,23 @@ class DrawingAgentEnv(gym.Env):
                         positive_reward_this_step += base_reward_value
                     else:
                         current_penalty_scale = 0.0
-                        constant = 0
                         if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
                             current_penalty_scale = self.last_precision_black
                         elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                             current_penalty_scale = 1.0
 
-                        negative_reward_this_step += (base_reward_value * current_penalty_scale + constant)
+                        negative_reward_this_step += (base_reward_value * current_penalty_scale)
+
+            if negative_reward_this_step < 0:
+                self.penalty_history.append(negative_reward_this_step)
+
+            if len(self.penalty_history) > 0:
+                self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
+            else:
+                self.current_mvg_penalty = 0.0
+
+            if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
+                negative_reward_this_step += -self.current_mvg_penalty
 
             if hit_correct_pixel:
                 self.current_combo += 1

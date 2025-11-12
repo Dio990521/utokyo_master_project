@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "202511122_pen3x3transfer1x1_num_combo01_redo"
+VERSION = "20251114_pen3x3_num_threshold08"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
-TRAIN_WINDOW_SIZE = 100
+TRAIN_WINDOW_SIZE = 10
 
 def plot_training_data():
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")
