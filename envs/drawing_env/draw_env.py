@@ -7,8 +7,8 @@ import os
 import random
 import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
-    calculate_block_reward, calculate_iou_similarity, calculate_reward_map, \
-    calculate_accuracy, calculate_dynamic_distance_map, visualize_obs
+    calculate_block_reward, calculate_reward_map, \
+    calculate_accuracy, calculate_dynamic_distance_map, visualize_obs, calculate_metrics
 from collections import deque
 
 def _decode_action(action):
@@ -119,6 +119,11 @@ class DrawingAgentEnv(gym.Env):
         self.navigation_reward = 0
         self.current_combo = 0
 
+        self._current_tp = 0
+        self._current_tn = 0
+        self._current_fp = 0
+        self._current_fn = 0
+
         self.last_pixel_similarity = 0.0
         self.last_iou_similarity = 0.0
         self.last_balanced_accuracy = 0.0
@@ -216,10 +221,16 @@ class DrawingAgentEnv(gym.Env):
         if self.use_dynamic_distance_map_reward:
             self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
 
-        rb, rw, _, pb = calculate_accuracy(self.target_sketch, self.canvas)
-        self.last_recall_black = rb
-        self.last_recall_white = rw
-        self.last_precision_black = pb
+        target_is_black = np.isclose(self.target_sketch, 0.0)
+        target_is_white = np.isclose(self.target_sketch, 1.0)
+        self._current_tp = 0
+        self._current_fp = 0
+        self._current_tn = np.sum(target_is_white)
+        self._current_fn = np.sum(target_is_black)
+
+        self.last_recall_black = 0.0
+        self.last_recall_white = 1.0 if self._current_tn > 0 else 0.0
+        self.last_precision_black = 0.0
 
         if self.render_mode == "human":
             self._init_pygame()
@@ -249,9 +260,16 @@ class DrawingAgentEnv(gym.Env):
                         self.canvas[r, c] = 0.0
                         potential_affected_pixels.append((r, c))
 
-        current_recall_black, current_recall_white, current_pixel_similarity, current_precision_black = calculate_accuracy(
-            self.target_sketch,
-            self.canvas)
+                        if np.isclose(self.target_sketch[r, c], 0.0):
+                            self._current_tp += 1
+                            self._current_fn -= 1
+                        else:
+                            self._current_fp += 1
+                            self._current_tn -= 1
+
+        current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity  = calculate_metrics(
+            self._current_tp, self._current_fp, self._current_tn, self._current_fn,
+            self.canvas.size)
 
         self.last_pixel_similarity = current_pixel_similarity
         self.last_recall_black = current_recall_black
@@ -274,7 +292,6 @@ class DrawingAgentEnv(gym.Env):
 
         if self.render_mode == "human":
             self.render()
-
         return observation, reward, terminated, truncated, info
 
     def _update_agent_state(self, dx, dy, is_pen_down, is_stop_action):

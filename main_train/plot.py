@@ -6,8 +6,8 @@ import numpy as np
 VERSION = "20251114_pen3x3_num_threshold09"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "step_rewards"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
-TRAIN_WINDOW_SIZE = 100
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+TRAIN_WINDOW_SIZE = 10
 
 def plot_training_data():
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")

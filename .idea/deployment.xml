@@ -20,7 +20,7 @@
       <paths name="chengzhangdong@libra-x2:22 agent">
         <serverdata>
           <mappings>
-            <mapping deploy="/tmp/pycharm_project_958" local="$PROJECT_DIR$" />
+            <mapping deploy="/home/chengzhangdong/utokyo_env_project" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

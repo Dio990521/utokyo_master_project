@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
 
@@ -36,6 +36,9 @@ class TrainingDataCallback(BaseCallback):
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
+                    self.logger.record("total_painted", info.get("total_painted"))
+                    self.logger.record("correctly_painted", info.get("correctly_painted"))
+
         return True
 
     def _on_training_end(self) -> None:
@@ -142,7 +145,7 @@ def run_training(config: dict):
     env = make_vec_env(
         "DrawingEnv-v0",
         n_envs=NUM_ENVS,
-        vec_env_cls=DummyVecEnv,
+        vec_env_cls=SubprocVecEnv,
         env_kwargs={"config": env_config}
     )
 

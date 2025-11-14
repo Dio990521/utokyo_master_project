@@ -16,6 +16,18 @@ def calculate_dynamic_distance_map(target_sketch: np.ndarray, canvas: np.ndarray
 
     return distance_transform_edt(remaining_work_map)
 
+def calculate_metrics(tp, fp, tn, fn, canvas_size):
+    total_target_black = tp + fn
+    current_recall_black = (tp / total_target_black) if total_target_black > 0 else 0.0
+
+    total_target_white = tn + fp
+    current_recall_white = (tn / total_target_white) if total_target_white > 0 else 0.0
+
+    total_canvas_black = tp + fp
+    current_precision_black = (tp / total_canvas_black) if total_canvas_black > 0 else 0.0
+
+    current_pixel_similarity = (tp + tn) / canvas_size
+    return current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity
 
 def calculate_accuracy(target_sketch, canvas, black_pixel_value=0.0, white_pixel_value=1.0):
     if target_sketch.shape != canvas.shape:
