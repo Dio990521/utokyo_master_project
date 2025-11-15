@@ -248,7 +248,7 @@ class DrawingAgentEnv(gym.Env):
         terminated = is_stop_action
 
         correct_new_pixels = []
-        repeated_new_pixels = []
+        repeated_correct_pixels = []
         if is_pen_down and not terminated:
             current_cursor = self.cursor
             brush_radius = self.brush_size // 2
@@ -270,7 +270,7 @@ class DrawingAgentEnv(gym.Env):
                             self._current_tn -= 1
                     else:
                         if np.isclose(self.target_sketch[r, c], 0.0):
-                            repeated_new_pixels.append((r, c))
+                            repeated_correct_pixels.append((r, c))
 
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
@@ -288,7 +288,7 @@ class DrawingAgentEnv(gym.Env):
             terminated, False,
             is_pen_down,
             correct_new_pixels,
-            repeated_new_pixels)
+            repeated_correct_pixels)
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
