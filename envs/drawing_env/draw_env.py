@@ -42,7 +42,7 @@ class DrawingAgentEnv(gym.Env):
         self.render_scale = 10
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
-        num_obs_channels = 3 + int(self.use_distance_map_obs) + int(self.use_budget_channel)
+        num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(self.use_canvas_obs) + int(self.use_target_sketch_obs)
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
         )
@@ -61,9 +61,12 @@ class DrawingAgentEnv(gym.Env):
         self.use_triangles = config.get("use_triangles", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.use_time_penalty = config.get("use_time_penalty", False)
+        self.use_pen_down_obs = config.get("use_pen_down_obs", False)
+        self.use_canvas_obs = config.get("use_canvas_obs", True)
+        self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
 
         self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
-        self.mvg_penalty_window_size = config.get("mvg_penalty_window_size", 100)
+        self.mvg_penalty_window_size = self.max_steps // 5
 
         self.use_distance_map_obs = config.get("use_distance_map_obs", False)
         max_dist = np.sqrt((self.canvas_size[0] - 1) ** 2 + (self.canvas_size[1] - 1) ** 2)
@@ -244,7 +247,8 @@ class DrawingAgentEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
-        potential_affected_pixels = []
+        correct_new_pixels = []
+        repeated_new_pixels = []
         if is_pen_down and not terminated:
             current_cursor = self.cursor
             brush_radius = self.brush_size // 2
@@ -257,15 +261,20 @@ class DrawingAgentEnv(gym.Env):
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
                     if np.isclose(self.canvas[r, c], 1.0):
-                        self.canvas[r, c] = 0.0
-                        potential_affected_pixels.append((r, c))
-
                         if np.isclose(self.target_sketch[r, c], 0.0):
+                            correct_new_pixels.append((r, c))
                             self._current_tp += 1
                             self._current_fn -= 1
                         else:
                             self._current_fp += 1
                             self._current_tn -= 1
+                    else:
+                        if np.isclose(self.target_sketch[r, c], 0.0):
+                            repeated_new_pixels.append((r, c))
+
+            for r in range(y_start, y_end):
+                for c in range(x_start, x_end):
+                    self.canvas[r, c] = 0.0
 
         current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity  = calculate_metrics(
             self._current_tp, self._current_fp, self._current_tn, self._current_fn,
@@ -275,13 +284,11 @@ class DrawingAgentEnv(gym.Env):
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
         self.last_precision_black = current_precision_black
-        canvas_changed_this_step = bool(potential_affected_pixels)
         reward = self._calculate_reward(
             terminated, False,
             is_pen_down,
-            potential_affected_pixels,
-            canvas_changed_this_step
-        )
+            correct_new_pixels,
+            repeated_new_pixels)
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
@@ -306,27 +313,33 @@ class DrawingAgentEnv(gym.Env):
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, terminated, truncated,
-                          is_pen_down,potential_affected_pixels,
-                          canvas_changed_this_step):
+                          is_pen_down,correct_new_pixels,
+            repeated_new_pixels):
         reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
         positive_reward_this_step = 0.0
         negative_reward_this_step = 0.0
         if is_pen_down:
-            hit_correct_pixel = False
-            if potential_affected_pixels:
-                for r, c in potential_affected_pixels:
-                    self.episode_total_painted += 1
-                    base_reward_value = self.reward_map[r, c]
+            num_correct = len(correct_new_pixels)
+            num_repeated = len(repeated_new_pixels)
+            self.episode_correctly_painted += num_correct
+            if num_correct > 0:
+                positive_reward_this_step = 0.0
+                for r, c in correct_new_pixels:
+                    positive_reward_this_step += self.reward_map[r, c]
 
-                    if base_reward_value > 0:
-                        self.episode_correctly_painted += 1
-                        hit_correct_pixel = True
-                        positive_reward_this_step += base_reward_value
+                self.current_combo += 1
+                if self.use_combo:
+                    if self.combo_rate < 1.0:
+                        positive_reward_this_step = (positive_reward_this_step * (1 + self.combo_rate * self.current_combo))
+                    else:
+                        positive_reward_this_step = (positive_reward_this_step * (self.combo_rate ** self.current_combo))
 
-            if hit_correct_pixel:
                 drawing_reward = positive_reward_this_step
-            else:
+            elif num_correct == 0 and num_repeated > 0:
+                self.current_combo = 0
+            elif num_correct == 0 and num_repeated == 0:
+                self.current_combo = 0
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
                     current_penalty_scale = self.last_precision_black
@@ -349,18 +362,7 @@ class DrawingAgentEnv(gym.Env):
             if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
                 negative_reward_this_step += -self.current_mvg_penalty
 
-            if hit_correct_pixel:
-                self.current_combo += 1
-                if self.use_combo:
-                    if self.combo_rate < 1.0:
-                        drawing_reward = (drawing_reward * (1 + self.combo_rate * self.current_combo))
-                    else:
-                        drawing_reward = (drawing_reward * (self.combo_rate ** self.current_combo))
-            else:
-                self.current_combo = 0
-
-            if canvas_changed_this_step and hit_correct_pixel:
-                if self.use_dynamic_distance_map_reward:
+            if num_correct > 0 and self.use_dynamic_distance_map_reward:
                     self._update_dynamic_distance_map()
         else:
             self.current_combo = 0
@@ -392,27 +394,20 @@ class DrawingAgentEnv(gym.Env):
         self.needs_distance_map_update = False
 
     def _get_obs(self):
-        if not hasattr(self, "_obs_initialized"):
-            self._obs_initialized = True
+        if not hasattr(self, "_obs"):
+            self._obs = np.zeros(self.observation_space.shape, dtype=np.float32)
 
-            num_channels = 3
-            if self.use_distance_map_obs:
-                num_channels += 1
-            if self.use_budget_channel:
-                num_channels += 1
+        ch_idx = 0
+        if self.use_canvas_obs:
+            self._obs[ch_idx][:] = self.canvas
+            ch_idx += 1
 
-            self._obs = np.zeros(
-                (num_channels, *self.canvas_size),
-                dtype=np.float32
-            )
+        if self.use_target_sketch_obs:
+            if self.current_step == 0:
+                self._obs[ch_idx] = self.target_sketch.astype(np.float32)
+            ch_idx += 1
 
-            self._obs[1] = self.target_sketch.astype(np.float32)
-
-            if self.use_budget_channel and not self.dynamic_budget_channel:
-                budget_value = self.stroke_budget / 255.0
-                self._obs[-1] = budget_value
-
-        pen_mask = self._obs[2]
+        pen_mask = self._obs[ch_idx]
         pen_mask.fill(0.0)
         y, x = self.cursor[1], self.cursor[0]
         brush_radius = self.brush_size // 2
@@ -424,18 +419,21 @@ class DrawingAgentEnv(gym.Env):
             x_end = min(x + brush_radius + 1, self.canvas_size[1])
             pen_mask[y_start:y_end, x_start:x_end] = 1.0
 
-        self._obs[0][:] = self.canvas
+        ch_idx += 1
 
-        ch_idx = 3  # 默认 distance map 在第4个通道
         if self.use_distance_map_obs:
             normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
             np.clip(normalized_dist_map, 0.0, 1.0, out=self._obs[ch_idx])
             ch_idx += 1
 
-        if self.use_budget_channel and self.dynamic_budget_channel:
-            budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
-                            if self.stroke_budget > 0 else 0.0)
-            self._obs[ch_idx][:] = budget_value
+        if self.use_budget_channel:
+            if self.dynamic_budget_channel:
+                budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
+                                if self.stroke_budget > 0 else 0.0)
+                self._obs[ch_idx][:] = budget_value
+            elif self.current_step == 0:
+                budget_value = self.stroke_budget / 255.0
+                self._obs[ch_idx] = budget_value
 
         return self._obs
 

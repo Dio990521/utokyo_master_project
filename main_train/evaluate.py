@@ -4,13 +4,13 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "202511122_pen3x3transfer1x1_num_1_redo" #20251107_pen3x3transfer1x1_num_1_redo1
+VERSION = "20251115_8x8test_single_data" #20251107_pen3x3transfer1x1_num_1_redo1
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/sketch_num_augment/"
-CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 1000
+SKETCH_DATA_PATH = "../envs/drawing_env/training/test/"
+CANVAS_SIZE = (8, 8)
+MAX_EPISODE_STEPS = 64
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
 def make_env():
     return DrawingAgentEnv(
@@ -39,7 +39,7 @@ eval_env = DrawingAgentEnv(
             "rect_min_height": 5,
             "rect_max_height": 15,
             "use_distance_map_obs": False,
-            "use_combo": True,
+            "use_combo": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
             "reward_map_on_target": 0.5,
