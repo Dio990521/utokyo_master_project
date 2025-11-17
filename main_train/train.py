@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CombinedExtractor
 
 
 class TrainingDataCallback(BaseCallback):
@@ -126,6 +126,7 @@ def run_training(config: dict):
     print(f"  Parallel Environments: {NUM_ENVS}")
 
     env_config = config.get("ENV_CONFIG", {})
+    use_dict_obs = env_config.get("use_dict_obs", False)
     validation_config = config.get("VALIDATION_CONFIG", None)
 
     BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
@@ -149,7 +150,21 @@ def run_training(config: dict):
         env_kwargs={"config": env_config}
     )
 
-    policy_kwargs = dict(features_extractor_class=CustomCnnExtractor, features_extractor_kwargs=dict(features_dim=128))
+    if use_dict_obs:
+        print("--- [Config] Using Dict Observation (MultiInputPolicy) ---")
+        policy_name = "MultiInputPolicy"
+        policy_kwargs = dict(
+            features_extractor_class=CombinedExtractor,
+            features_extractor_kwargs=dict(cnn_output_dim=128, mlp_output_dim=32)  # 你可以调整这些维度
+        )
+    else:
+        print("--- [Config] Using Box Observation (CnnPolicy) ---")
+        policy_name = "CnnPolicy"
+        policy_kwargs = dict(
+            features_extractor_class=CustomCnnExtractor,
+            features_extractor_kwargs=dict(features_dim=128)
+        )
+
     is_loaded = False
     if os.path.exists(model_path):
         is_loaded = True
@@ -164,7 +179,7 @@ def run_training(config: dict):
     else:
         print(f"No existing model found at {model_path}. Creating a new model...")
         model = PPO(
-            "CnnPolicy",
+            policy_name,
             env,
             learning_rate=LEARNING_RATE,
             n_steps=2048,

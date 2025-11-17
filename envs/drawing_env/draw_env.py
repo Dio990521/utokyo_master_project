@@ -42,13 +42,48 @@ class DrawingAgentEnv(gym.Env):
         self.render_scale = 10
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
-        num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(self.use_canvas_obs) + int(self.use_target_sketch_obs)
-        self.observation_space = spaces.Box(
-            low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
-        )
+
+        if self.use_dict_obs:
+            # --- 方案二：Dict 空间 (MultiInputPolicy) ---
+
+            # 1. 计算 "image" 部分的通道数
+            image_channels = 0
+            if self.use_canvas_obs:
+                image_channels += 1
+            if self.use_target_sketch_obs:
+                image_channels += 1
+            # (注意：pen_mask 不再是图像通道，而是 'state' 的一部分)
+
+            self.observation_space = spaces.Dict({
+                # "image" 空间: (canvas, target_sketch)
+                "image": spaces.Box(
+                    low=0, high=1.0,
+                    shape=(image_channels, *self.canvas_size),
+                    dtype=np.float32
+                ),
+                # "state" 空间: [x, y] 归一化坐标
+                "state": spaces.Box(
+                    low=0.0, high=1.0,
+                    shape=(2,),  # [x, y]
+                    dtype=np.float32
+                )
+            })
+
+        else:
+            # --- 原始方案：Box 空间 (CnnPolicy) ---
+            num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(
+                self.use_canvas_obs) + int(self.use_target_sketch_obs)
+            if self.use_coord_conv:  # CoordConv 只在 Box 模式下有意义
+                num_obs_channels += 2
+
+            self.observation_space = spaces.Box(
+                low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
+            )
 
         self.window = None
         self.clock = None
+        if self.use_coord_conv:
+            self._create_coord_maps()
 
     def _init_config(self, config):
         self.canvas_size = config.get("canvas_size", [32, 32])
@@ -61,9 +96,10 @@ class DrawingAgentEnv(gym.Env):
         self.use_triangles = config.get("use_triangles", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.use_time_penalty = config.get("use_time_penalty", False)
-        self.use_pen_down_obs = config.get("use_pen_down_obs", False)
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
+        self.use_coord_conv = config.get("use_coord_conv", False)
+        self.use_dict_obs = config.get("use_dict_obs", False)
 
         self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
         self.mvg_penalty_window_size = self.max_steps // 5
@@ -152,6 +188,13 @@ class DrawingAgentEnv(gym.Env):
         self.last_distance = 0.0
         self.needs_distance_map_update = True
 
+    def _create_coord_maps(self):
+        h, w = self.canvas_size
+        x_row = np.linspace(0.0, 1.0, w, dtype=np.float32)
+        self.x_map = np.tile(x_row, (h, 1))
+        y_col = np.linspace(0.0, 1.0, h, dtype=np.float32).reshape(-1, 1)
+        self.y_map = np.tile(y_col, (1, w))
+
     def _load_target_sketches(self):
         sketches = []
         if self.specific_sketch_file:
@@ -219,6 +262,8 @@ class DrawingAgentEnv(gym.Env):
                     )
                 self._update_dynamic_distance_map()
 
+        if self.use_dict_obs:
+            self._static_target_sketch = self.target_sketch.astype(np.float32)
 
         self.cursor = find_starting_point(self.target_sketch)
         if self.use_dynamic_distance_map_reward:
@@ -274,7 +319,9 @@ class DrawingAgentEnv(gym.Env):
 
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
-                    self.canvas[r, c] = 0.0
+                    if np.isclose(self.canvas[r, c], 1.0):
+                        self.episode_total_painted += 1
+                        self.canvas[r, c] = 0.0
 
         current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity  = calculate_metrics(
             self._current_tp, self._current_fp, self._current_tn, self._current_fn,
@@ -313,11 +360,9 @@ class DrawingAgentEnv(gym.Env):
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, terminated, truncated,
-                          is_pen_down,correct_new_pixels,
-            repeated_new_pixels):
+                          is_pen_down,correct_new_pixels, repeated_new_pixels):
         reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
-        positive_reward_this_step = 0.0
         negative_reward_this_step = 0.0
         if is_pen_down:
             num_correct = len(correct_new_pixels)
@@ -394,6 +439,36 @@ class DrawingAgentEnv(gym.Env):
         self.needs_distance_map_update = False
 
     def _get_obs(self):
+
+        if self.use_dict_obs:
+            # --- 方案二：返回 Dict 观察 ---
+
+            # 1. 组装 "image" 部分
+            image_channels = []
+            if self.use_canvas_obs:
+                image_channels.append(self.canvas)
+            if self.use_target_sketch_obs:
+                if not hasattr(self, '_static_target_sketch'):
+                    # 以防万一 reset 没被正确调用
+                    self._static_target_sketch = self.target_sketch.astype(np.float32)
+                image_channels.append(self._static_target_sketch)
+
+            # 确保即使通道为空，形状也正确
+            if image_channels:
+                image_obs = np.stack(image_channels, axis=0)
+            else:
+                image_obs = np.zeros((0, *self.canvas_size), dtype=np.float32)  # 空图像
+
+            # 2. 组装 "state" 部分 (归一化坐标)
+            # 归一化到 [0, 1]
+            state_obs = np.array([
+                self.cursor[0] / (self.canvas_size[1] - 1.0),
+                self.cursor[1] / (self.canvas_size[0] - 1.0)
+            ], dtype=np.float32)
+            np.clip(state_obs, 0.0, 1.0, out=state_obs)  # 确保在范围内
+
+            return {"image": image_obs, "state": state_obs}
+
         if not hasattr(self, "_obs"):
             self._obs = np.zeros(self.observation_space.shape, dtype=np.float32)
 
@@ -425,6 +500,12 @@ class DrawingAgentEnv(gym.Env):
             normalized_dist_map = self.dynamic_distance_map / self.max_obs_distance
             np.clip(normalized_dist_map, 0.0, 1.0, out=self._obs[ch_idx])
             ch_idx += 1
+
+        if self.use_coord_conv:
+            if self.current_step == 0:
+                self._obs[ch_idx] = self.x_map
+                self._obs[ch_idx + 1] = self.y_map
+            ch_idx += 2
 
         if self.use_budget_channel:
             if self.dynamic_budget_channel:

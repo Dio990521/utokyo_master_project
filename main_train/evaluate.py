@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251115_8x8test_single_data" #20251107_pen3x3transfer1x1_num_1_redo1
+VERSION = "20251116_8x8test" #20251107_pen3x3transfer1x1_num_1_redo1
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/test/"
 CANVAS_SIZE = (8, 8)
@@ -69,7 +69,7 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=False)
+    action, _states = model.predict(obs, deterministic=True)
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
