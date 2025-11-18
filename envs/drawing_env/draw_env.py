@@ -356,20 +356,21 @@ class DrawingAgentEnv(gym.Env):
                         current_penalty_scale = 1.0
 
                 negative_reward_this_step = self.reward_map_far_target * current_penalty_scale
+
+                if negative_reward_this_step < 0:
+                    self.penalty_history.append(negative_reward_this_step)
+                else:
+                    self.penalty_history.append(0)
+
+                if len(self.penalty_history) > 0:
+                    self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
+                else:
+                    self.current_mvg_penalty = 0.0
+
+                if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
+                    negative_reward_this_step += -self.current_mvg_penalty
+
                 drawing_reward = negative_reward_this_step
-
-            if negative_reward_this_step < 0:
-                self.penalty_history.append(negative_reward_this_step)
-            else:
-                self.penalty_history.append(0)
-
-            if len(self.penalty_history) > 0:
-                self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
-            else:
-                self.current_mvg_penalty = 0.0
-
-            if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
-                negative_reward_this_step += -self.current_mvg_penalty
 
             if num_correct > 0 and self.use_dynamic_distance_map_reward:
                     self._update_dynamic_distance_map()
