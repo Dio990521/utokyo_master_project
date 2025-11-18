@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 
-VERSION = "test_dict_obs_threshold08"
+VERSION = "20251118_pen3x3trans1x1_num_threshold08_no_padding"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "step_rewards"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
 def plot_training_data():
