@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import distance_transform_edt
 
 
+def calculate_f1_score(precision, recall):
+    if precision + recall == 0:
+        return 0.0
+    return 2 * (precision * recall) / (precision + recall)
+
 def calculate_dynamic_distance_map(target_sketch: np.ndarray, canvas: np.ndarray) -> np.ndarray:
     remaining_work_map = np.where(
         (np.isclose(target_sketch, 0.0)) & (np.isclose(canvas, 1.0)),

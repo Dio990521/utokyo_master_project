@@ -7,7 +7,7 @@ import os
 import random
 import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
-    calculate_block_reward, calculate_reward_map, calculate_dynamic_distance_map, calculate_metrics
+    calculate_block_reward, calculate_reward_map, calculate_dynamic_distance_map, calculate_metrics, calculate_f1_score
 from collections import deque
 
 def _decode_action(action):
@@ -111,6 +111,10 @@ class DrawingAgentEnv(gym.Env):
         self.step_debug_path = config.get("step_debug_path", None)
         self.episode_save_limit = config.get("episode_save_limit", 1000)
         self.current_episode_num = 0
+
+        self.reward_scheme = config.get("reward_scheme", "phase1_recall")
+        self.recall_bonus = config.get("recall_bonus", 0.0)
+        self.f1_scalar = config.get("f1_scalar", 0.0)
 
     def _init_state_variables(self):
         self.current_step = 0
@@ -233,6 +237,7 @@ class DrawingAgentEnv(gym.Env):
         self.last_recall_black = 0.0
         self.last_recall_white = 1.0 if self._current_tn > 0 else 0.0
         self.last_precision_black = 0.0
+        self.last_f1_score = 0.0
 
         if self.render_mode == "human":
             self._init_pygame()
@@ -285,11 +290,14 @@ class DrawingAgentEnv(gym.Env):
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
         self.last_precision_black = current_precision_black
+        current_f1_score = calculate_f1_score(self.last_precision_black, self.last_recall_black)
         reward = self._calculate_reward(
             terminated, False,
             is_pen_down,
             correct_new_pixels,
-            repeated_correct_pixels)
+            repeated_correct_pixels,
+            current_f1_score)
+        self.last_f1_score = current_f1_score
 
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
@@ -313,7 +321,7 @@ class DrawingAgentEnv(gym.Env):
             self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, terminated, truncated,
-                          is_pen_down,correct_new_pixels, repeated_new_pixels):
+                          is_pen_down,correct_new_pixels, repeated_new_pixels, current_f1_score):
         reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
         negative_reward_this_step = 0.0
@@ -341,10 +349,11 @@ class DrawingAgentEnv(gym.Env):
             elif num_correct == 0 and num_repeated == 0:
                 self.current_combo = 0
                 current_penalty_scale = 0.0
-                if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                    current_penalty_scale = self.last_precision_black
-                elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
-                    current_penalty_scale = 1.0
+                if self.penalty_scale_threshold > 0: # if negative, then no penalty
+                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                        current_penalty_scale = self.last_precision_black
+                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                        current_penalty_scale = 1.0
 
                 negative_reward_this_step = self.reward_map_far_target * current_penalty_scale
                 drawing_reward = negative_reward_this_step
@@ -373,11 +382,16 @@ class DrawingAgentEnv(gym.Env):
 
                 self.last_distance = current_distance
 
-
-        reward += drawing_reward
+        if self.f1_scalar > 0:
+            delta_f1 = current_f1_score - self.last_f1_score
+            reward += delta_f1 * self.f1_scalar
+        else:
+            reward += drawing_reward
 
         if truncated or terminated:
             reward += self.last_precision_black * self.similarity_weight
+            if np.isclose(self.last_recall_black, 1.0):
+                reward += self.recall_bonus
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
             if self.use_stroke_reward and self.used_budgets > 0:
                 reward += self.r_stroke_hyper / self.used_budgets * self.last_recall_black
@@ -451,6 +465,7 @@ class DrawingAgentEnv(gym.Env):
             "navigation_reward": self.navigation_reward,
             "combo_count": self.current_combo,
             "precision": self.last_precision_black,
+            "f1_score": self.last_f1_score
         }
         return info_dict
 
