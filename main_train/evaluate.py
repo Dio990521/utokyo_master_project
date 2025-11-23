@@ -4,11 +4,11 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251116_8x8test" #20251107_pen3x3transfer1x1_num_1_redo1
+VERSION = "20251123_pen1x1_width3_threshold14" #20251107_pen3x3transfer1x1_num_1_redo1
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/test/"
-CANVAS_SIZE = (8, 8)
-MAX_EPISODE_STEPS = 64
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_width1_test/"
+CANVAS_SIZE = (32, 32)
+MAX_EPISODE_STEPS = 1000
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
@@ -31,6 +31,7 @@ eval_env = DrawingAgentEnv(
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
+            "use_mvg_penalty_compensation": True,
             "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
@@ -38,15 +39,16 @@ eval_env = DrawingAgentEnv(
             "rect_max_width": 15,
             "rect_min_height": 5,
             "rect_max_height": 15,
-            "use_distance_map_obs": False,
             "use_combo": False,
+            "combo_rate": 1.1,
+            "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.5,
-            "reward_map_near_target": -0.5,
-            "reward_map_far_target": -0.5,
+            "reward_map_on_target": 0.1,
+            "reward_map_near_target": -0.1,
+            "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 1.9,
+            "penalty_scale_threshold": 0.8,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -69,7 +71,7 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=True)
+    action, _states = model.predict(obs, deterministic=False)
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)

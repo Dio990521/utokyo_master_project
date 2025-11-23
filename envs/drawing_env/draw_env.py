@@ -112,7 +112,6 @@ class DrawingAgentEnv(gym.Env):
         self.episode_save_limit = config.get("episode_save_limit", 1000)
         self.current_episode_num = 0
 
-        self.reward_scheme = config.get("reward_scheme", "phase1_recall")
         self.recall_bonus = config.get("recall_bonus", 0.0)
         self.f1_scalar = config.get("f1_scalar", 0.0)
 
@@ -291,15 +290,16 @@ class DrawingAgentEnv(gym.Env):
         self.last_recall_white = current_recall_white
         self.last_precision_black = current_precision_black
         current_f1_score = calculate_f1_score(self.last_precision_black, self.last_recall_black)
+        truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
+
         reward = self._calculate_reward(
-            terminated, False,
+            terminated, truncated,
             is_pen_down,
             correct_new_pixels,
             repeated_correct_pixels,
             current_f1_score)
         self.last_f1_score = current_f1_score
 
-        truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
         if terminated or truncated:
             self.episode_end = True
         observation = self._get_obs()

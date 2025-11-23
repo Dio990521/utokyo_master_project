@@ -186,13 +186,13 @@ config_2squares_4 = {
         }
 
 test1 = {
-            "target_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
-            "val_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1000,
             "use_time_penalty": False,
             "use_mvg_penalty_compensation": False,
-            "brush_size": 3,
+            "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
@@ -201,7 +201,6 @@ test1 = {
             "rect_max_height": 15,
             "use_combo": False,
             "combo_rate": 1.1,
-            "cnn_padding": False,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
@@ -209,7 +208,9 @@ test1 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.8,
+            "penalty_scale_threshold": 0.4,
+            "f1_scalar": 0,
+            "recall_bonus": 0,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -223,13 +224,13 @@ test1 = {
         }
 
 test2 = {
-            "target_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
-            "val_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1000,
             "use_time_penalty": False,
-            "use_mvg_penalty_compensation": True,
-            "brush_size": 3,
+            "use_mvg_penalty_compensation": False,
+            "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
@@ -238,7 +239,6 @@ test2 = {
             "rect_max_height": 15,
             "use_combo": False,
             "combo_rate": 1.1,
-            "cnn_padding": False,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
@@ -246,7 +246,9 @@ test2 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.8,
+            "penalty_scale_threshold": 1.4,
+            "f1_scalar": 0,
+            "recall_bonus": 0,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -260,13 +262,13 @@ test2 = {
         }
 
 test3 = {
-            "target_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
-            "val_sketches_path": "../envs/drawing_env/training/sketch_num_augment/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_width1_test/",
             "canvas_size": [32, 32],
-            "max_steps": 512,
+            "max_steps": 1000,
             "use_time_penalty": False,
             "use_mvg_penalty_compensation": False,
-            "brush_size": 3,
+            "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
             "rect_min_width": 5,
@@ -284,7 +286,7 @@ test3 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.9,
+            "penalty_scale_threshold": 1.9,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "stroke_budget": 100,
@@ -370,33 +372,33 @@ test5 = {
 
 experiments = [
     {
-        "VERSION": "20251119_pen3x3_num_threshold08_no_padding",
-        "TOTAL_TIME_STEPS": 5000000,
+        "VERSION": "20251123_pen3x3trans1x1_width3to1_threshold04",
+        "TOTAL_TIME_STEPS": 10000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
         "ENV_CONFIG": test1,
         "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 5000000,
+            "EVAL_FREQ": 10000000,
             "ENV_CONFIG": test1,
         }
     },
-    {
-        "VERSION": "20251119_pen3x3_num_threshold08_constant_no_padding",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test2,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 5000000,
-            "ENV_CONFIG": test2,
-        }
-    },
     # {
-    #     "VERSION": "test_dict_obs_wrong001",
+    #     "VERSION": "20251123_pen1x1_width1_threshold14_redo",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test2,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 10000000,
+    #         "ENV_CONFIG": test2,
+    #     }
+    # },
+    # {
+    #     "VERSION": "20251123_pen1x1_width1_threshold14_redo",
     #     "TOTAL_TIME_STEPS": 10000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
