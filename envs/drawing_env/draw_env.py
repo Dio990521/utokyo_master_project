@@ -337,9 +337,9 @@ class DrawingAgentEnv(gym.Env):
                 self.current_combo += 1
                 if self.use_combo:
                     if self.combo_rate < 1.0:
-                        positive_reward_this_step = (positive_reward_this_step * (1 + self.combo_rate * self.current_combo))
+                        positive_reward_this_step *= (1 + self.combo_rate * self.current_combo)
                     else:
-                        positive_reward_this_step = (positive_reward_this_step * (self.combo_rate ** self.current_combo))
+                        positive_reward_this_step *= (self.combo_rate ** self.current_combo)
 
                 drawing_reward = positive_reward_this_step
                 self.correct_rewards += positive_reward_this_step
@@ -373,7 +373,7 @@ class DrawingAgentEnv(gym.Env):
                 drawing_reward = negative_reward_this_step
 
             if num_correct > 0 and self.use_dynamic_distance_map_reward:
-                    self._update_dynamic_distance_map()
+                self._update_dynamic_distance_map()
         else:
             self.current_combo = 0
             if self.use_dynamic_distance_map_reward:

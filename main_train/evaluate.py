@@ -4,13 +4,13 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251123_pen1x1_width3_threshold14" #20251107_pen3x3transfer1x1_num_1_redo1
+VERSION = "20251122_pen3x3trans1x1_width3_threshold04_redo_2" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_width1_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_width3_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
 
 def make_env():
     return DrawingAgentEnv(
@@ -31,7 +31,7 @@ eval_env = DrawingAgentEnv(
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
-            "use_mvg_penalty_compensation": True,
+            "use_mvg_penalty_compensation": False,
             "brush_size": 1,
             "use_triangles": False,
             "num_rectangles": 2,
@@ -51,9 +51,9 @@ eval_env = DrawingAgentEnv(
             "penalty_scale_threshold": 0.8,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
-            "stroke_budget": 100,
+            "stroke_budget": 0,
             "use_stroke_reward": False,
-            "r_stroke_hyper": 100,
+            "r_stroke_hyper": 0,
             "stroke_reward_scale": 1.0,
             "similarity_weight": 0,
             "block_reward_scale": 0.0,

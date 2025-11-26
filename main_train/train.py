@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CustomCnnExtractor2
 
 
 class TrainingDataCallback(BaseCallback):
