@@ -193,14 +193,9 @@ test1 = {
             "use_time_penalty": False,
             "use_mvg_penalty_compensation": False,
             "brush_size": 3,
-            "use_triangles": False,
-            "num_rectangles": 2,
-            "rect_min_width": 5,
-            "rect_max_width": 15,
-            "rect_min_height": 5,
-            "rect_max_height": 15,
             "use_combo": False,
             "combo_rate": 1.1,
+            "use_multimodal_obs": True,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
@@ -208,21 +203,16 @@ test1 = {
             "reward_map_near_target": -0.1,
             "reward_map_far_target": -0.1,
             "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 1.4,
             "f1_scalar": 0,
             "recall_bonus": 0,
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "use_combo_channel": False,
-            "use_stroke_trajectory_obs": True,
+            "use_stroke_trajectory_obs": False,
             "stroke_budget": 100,
             "use_stroke_reward": False,
-            "r_stroke_hyper": 100,
-            "stroke_reward_scale": 1.0,
             "render_mode": None,
-            "similarity_weight": 0,
-            "block_reward_scale": 0.0,
-            "block_size": 8,
         }
 
 test2 = {
@@ -233,14 +223,9 @@ test2 = {
             "use_time_penalty": False,
             "use_mvg_penalty_compensation": False,
             "brush_size": 3,
-            "use_triangles": False,
-            "num_rectangles": 2,
-            "rect_min_width": 5,
-            "rect_max_width": 15,
-            "rect_min_height": 5,
-            "rect_max_height": 15,
-            "use_combo": True,
-            "combo_rate": 0.1,
+            "use_combo": False,
+            "combo_rate": 1.1,
+            "use_multimodal_obs": True,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
@@ -254,15 +239,10 @@ test2 = {
             "use_budget_channel": False,
             "dynamic_budget_channel": False,
             "use_combo_channel": False,
-            "use_stroke_trajectory_obs": True,
+            "use_stroke_trajectory_obs": False,
             "stroke_budget": 100,
             "use_stroke_reward": False,
-            "r_stroke_hyper": 100,
-            "stroke_reward_scale": 1.0,
             "render_mode": None,
-            "similarity_weight": 0,
-            "block_reward_scale": 0.0,
-            "block_size": 8,
         }
 
 test3 = {
@@ -377,45 +357,45 @@ test5 = {
         }
 
 experiments = [
-    # {
-    #     "VERSION": "20251128_pen3x3_width3_threshold04_traj",
-    #     "TOTAL_TIME_STEPS": 10000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 10000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251128_pen3x3_width3_threshold04_combo01_traj",
-    #     "TOTAL_TIME_STEPS": 10000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 10000000,
-    #         "ENV_CONFIG": test2,
-    #     }
-    # },
     {
-        "VERSION": "20251128_pen3x3_width3_threshold04_combo11_traj",
-        "TOTAL_TIME_STEPS": 10000000,
+        "VERSION": "20251128_pen1x1_width1_threshold14_multi_input",
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
-        "ENV_CONFIG": test3,
+        "ENV_CONFIG": test1,
         "VALIDATION_CONFIG": {
             "EVAL_FREQ": 10000000,
-            "ENV_CONFIG": test3,
+            "ENV_CONFIG": test1,
         }
     },
+    {
+        "VERSION": "20251128_pen1x1_width1_threshold04_multi_input",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test2,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 10000000,
+            "ENV_CONFIG": test2,
+        }
+    },
+    # {
+    #     "VERSION": "20251128_pen3x3_width3_threshold04_combo11_traj",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test3,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 10000000,
+    #         "ENV_CONFIG": test3,
+    #     }
+    # },
     # {
     #     "VERSION": "20251117_num_cord_conv_combo_threshold08",
     #     "TOTAL_TIME_STEPS": 5000000,

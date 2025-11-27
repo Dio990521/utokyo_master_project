@@ -42,12 +42,30 @@ class DrawingAgentEnv(gym.Env):
         self.render_scale = 10
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
-        num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(
-            self.use_canvas_obs) + int(self.use_target_sketch_obs) + int(self.use_stroke_trajectory_obs) + int(self.use_combo_channel)
+        if self.use_multimodal_obs:
+            img_channels = 0
+            if self.use_canvas_obs: img_channels += 1
+            if self.use_target_sketch_obs: img_channels += 1
+            if self.use_distance_map_obs: img_channels += 1
+            if self.use_stroke_trajectory_obs: img_channels += 1
 
-        self.observation_space = spaces.Box(
-            low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
-        )
+            vec_dim = 2  # Cursor X, Cursor Y
+            if self.use_budget_channel: vec_dim += 1
+            if self.use_combo_channel: vec_dim += 1
+
+            self.observation_space = spaces.Dict({
+                "image": spaces.Box(low=0, high=1.0, shape=(img_channels, *self.canvas_size), dtype=np.float32),
+                "vector": spaces.Box(low=0, high=1.0, shape=(vec_dim,), dtype=np.float32)
+            })
+
+        else:
+            num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(
+                self.use_canvas_obs) + int(self.use_target_sketch_obs) + int(self.use_stroke_trajectory_obs) + int(
+                self.use_combo_channel)
+
+            self.observation_space = spaces.Box(
+                low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
+            )
 
         self.window = None
         self.clock = None
@@ -60,7 +78,6 @@ class DrawingAgentEnv(gym.Env):
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
         self.use_budget_channel = config.get("use_budget_channel", False)
         self.use_combo = config.get("use_combo", False)
-        self.use_triangles = config.get("use_triangles", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.use_time_penalty = config.get("use_time_penalty", False)
         self.use_canvas_obs = config.get("use_canvas_obs", True)
@@ -79,6 +96,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_dynamic_distance_map_reward = config.get("use_dynamic_distance_map_reward", False)
         self.navigation_reward_scale = config.get("navigation_reward_scale", 0.05)
 
+        self.use_triangles = config.get("use_triangles", False)
         self.num_rectangles = config.get("num_rectangles", 2)
         self.rect_min_width = config.get("rect_min_width", 5)
         self.rect_max_width = config.get("rect_max_width", 15)
@@ -95,13 +113,14 @@ class DrawingAgentEnv(gym.Env):
 
         self.use_step_similarity_reward = config.get("use_step_similarity_reward", False)
         self.use_stroke_reward = config.get("use_stroke_reward", False)
-        self.block_reward_scale = config.get("block_reward_scale", 1.0)
+        self.block_reward_scale = config.get("block_reward_scale", 0.0)
         self.block_size = config.get("block_size", 16)
-        self.stroke_reward_scale = config.get("stroke_reward_scale", 1.0)
+        self.stroke_reward_scale = config.get("stroke_reward_scale", 0.0)
         self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
         self.similarity_weight = config.get("similarity_weight", 0.0)
 
         self.target_data = config.get("precalculated_data", None)
+        self.use_multimodal_obs = config.get("use_multimodal_obs", False)
 
         if self.target_data is None:
             print("[Warning] No 'precalculated_data' found. Falling back to slow loading inside env...")
@@ -436,6 +455,11 @@ class DrawingAgentEnv(gym.Env):
         self.needs_distance_map_update = False
 
     def _get_obs(self):
+        if self.use_multimodal_obs:
+            return self._get_multimodal_obs()
+        return self._get_original_obs()
+
+    def _get_original_obs(self):
         if not hasattr(self, "_obs"):
             self._obs = np.zeros(self.observation_space.shape, dtype=np.float32)
 
@@ -500,6 +524,54 @@ class DrawingAgentEnv(gym.Env):
             ch_idx += 1
 
         return self._obs
+
+    def _get_multimodal_obs(self):
+        img_list = []
+        if self.use_canvas_obs:
+            img_list.append(self.canvas)
+        if self.use_target_sketch_obs:
+            if self.current_step == 0:
+                self._cached_target = self.target_sketch.astype(np.float32)
+            img_list.append(self._cached_target if hasattr(self, '_cached_target') else self.target_sketch)
+        if self.use_distance_map_obs:
+            img_list.append(np.clip(self.dynamic_distance_map / self.max_obs_distance, 0, 1))
+        if self.use_stroke_trajectory_obs:
+            traj_map = np.zeros(self.canvas_size, dtype=np.float32)
+            brush_radius = self.brush_size // 2
+            H, W = self.canvas_size
+            for cx, cy in self.current_stroke_trajectory:
+                y_start = max(0, cy - brush_radius);
+                y_end = min(H, cy + brush_radius + 1)
+                x_start = max(0, cx - brush_radius);
+                x_end = min(W, cx + brush_radius + 1)
+                traj_map[y_start:y_end, x_start:x_end] = 1.0
+            img_list.append(traj_map)
+
+        image_obs = np.array(img_list, dtype=np.float32)
+
+        vec_list = [
+            self.cursor[0] / self.canvas_size[1],  # Cursor X (Normalized)
+            self.cursor[1] / self.canvas_size[0]  # Cursor Y (Normalized)
+        ]
+
+        if self.use_budget_channel:
+            if self.dynamic_budget_channel:
+                val = (max(0,
+                           self.stroke_budget - self.used_budgets) / self.stroke_budget) if self.stroke_budget > 0 else 0.0
+            else:
+                val = self.stroke_budget / 255.0
+            vec_list.append(val)
+
+        if self.use_combo_channel:
+            val = min(self.current_combo / self.max_combo_normalization, 1.0)
+            vec_list.append(val)
+
+        vector_obs = np.array(vec_list, dtype=np.float32)
+
+        return {
+            "image": image_obs,
+            "vector": vector_obs
+        }
 
     def _get_info(self):
         info_dict = {

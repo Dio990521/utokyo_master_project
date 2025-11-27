@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CustomCnnExtractor2
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CombinedExtractor
 
 
 class TrainingDataCallback(BaseCallback):
@@ -155,10 +155,22 @@ def run_training(config: dict):
         env_kwargs={"config": env_config}
     )
 
-    policy_kwargs = dict(
-        features_extractor_class=CustomCnnExtractor,
-        features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
-    )
+    use_multimodal = env_config.get("use_multimodal_obs", False)
+
+    if use_multimodal:
+        print("[Training] Using MultiInputPolicy (Image + Vector)")
+        policy_type = "MultiInputPolicy"
+        policy_kwargs = dict(
+            features_extractor_class=CombinedExtractor,
+            features_extractor_kwargs=dict(cnn_output_dim=128),
+        )
+    else:
+        print("[Training] Using CnnPolicy (Image Only)")
+        policy_type = "CnnPolicy"
+        policy_kwargs = dict(
+            features_extractor_class=CustomCnnExtractor,
+            features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
+        )
 
     is_loaded = False
     if os.path.exists(model_path):
@@ -174,7 +186,7 @@ def run_training(config: dict):
     else:
         print(f"No existing model found at {model_path}. Creating a new model...")
         model = PPO(
-            "CnnPolicy",
+            policy_type,
             env,
             learning_rate=LEARNING_RATE,
             n_steps=2048,
