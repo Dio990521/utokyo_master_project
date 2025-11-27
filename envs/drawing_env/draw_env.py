@@ -407,7 +407,7 @@ class DrawingAgentEnv(gym.Env):
             #         negative_reward_this_step += -self.current_mvg_penalty
             #
             #     drawing_reward = negative_reward_this_step
-            elif num_correct == 0 and num_repeated == 0:
+            else:
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
