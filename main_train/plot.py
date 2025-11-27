@@ -2,12 +2,52 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import ast
 
-VERSION = "20251123_pen1x1_width3_threshold14"
+VERSION = "20251128_pen3x3_width3_threshold04_combo01_traj"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-COLUMN_TO_PLOT = "used_budgets"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
+
+
+def plot_average_combo(data_path, window_size=100):
+    try:
+        df = pd.read_csv(data_path)
+
+        def parse_log(log_str):
+            try:
+                if pd.isna(log_str): return []
+                return ast.literal_eval(str(log_str))
+            except:
+                return []
+
+        df['combo_list'] = df['episode_combo_log'].apply(parse_log)
+
+        def get_mean_combo(lst):
+            if not lst: return 0.0
+            return np.mean(lst)
+
+        df['avg_combo_len'] = df['combo_list'].apply(get_mean_combo)
+
+        df['avg_combo_ma'] = df['avg_combo_len'].rolling(window=window_size).mean()
+
+        plt.figure(figsize=(15, 7))
+
+        #plt.plot(df['episode'], df['avg_combo_len'], alpha=0.4, color='gray', label='Raw Avg Stroke Length')
+        plt.plot(df['episode'], df['avg_combo_ma'], color='blue', linewidth=2,
+                 label=f'Mean Stroke Length (MA {window_size})')
+
+        plt.title(f"Training Performance: Average Stroke Length per Episode - {VERSION}")
+        plt.xlabel("Episode")
+        plt.ylabel("Average Stroke Length")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    except Exception as e:
+        print(f"Error plotting combo data: {e}")
 
 def plot_training_data():
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")
@@ -200,13 +240,14 @@ def plot_validation_data():
 
 
 if __name__ == '__main__':
-    if PLOT_VALIDATION_DATA:
-        print(f"Plotting VALIDATION data for version: {VERSION}")
-        plot_validation_data()
-    else:
-        # Update the message based on the plotting mode
-        if COLUMN_TO_PLOT == "similarity":
-            print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
-        else:
-            print(f"Plotting TRAINING data (Metric: {COLUMN_TO_PLOT}) for version: {VERSION}")
-        plot_training_data()
+    plot_average_combo(os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv"), window_size=TRAIN_WINDOW_SIZE)
+    # if PLOT_VALIDATION_DATA:
+    #     print(f"Plotting VALIDATION data for version: {VERSION}")
+    #     plot_validation_data()
+    # else:
+    #     # Update the message based on the plotting mode
+    #     if COLUMN_TO_PLOT == "similarity":
+    #         print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
+    #     else:
+    #         print(f"Plotting TRAINING data (Metric: {COLUMN_TO_PLOT}) for version: {VERSION}")
+    #     plot_training_data()

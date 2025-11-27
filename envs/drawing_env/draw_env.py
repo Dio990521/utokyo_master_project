@@ -7,7 +7,8 @@ import os
 import random
 import pygame
 from envs.drawing_env.tools.image_process import find_starting_point, \
-    calculate_block_reward, calculate_reward_map, calculate_dynamic_distance_map, calculate_metrics, calculate_f1_score
+    calculate_block_reward, calculate_reward_map, calculate_dynamic_distance_map, calculate_metrics, calculate_f1_score, \
+    visualize_obs
 from collections import deque
 
 def _decode_action(action):
@@ -42,7 +43,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.action_space = spaces.Discrete(18) # 0-17 for movement, 18 for stop
         num_obs_channels = 1 + int(self.use_distance_map_obs) + int(self.use_budget_channel) + int(
-            self.use_canvas_obs) + int(self.use_target_sketch_obs)
+            self.use_canvas_obs) + int(self.use_target_sketch_obs) + int(self.use_stroke_trajectory_obs) + int(self.use_combo_channel)
 
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
@@ -57,13 +58,16 @@ class DrawingAgentEnv(gym.Env):
         self.render_mode = config.get("render_mode", None)
         self.stroke_budget = config.get("stroke_budget", 1)
         self.dynamic_budget_channel = config.get("dynamic_budget_channel", False)
-        self.use_budget_channel = config.get("use_budget_channel", True)
+        self.use_budget_channel = config.get("use_budget_channel", False)
         self.use_combo = config.get("use_combo", False)
         self.use_triangles = config.get("use_triangles", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.use_time_penalty = config.get("use_time_penalty", False)
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
+        self.use_combo_channel = config.get("use_combo_channel", False)
+        self.max_combo_normalization = 50.0
+        self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
 
         self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
         self.mvg_penalty_window_size = self.max_steps // 5
@@ -95,7 +99,7 @@ class DrawingAgentEnv(gym.Env):
         self.block_size = config.get("block_size", 16)
         self.stroke_reward_scale = config.get("stroke_reward_scale", 1.0)
         self.r_stroke_hyper = config.get("r_stroke_hyper", 100)
-        self.similarity_weight = config.get("similarity_weight", 100.0)
+        self.similarity_weight = config.get("similarity_weight", 0.0)
 
         self.target_data = config.get("precalculated_data", None)
 
@@ -124,6 +128,8 @@ class DrawingAgentEnv(gym.Env):
         self.episode_end = False
         self.navigation_reward = 0
         self.current_combo = 0
+        self.episode_combo_log = []
+        self.current_stroke_trajectory = []
 
         self._current_tp = 0
         self._current_tn = 0
@@ -301,8 +307,11 @@ class DrawingAgentEnv(gym.Env):
         self.last_f1_score = current_f1_score
 
         if terminated or truncated:
+            if self.current_combo > 0:
+                self.episode_combo_log.append(self.current_combo)
             self.episode_end = True
         observation = self._get_obs()
+        #visualize_obs(observation)
         info = self._get_info()
 
         if self.render_mode == "human":
@@ -313,6 +322,15 @@ class DrawingAgentEnv(gym.Env):
         if not is_stop_action:
             self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
             self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
+
+            if self.use_stroke_trajectory_obs:
+                if is_pen_down:
+                    if not self.pen_was_down:
+                        self.current_stroke_trajectory = []
+
+                    self.current_stroke_trajectory.append(tuple(self.cursor))
+                else:
+                    self.current_stroke_trajectory = []
 
             if self.pen_was_down and not is_pen_down:
                 self.used_budgets = min(255, self.used_budgets + 1)
@@ -345,8 +363,12 @@ class DrawingAgentEnv(gym.Env):
                 self.correct_rewards += positive_reward_this_step
 
             elif num_correct == 0 and num_repeated > 0:
+                if self.current_combo > 0:
+                    self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
             elif num_correct == 0 and num_repeated == 0:
+                if self.current_combo > 0:
+                    self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0: # if negative, then no penalty
@@ -375,6 +397,8 @@ class DrawingAgentEnv(gym.Env):
             if num_correct > 0 and self.use_dynamic_distance_map_reward:
                 self._update_dynamic_distance_map()
         else:
+            if self.current_combo > 0:
+                self.episode_combo_log.append(self.current_combo)
             self.current_combo = 0
             if self.use_dynamic_distance_map_reward:
                 current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
@@ -385,21 +409,24 @@ class DrawingAgentEnv(gym.Env):
 
         if self.f1_scalar > 0:
             delta_f1 = current_f1_score - self.last_f1_score
-            reward += delta_f1 * self.f1_scalar
+            if delta_f1 >= 0:
+                reward += delta_f1 * self.f1_scalar
+            else:
+                reward += delta_f1 * (self.f1_scalar / 10)
         else:
             reward += drawing_reward
 
-        if truncated or terminated:
-            reward += self.last_precision_black * self.similarity_weight
-            if np.isclose(self.last_recall_black, 1.0):
-                reward += self.recall_bonus
+        #if truncated or terminated:
+            #reward += self.last_precision_black * self.similarity_weight
+            #if np.isclose(self.last_recall_black, 1.0):
+                #reward += self.recall_bonus
             #reward += self._calculate_final_reward() * self.r_stroke_hyper
-            if self.use_stroke_reward and self.used_budgets > 0:
-                reward += self.r_stroke_hyper / self.used_budgets * self.last_recall_black
-            if self.block_reward_scale > 0:
-                self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
-                self.block_reward = self.block_similarity * self.block_reward_scale
-                reward += self.block_reward
+            # if self.use_stroke_reward and self.used_budgets > 0:
+            #     reward += self.r_stroke_hyper / self.used_budgets * self.last_recall_black
+            # if self.block_reward_scale > 0:
+            #     self.block_similarity = calculate_block_reward(self.canvas, self.target_sketch, self.block_size)
+            #     self.block_reward = self.block_similarity * self.block_reward_scale
+            #     reward += self.block_reward
 
         self.step_rewards += reward
         return reward
@@ -450,6 +477,28 @@ class DrawingAgentEnv(gym.Env):
                 budget_value = self.stroke_budget / 255.0
                 self._obs[ch_idx] = budget_value
 
+        if self.use_combo_channel:
+            combo_value = min(self.current_combo / self.max_combo_normalization, 1.0)
+            self._obs[ch_idx][:] = combo_value
+            ch_idx += 1
+
+        if self.use_stroke_trajectory_obs:
+            traj_map = self._obs[ch_idx]
+            traj_map.fill(0.0)
+
+            brush_radius = self.brush_size // 2
+            H, W = self.canvas_size[0], self.canvas_size[1]
+
+            for cx, cy in self.current_stroke_trajectory:
+                y_start = max(0, cy - brush_radius)
+                y_end = min(H, cy + brush_radius + 1)
+                x_start = max(0, cx - brush_radius)
+                x_end = min(W, cx + brush_radius + 1)
+
+                traj_map[y_start:y_end, x_start:x_end] = 1.0
+
+            ch_idx += 1
+
         return self._obs
 
     def _get_info(self):
@@ -466,7 +515,8 @@ class DrawingAgentEnv(gym.Env):
             "navigation_reward": self.navigation_reward,
             "combo_count": self.current_combo,
             "precision": self.last_precision_black,
-            "f1_score": self.last_f1_score
+            "f1_score": self.last_f1_score,
+            "episode_combo_log": self.episode_combo_log,
         }
         return info_dict
 

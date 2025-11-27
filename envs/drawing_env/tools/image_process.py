@@ -84,8 +84,9 @@ def visualize_obs(obs):
     canvas = obs[0]
     target = obs[1]
     pen_mask = obs[2]
+    channel_four = obs[3]
 
-    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    fig, axs = plt.subplots(1, 4, figsize=(12, 4))
     axs[0].imshow(canvas, cmap='gray')
     axs[0].set_title("Canvas")
 
@@ -94,6 +95,9 @@ def visualize_obs(obs):
 
     axs[2].imshow(pen_mask, cmap='gray')
     axs[2].set_title("Pen Position")
+
+    axs[3].imshow(channel_four, cmap='gray')
+    axs[3].set_title("Stroke Trajectory")
 
     for ax in axs:
         ax.axis('off')
