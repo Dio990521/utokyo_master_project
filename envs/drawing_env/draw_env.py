@@ -385,6 +385,28 @@ class DrawingAgentEnv(gym.Env):
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
+                current_penalty_scale = 0.0
+                if self.penalty_scale_threshold > 0:  # if negative, then no penalty
+                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                        current_penalty_scale = self.last_precision_black
+                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                        current_penalty_scale = 1.0
+
+                negative_reward_this_step = self.reward_map_far_target * 0.1 * current_penalty_scale
+                if negative_reward_this_step < 0:
+                    self.penalty_history.append(negative_reward_this_step)
+                else:
+                    self.penalty_history.append(0)
+
+                if len(self.penalty_history) > 0:
+                    self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
+                else:
+                    self.current_mvg_penalty = 0.0
+
+                if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
+                    negative_reward_this_step += -self.current_mvg_penalty
+
+                drawing_reward = negative_reward_this_step
             elif num_correct == 0 and num_repeated == 0:
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
