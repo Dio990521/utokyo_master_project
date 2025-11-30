@@ -4,11 +4,57 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251128_pen3x3_width3_threshold04_combo01_traj"
+VERSION = "20251129_pen1x1_width1_threshold04"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
+PLOT_MAX_STROKE_LENGTH = False
+PLOT_AVG_STROKE_LENGTH = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
+
+
+def plot_max_stroke_length(data_path, window_size=100):
+    try:
+        df = pd.read_csv(data_path)
+
+        def parse_log(log_str):
+            try:
+                if pd.isna(log_str): return []
+                return ast.literal_eval(str(log_str))
+            except:
+                return []
+
+        df['combo_list'] = df['episode_combo_log'].apply(parse_log)
+
+        def get_max_combo(lst):
+            if not lst: return 0.0
+            return np.max(lst)
+
+        df['max_stroke_len'] = df['combo_list'].apply(get_max_combo)
+
+        df['max_stroke_ma'] = df['max_stroke_len'].rolling(window=window_size).mean()
+
+        last_val = df['max_stroke_ma'].iloc[-1]
+        print(f"Final Max Stroke Length (MA {window_size}): {last_val:.4f}")
+        # ---------------------------
+
+        plt.figure(figsize=(15, 7))
+
+        plt.plot(df['episode'], df['max_stroke_len'], alpha=0.2, color='gray', label='Raw Max Stroke Length')
+
+        plt.plot(df['episode'], df['max_stroke_ma'], color='purple', linewidth=2,
+                 label=f'Max Stroke Length (MA {window_size})')
+
+        plt.title(f"Training Performance: Max Stroke Length per Episode - {VERSION}")
+        plt.xlabel("Episode")
+        plt.ylabel("Max Stroke Length (Combo Count)")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+
+    except Exception as e:
+        print(f"Error plotting max stroke data: {e}")
 
 
 def plot_average_combo(data_path, window_size=100):
@@ -32,9 +78,13 @@ def plot_average_combo(data_path, window_size=100):
 
         df['avg_combo_ma'] = df['avg_combo_len'].rolling(window=window_size).mean()
 
+        last_val = df['avg_combo_ma'].iloc[-1]
+        print(f"Final Mean Stroke Length (MA {window_size}): {last_val:.4f}")
+        # ---------------------------
+
         plt.figure(figsize=(15, 7))
 
-        #plt.plot(df['episode'], df['avg_combo_len'], alpha=0.4, color='gray', label='Raw Avg Stroke Length')
+        # plt.plot(df['episode'], df['avg_combo_len'], alpha=0.4, color='gray', label='Raw Avg Stroke Length')
         plt.plot(df['episode'], df['avg_combo_ma'], color='blue', linewidth=2,
                  label=f'Mean Stroke Length (MA {window_size})')
 
@@ -48,6 +98,7 @@ def plot_average_combo(data_path, window_size=100):
 
     except Exception as e:
         print(f"Error plotting combo data: {e}")
+
 
 def plot_training_data():
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv")
@@ -86,6 +137,10 @@ def plot_training_data():
 
             for col in available_metrics:
                 metric_ma = df[col].rolling(window=TRAIN_WINDOW_SIZE).mean()
+
+                last_val = metric_ma.iloc[-1]
+                print(f"Final {col} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
+
                 style = plot_styles.get(col, default_style)
                 plt.plot(df.index, metric_ma, style, label=plot_labels.get(col, col))
 
@@ -105,13 +160,16 @@ def plot_training_data():
                 df["correctly_painted"],
                 df["total_painted"],
                 out=np.zeros_like(df["correctly_painted"], dtype=float),
-                where=df["total_painted"]!=0
+                where=df["total_painted"] != 0
             )
             precision = np.nan_to_num(precision, nan=0.0, posinf=0.0, neginf=0.0)
 
             # Calculate moving average of precision
             precision_ma = pd.Series(precision).rolling(window=TRAIN_WINDOW_SIZE).mean()
             recall_black_ma = df["recall_black"].rolling(window=TRAIN_WINDOW_SIZE).mean()
+
+            print(f"Final Painting Precision (MA {TRAIN_WINDOW_SIZE}): {precision_ma.iloc[-1]:.4f}")
+            print(f"Final Black Recall (MA {TRAIN_WINDOW_SIZE}): {recall_black_ma.iloc[-1]:.4f}")
 
             # Plot both metrics
             plt.plot(df.index, precision_ma, 'r-',
@@ -130,7 +188,11 @@ def plot_training_data():
                 return
 
             data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
+
+            last_val = data_to_plot.iloc[-1]
             label_text = COLUMN_TO_PLOT.replace('_', ' ').title()
+            print(f"Final {label_text} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
+
             plt.plot(df.index, data_to_plot, label=f'{label_text} (MA {TRAIN_WINDOW_SIZE})')
 
             plt.title(f"Training Performance: {label_text} (Moving Average) - {VERSION}")
@@ -148,9 +210,8 @@ def plot_training_data():
         if 'plt' in locals() and plt.gcf().get_axes():
             plt.close()
 
-# --- VVVV Updated plot_validation_data function VVVV ---
+
 def plot_validation_data():
-    """Plots validation data, potentially multiple metrics if COLUMN_TO_PLOT is 'similarity'."""
     DATA_PATH = os.path.join(f"../training_outputs/{VERSION}/", "validation_data.csv")
     if not os.path.exists(DATA_PATH):
         print(f"Error: Validation data file not found at {DATA_PATH}")
@@ -163,19 +224,19 @@ def plot_validation_data():
         if COLUMN_TO_PLOT == "similarity":
             metrics_to_plot = ["precision", "recall_black", "recall_white"]
             plot_styles = {
-                "pixel_similarity": 'r-o', # Added markers 'o' for validation points
-                "precision":   'b-o',
-                "recall_black":     'g--o',
-                "recall_white":     'm:o',
-                "balanced_accuracy":'c-.o',
+                "pixel_similarity": 'r-o',  # Added markers 'o' for validation points
+                "precision": 'b-o',
+                "recall_black": 'g--o',
+                "recall_white": 'm:o',
+                "balanced_accuracy": 'c-.o',
             }
             default_style = 'k-o'
             plot_labels = {
                 "pixel_similarity": 'Mean Pixel Accuracy',
-                "precision":   'Mean precision', # Changed key
-                "recall_black":     'Mean Black Recall',
-                "recall_white":     'Mean White Recall',
-                "balanced_accuracy":'Mean Balanced Accuracy'
+                "precision": 'Mean precision',  # Changed key
+                "recall_black": 'Mean Black Recall',
+                "recall_white": 'Mean White Recall',
+                "balanced_accuracy": 'Mean Balanced Accuracy'
             }
 
             # Check which columns are available in validation data
@@ -183,7 +244,8 @@ def plot_validation_data():
 
             if not available_metrics:
                 print(f"Error: None of the specified similarity metrics ({metrics_to_plot}) found in {DATA_PATH}.")
-                plt.close(); return
+                plt.close()
+                return
 
             print(f"Plotting available validation similarity metrics: {available_metrics}")
 
@@ -191,10 +253,15 @@ def plot_validation_data():
             grouped_data = df.groupby('step')
 
             for col in available_metrics:
-                 metric_mean = grouped_data[col].mean()
-                 style = plot_styles.get(col, default_style)
-                 # Plot mean value against the step index
-                 plt.plot(metric_mean.index, metric_mean.values, style, label=plot_labels.get(col, f'Mean {col}'), markersize=6)
+                metric_mean = grouped_data[col].mean()
+
+                last_val = metric_mean.iloc[-1]
+                print(f"Final Validation Mean {col}: {last_val:.4f}")
+
+                style = plot_styles.get(col, default_style)
+                # Plot mean value against the step index
+                plt.plot(metric_mean.index, metric_mean.values, style, label=plot_labels.get(col, f'Mean {col}'),
+                         markersize=6)
 
             plt.title(f"Validation Performance: Mean Similarity Metrics - {VERSION}")
             plt.xlabel("Training Timestep")
@@ -206,22 +273,32 @@ def plot_validation_data():
             total_painted_ma = grouped_data["total_painted"].mean()
             correctly_painted_ma = grouped_data["correctly_painted"].mean()
 
-            plt.plot(total_painted_ma.index, total_painted_ma.values, label=f'Total Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
-            plt.plot(correctly_painted_ma.index, correctly_painted_ma.values, label=f'Correctly Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
+            print(f"Final Validation Total Painted: {total_painted_ma.iloc[-1]:.4f}")
+            print(f"Final Validation Correctly Painted: {correctly_painted_ma.iloc[-1]:.4f}")
+
+            plt.plot(total_painted_ma.index, total_painted_ma.values,
+                     label=f'Total Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
+            plt.plot(correctly_painted_ma.index, correctly_painted_ma.values,
+                     label=f'Correctly Painted Pixels (MA {TRAIN_WINDOW_SIZE})')
 
             plt.title(f"Validation Performance: Painted Pixels Count - {VERSION}")
             plt.xlabel("Training Timestep")
             plt.ylabel("Number of Pixels")
         else:
-            # --- Plot Single Metric Mode for Validation (Original Logic) ---
-            COLUMN_TO_PLOT_VAL = COLUMN_TO_PLOT # Use the same column as specified
+            COLUMN_TO_PLOT_VAL = COLUMN_TO_PLOT  # Use the same column as specified
             if COLUMN_TO_PLOT_VAL not in df.columns:
                 print(f"Error: Column '{COLUMN_TO_PLOT_VAL}' not found in validation data.")
-                plt.close(); return
+                plt.close()
+                return
 
             val_agg = df.groupby('step')[COLUMN_TO_PLOT_VAL].mean()
+
+            last_val = val_agg.iloc[-1]
             label_text = COLUMN_TO_PLOT_VAL.replace('_', ' ').title()
-            plt.plot(val_agg.index, val_agg.values, 'o-', label=f'Mean {label_text}', markersize=6) # Default style for single metric
+            print(f"Final Validation Mean {label_text}: {last_val:.4f}")
+
+            plt.plot(val_agg.index, val_agg.values, 'o-', label=f'Mean {label_text}',
+                     markersize=6)  # Default style for single metric
 
             plt.title(f"Validation Performance: Mean {label_text} - {VERSION}")
             plt.xlabel("Training Timestep")
@@ -236,18 +313,24 @@ def plot_validation_data():
     except Exception as e:
         print(f"Error plotting validation data: {e}")
         if 'plt' in locals() and plt.gcf().get_axes():
-             plt.close()
+            plt.close()
 
 
 if __name__ == '__main__':
-    plot_average_combo(os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv"), window_size=TRAIN_WINDOW_SIZE)
-    # if PLOT_VALIDATION_DATA:
-    #     print(f"Plotting VALIDATION data for version: {VERSION}")
-    #     plot_validation_data()
-    # else:
-    #     # Update the message based on the plotting mode
-    #     if COLUMN_TO_PLOT == "similarity":
-    #         print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
-    #     else:
-    #         print(f"Plotting TRAINING data (Metric: {COLUMN_TO_PLOT}) for version: {VERSION}")
-    #     plot_training_data()
+    if PLOT_MAX_STROKE_LENGTH:
+        print(f"Plotting MAX STROKE LENGTH for version: {VERSION}")
+        plot_max_stroke_length(os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv"),
+                               window_size=TRAIN_WINDOW_SIZE)
+    elif PLOT_AVG_STROKE_LENGTH:
+        plot_average_combo(os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv"),
+                           window_size=TRAIN_WINDOW_SIZE)
+    elif PLOT_VALIDATION_DATA:
+        print(f"Plotting VALIDATION data for version: {VERSION}")
+        plot_validation_data()
+    else:
+        # Update the message based on the plotting mode
+        if COLUMN_TO_PLOT == "similarity":
+            print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
+        else:
+            print(f"Plotting TRAINING data (Metric: {COLUMN_TO_PLOT}) for version: {VERSION}")
+        plot_training_data()

@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CombinedExtractor
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CombinedExtractor, CustomCnnAttentionExtractor
 
 
 class TrainingDataCallback(BaseCallback):
@@ -155,17 +155,17 @@ def run_training(config: dict):
         env_kwargs={"config": env_config}
     )
 
-    use_multimodal = env_config.get("use_multimodal_obs", False)
+    use_attention = env_config.get("use_attention", False)
 
-    if use_multimodal:
-        print("[Training] Using MultiInputPolicy (Image + Vector)")
-        policy_type = "MultiInputPolicy"
+    if use_attention:
+        print("[Training] Using CnnPolicy + Attention")
+        policy_type = "CnnPolicy"
         policy_kwargs = dict(
-            features_extractor_class=CombinedExtractor,
+            features_extractor_class=CustomCnnAttentionExtractor,
             features_extractor_kwargs=dict(cnn_output_dim=128),
         )
     else:
-        print("[Training] Using CnnPolicy (Image Only)")
+        print("[Training] Using CnnPolicy")
         policy_type = "CnnPolicy"
         policy_kwargs = dict(
             features_extractor_class=CustomCnnExtractor,

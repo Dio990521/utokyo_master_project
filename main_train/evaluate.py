@@ -4,13 +4,13 @@ from envs.drawing_env.draw_env import DrawingAgentEnv
 import os
 
 
-VERSION = "20251122_pen3x3trans1x1_width3_threshold04_redo_2" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
+VERSION = "20251129_pen3x3_width3_threshold04" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_width3_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
 def make_env():
     return DrawingAgentEnv(
@@ -32,15 +32,10 @@ eval_env = DrawingAgentEnv(
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
             "use_mvg_penalty_compensation": False,
-            "brush_size": 1,
-            "use_triangles": False,
-            "num_rectangles": 2,
-            "rect_min_width": 5,
-            "rect_max_width": 15,
-            "rect_min_height": 5,
-            "rect_max_height": 15,
+            "brush_size": 3,
             "use_combo": False,
             "combo_rate": 1.1,
+            "use_stroke_trajectory_obs": False,
             "use_distance_map_obs": False,
             "use_dynamic_distance_map_reward": False,
             "navigation_reward_scale": 0.05,
