@@ -133,7 +133,9 @@ class DrawingAgentEnv(gym.Env):
         self.episode_end = False
         self.navigation_reward = 0
         self.current_combo = 0
+        self.combo_sustained_on_repeat = 0
         self.episode_combo_log = []
+        self.episode_combo_sustained_on_repeat_log = []
         self.current_stroke_trajectory = []
 
         self._current_tp = 0
@@ -162,8 +164,6 @@ class DrawingAgentEnv(gym.Env):
 
         self.episode_base_reward = 0.0
         self.episode_combo_bonus = 0.0
-        self.episode_repeat_steps = 0  # To track "切れない" vs "切れる" candidates
-        self.episode_new_steps = 0
 
     def _load_target_sketches(self):
         sketches = []
@@ -314,6 +314,8 @@ class DrawingAgentEnv(gym.Env):
         if terminated or truncated:
             if self.current_combo > 0:
                 self.episode_combo_log.append(self.current_combo)
+            if self.combo_sustained_on_repeat > 0:
+                self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
             self.episode_end = True
 
         observation = self._get_obs()
@@ -347,7 +349,8 @@ class DrawingAgentEnv(gym.Env):
                           is_pen_down, correct_new_pixels, repeated_new_pixels, current_f1_score):
         reward = 0.0 if not self.use_time_penalty else -0.001
         drawing_reward = 0.0
-
+        base_reward_part = 0.0
+        bonus_reward_part = 0.0
         if is_pen_down:
             num_correct = len(correct_new_pixels)
             num_repeated = len(repeated_new_pixels)
@@ -359,25 +362,38 @@ class DrawingAgentEnv(gym.Env):
                 for r, c in correct_new_pixels:
                     positive_reward_this_step += self.reward_map[r, c]
 
+                base_reward_part = positive_reward_this_step
                 self.current_combo += 1
+                self.combo_sustained_on_repeat += 1
                 if self.use_combo:
                     if self.combo_rate < 1.0:
                         positive_reward_this_step *= (1 + self.combo_rate * self.current_combo)
                     else:
                         positive_reward_this_step *= (self.combo_rate ** self.current_combo)
 
+                bonus_reward_part = positive_reward_this_step - base_reward_part
                 drawing_reward = positive_reward_this_step
                 self.correct_rewards += positive_reward_this_step
 
-            # NOTE: Commented out logic for punishing repeated strokes if needed
-            # elif num_correct == 0 and num_repeated > 0:
-            #     ... logic ...
+            elif num_correct == 0 and num_repeated > 0:
+                self.current_combo = 0
+                current_penalty_scale = 0.0
+                if self.penalty_scale_threshold > 0:
+                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                        current_penalty_scale = self.last_precision_black
+                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                        current_penalty_scale = 1.0
 
+                negative_reward_this_step = self.reward_map_far_target * 0.5 * current_penalty_scale
+                drawing_reward = negative_reward_this_step
             elif num_correct == 0 and num_repeated == 0:
                 # Penalty logic for drawing on background
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
+                if self.combo_sustained_on_repeat > 0:
+                    self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
                 self.current_combo = 0
+                self.combo_sustained_on_repeat = 0
 
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
@@ -387,21 +403,6 @@ class DrawingAgentEnv(gym.Env):
                         current_penalty_scale = 1.0
 
                 negative_reward_this_step = self.reward_map_far_target * current_penalty_scale
-
-                # Moving average penalty compensation
-                if negative_reward_this_step < 0:
-                    self.penalty_history.append(negative_reward_this_step)
-                else:
-                    self.penalty_history.append(0)
-
-                if len(self.penalty_history) > 0:
-                    self.current_mvg_penalty = sum(self.penalty_history) / len(self.penalty_history)
-                else:
-                    self.current_mvg_penalty = 0.0
-
-                if self.use_mvg_penalty_compensation and self.last_recall_black >= self.penalty_scale_threshold:
-                    negative_reward_this_step += -self.current_mvg_penalty
-
                 drawing_reward = negative_reward_this_step
 
             if num_correct > 0 and self.use_dynamic_distance_map_reward:
@@ -411,6 +412,7 @@ class DrawingAgentEnv(gym.Env):
             if self.current_combo > 0:
                 self.episode_combo_log.append(self.current_combo)
             self.current_combo = 0
+            self.combo_sustained_on_repeat = 0
 
             if self.use_dynamic_distance_map_reward:
                 current_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
@@ -435,6 +437,8 @@ class DrawingAgentEnv(gym.Env):
             if np.isclose(self.last_recall_black, 1.0):
                 reward += self.recall_bonus
 
+        self.episode_base_reward += base_reward_part
+        self.episode_combo_bonus += bonus_reward_part
         self.step_rewards += reward
         return reward
 
@@ -523,6 +527,9 @@ class DrawingAgentEnv(gym.Env):
             "precision": self.last_precision_black,
             "f1_score": self.last_f1_score,
             "episode_combo_log": self.episode_combo_log,
+            "episode_base_reward": self.episode_base_reward,
+            "episode_combo_bonus": self.episode_combo_bonus,
+            "combo_sustained": self.episode_combo_sustained_on_repeat_log,
         }
         return info_dict
 

@@ -32,7 +32,10 @@ class TrainingDataCallback(BaseCallback):
                         "combo_count": info.get("combo_count"),
                         "precision": info.get("precision"),
                         "f1_score": info.get("f1_score"),
-                        "episode_combo_log": info.get("episode_combo_log")
+                        "episode_combo_log": info.get("episode_combo_log"),
+                        "episode_base_reward": info.get("episode_base_reward"),
+                        "episode_combo_bonus": info.get("episode_combo_bonus"),
+                        "combo_sustained": info.get("combo_sustained"),
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
@@ -89,7 +92,10 @@ class ValidationCallback(BaseCallback):
                     "combo_count": info.get("combo_count"),
                     "precision": info.get("precision"),
                     "f1_score": info.get("f1_score"),
-                    "episode_combo_log": info.get("episode_combo_log")
+                    "episode_combo_log": info.get("episode_combo_log"),
+                    "episode_base_reward": info.get("episode_base_reward"),
+                    "episode_combo_bonus": info.get("episode_combo_bonus"),
+                    "combo_sustained": info.get("combo_sustained"),
                 })
                 eval_env.close()
             self.validation_data.extend(results)
