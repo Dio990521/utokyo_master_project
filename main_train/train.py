@@ -5,8 +5,8 @@ import os
 import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CombinedExtractor, CustomCnnAttentionExtractor
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
 
 
 class TrainingDataCallback(BaseCallback):
@@ -25,8 +25,6 @@ class TrainingDataCallback(BaseCallback):
                         "recall_black": info.get("recall_black"),
                         "recall_white": info.get("recall_white"),
                         "used_budgets": info.get("used_budgets"),
-                        "block_similarity": info.get("block_similarity"),
-                        "block_reward": info.get("block_reward"),
                         "step_rewards": info.get("step_rewards"),
                         "total_painted": info.get("total_painted"),
                         "correctly_painted": info.get("correctly_painted"),
@@ -41,49 +39,43 @@ class TrainingDataCallback(BaseCallback):
                     self.logger.record("f1_score", info.get("f1_score"))
                     self.logger.record("total_painted", info.get("total_painted"))
                     self.logger.record("correctly_painted", info.get("correctly_painted"))
-
         return True
 
     def _on_training_end(self) -> None:
         if not self.episode_data:
-            print("[Callback] No training episode data was collected.")
+            print("[Callback] No training episode data collected.")
             return
         df = pd.DataFrame(self.episode_data)
         df.to_csv(self.save_path, index_label="episode")
-        print(f"[Callback] Successfully saved training data to {self.save_path}")
+        print(f"[Callback] Saved training data to {self.save_path}")
 
 
 class ValidationCallback(BaseCallback):
+    # (Keep validation logic as is, it depends on env which is already updated)
     def __init__(self, eval_env_config: dict, eval_freq: int, save_path: str):
         super().__init__()
         self.eval_freq = eval_freq
         self.save_path = save_path
         self.eval_env_config = eval_env_config
         self.validation_data = []
-
         val_path = self.eval_env_config["val_sketches_path"]
         self.val_sketch_files = [os.path.join(val_path, f) for f in os.listdir(val_path) if
                                  f.endswith(('.png', '.jpg'))]
-        if not self.val_sketch_files:
-            raise ValueError(f"No validation sketches found in {val_path}!")
-        print(f"[Validation] Found {len(self.val_sketch_files)} sketches for validation.")
+        if not self.val_sketch_files: raise ValueError(f"No validation sketches in {val_path}!")
 
     def _on_step(self) -> bool:
         if self.n_calls > 0 and self.n_calls % self.eval_freq == 0:
-            print(f"\n--- Running Validation at step {self.num_timesteps} ---")
-
+            print(f"\n--- Validation at step {self.num_timesteps} ---")
             results = []
             for sketch_file in self.val_sketch_files:
                 temp_config = {**self.eval_env_config, "specific_sketch_file": sketch_file}
                 eval_env = gym.make("DrawingEnv-v0", config=temp_config)
-
                 obs, _ = eval_env.reset()
                 done = False
                 while not done:
                     action, _ = self.model.predict(obs, deterministic=False)
                     obs, _, terminated, truncated, info = eval_env.step(action)
                     done = terminated or truncated
-
                 results.append({
                     "step": self.num_timesteps,
                     "sketch": os.path.basename(sketch_file),
@@ -91,32 +83,26 @@ class ValidationCallback(BaseCallback):
                     "recall_black": info.get("recall_black"),
                     "recall_white": info.get("recall_white"),
                     "used_budgets": info.get("used_budgets"),
-                    "block_similarity": info.get("block_similarity"),
-                    "block_reward": info.get("block_reward"),
                     "step_rewards": info.get("step_rewards"),
                     "total_painted": info.get("total_painted"),
                     "correctly_painted": info.get("correctly_painted"),
-                    "navigation_reward": info.get("navigation_reward"),
                     "combo_count": info.get("combo_count"),
                     "precision": info.get("precision"),
                     "f1_score": info.get("f1_score"),
                     "episode_combo_log": info.get("episode_combo_log")
                 })
                 eval_env.close()
-
             self.validation_data.extend(results)
             avg_sim = np.mean([res["pixel_similarity"] for res in results])
             self.logger.record("validation/avg_pixel_similarity", avg_sim)
             self.logger.dump(self.num_timesteps)
-            print(f"--- Validation Complete. Average Similarity: {avg_sim:.4f} ---")
+            print(f"--- Validation Complete. Avg Similarity: {avg_sim:.4f} ---")
         return True
 
     def _on_training_end(self) -> None:
-        if not self.validation_data:
-            print("[Validation] No validation data collected.")
-            return
-        pd.DataFrame(self.validation_data).to_csv(self.save_path, index=False)
-        print(f"[Validation] Saved validation data to {self.save_path}")
+        if self.validation_data:
+            pd.DataFrame(self.validation_data).to_csv(self.save_path, index=False)
+            print(f"[Validation] Saved data to {self.save_path}")
 
 
 def run_training(config: dict):
@@ -127,8 +113,6 @@ def run_training(config: dict):
     NUM_ENVS = config.get("NUM_ENVS", 1)
     BATCH_BASE_SIZE = config.get("BATCH_SIZE", 32)
     SEED = config.get("SEED", None)
-
-    print(f"  Parallel Environments: {NUM_ENVS}")
 
     env_config = config.get("ENV_CONFIG", {})
     cnn_padding = env_config.get("cnn_padding", True)
@@ -155,42 +139,25 @@ def run_training(config: dict):
         env_kwargs={"config": env_config}
     )
 
-    use_attention = env_config.get("use_attention", False)
+    # Standard CNN Policy
+    print("[Training] Using CnnPolicy (Standard)")
+    policy_type = "CnnPolicy"
+    policy_kwargs = dict(
+        features_extractor_class=CustomCnnExtractor,
+        features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
+    )
 
-    if use_attention:
-        print("[Training] Using CnnPolicy + Attention")
-        policy_type = "CnnPolicy"
-        policy_kwargs = dict(
-            features_extractor_class=CustomCnnAttentionExtractor,
-            features_extractor_kwargs=dict(features_dim=128),
-        )
-    else:
-        print("[Training] Using CnnPolicy")
-        policy_type = "CnnPolicy"
-        policy_kwargs = dict(
-            features_extractor_class=CustomCnnExtractor,
-            features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
-        )
-
-    is_loaded = False
     if os.path.exists(model_path):
-        is_loaded = True
-        print(f"Found existing model at {model_path}. Loading and resuming training...")
-        model = PPO.load(
-            model_path,
-            env=env,
-            custom_objects={"policy_kwargs": policy_kwargs},
-            tensorboard_log=LOG_DIR
-        )
-        print("Model loaded successfully.")
+        print(f"Found existing model at {model_path}. Loading...")
+        model = PPO.load(model_path, env=env, tensorboard_log=LOG_DIR)
     else:
-        print(f"No existing model found at {model_path}. Creating a new model...")
+        print(f"Creating new model with {policy_type}...")
         model = PPO(
             policy_type,
             env,
             learning_rate=LEARNING_RATE,
             n_steps=2048,
-            batch_size=BATCH_BASE_SIZE,  # 128
+            batch_size=BATCH_BASE_SIZE,
             gamma=0.99,
             gae_lambda=0.95,
             clip_range=0.2,
@@ -200,10 +167,8 @@ def run_training(config: dict):
             policy_kwargs=policy_kwargs,
             seed=SEED,
         )
-        print("New model created.")
 
     config["SEED"] = model.seed
-
     callbacks = [TrainingDataCallback(save_path=TRAINING_DATA_PATH)]
     if validation_config:
         callbacks.append(ValidationCallback(
@@ -213,9 +178,8 @@ def run_training(config: dict):
         ))
 
     model.learn(total_timesteps=TOTAL_TIME_STEPS, callback=callbacks, reset_num_timesteps=False)
-    if not is_loaded:
-        model.save(os.path.join(MODELS_DIR, "drawing_agent_final.zip"))
-    else:
-        model.save(os.path.join(MODELS_DIR, "drawing_agent_final_new.zip"))
-    print(f"Model for {VERSION} saved to {MODELS_DIR}")
+
+    save_name = "drawing_agent_final.zip" if not os.path.exists(model_path) else "drawing_agent_final_new.zip"
+    model.save(os.path.join(MODELS_DIR, save_name))
+    print(f"Model saved to {MODELS_DIR}")
     env.close()
