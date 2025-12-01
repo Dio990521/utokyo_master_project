@@ -4,12 +4,6 @@ from gymnasium import spaces
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 class SpatialAttention(nn.Module):
-    """
-    简单的空间注意力模块
-    原理：通过对通道维度的最大池化和平均池化，提取空间特征，
-    然后通过卷积层学习生成一个 2D 的权重图 (Attention Map)。
-    """
-
     def __init__(self, kernel_size=7):
         super(SpatialAttention, self).__init__()
         assert kernel_size in (3, 7), 'kernel size must be 3 or 7'

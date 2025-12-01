@@ -4,10 +4,10 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251129_pen1x1_width1_threshold04"
+VERSION = "20251130_pen1x1_width1_threshold14_attention_test"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
-PLOT_MAX_STROKE_LENGTH = False
+PLOT_MAX_STROKE_LENGTH = True
 PLOT_AVG_STROKE_LENGTH = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100

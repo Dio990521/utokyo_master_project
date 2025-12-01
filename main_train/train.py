@@ -162,7 +162,7 @@ def run_training(config: dict):
         policy_type = "CnnPolicy"
         policy_kwargs = dict(
             features_extractor_class=CustomCnnAttentionExtractor,
-            features_extractor_kwargs=dict(cnn_output_dim=128),
+            features_extractor_kwargs=dict(features_dim=128),
         )
     else:
         print("[Training] Using CnnPolicy")
