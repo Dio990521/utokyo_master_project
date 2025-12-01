@@ -160,6 +160,11 @@ class DrawingAgentEnv(gym.Env):
         self.dynamic_distance_map = None
         self.last_distance = 0.0
 
+        self.episode_base_reward = 0.0
+        self.episode_combo_bonus = 0.0
+        self.episode_repeat_steps = 0  # To track "切れない" vs "切れる" candidates
+        self.episode_new_steps = 0
+
     def _load_target_sketches(self):
         sketches = []
         if self.specific_sketch_file:
