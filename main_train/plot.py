@@ -9,8 +9,10 @@ PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = True
 PLOT_AVG_STROKE_LENGTH = False
+PLOT_COMBO_METRICS = True
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
+
 
 
 def plot_max_stroke_length(data_path, window_size=100):
