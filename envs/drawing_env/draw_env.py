@@ -376,7 +376,10 @@ class DrawingAgentEnv(gym.Env):
                 self.correct_rewards += positive_reward_this_step
 
             elif num_correct == 0 and num_repeated > 0:
+                if self.current_combo > 0:
+                    self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
+                self.combo_sustained_on_repeat += 1
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
