@@ -356,7 +356,7 @@ class DrawingAgentEnv(gym.Env):
         painted_pixels = reward_info['painted_pixels']
         attempted_paint = reward_info['attempted_paint']
 
-        any_good_paint = False
+        any_repeat_correct_paint = False
         any_bad_paint = False
 
         if is_pen_down:
@@ -369,7 +369,6 @@ class DrawingAgentEnv(gym.Env):
                     # e.g. T=0.0, Old=0.5, New=0.0 -> OK (0>=0)
                     # e.g. T=0.5, Old=1.0, New=0.5 -> OK (0.5>=0.5)
                     current_reward = R_GOOD
-                    any_good_paint = True
 
                 # Condition 3: Overshoot (Grey -> Black)
                 elif target_val > 0.0 and new_val < target_val:
@@ -394,7 +393,6 @@ class DrawingAgentEnv(gym.Env):
                     bonus_reward += (total_pixel_reward - current_reward)
                     drawing_reward += total_pixel_reward
                 else:
-                    # Penalty resets combo
                     current_penalty_scale = 0.0
                     if self.penalty_scale_threshold > 0:
                         if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
@@ -410,19 +408,22 @@ class DrawingAgentEnv(gym.Env):
                 # Condition: Repeated Black
                 if np.isclose(target_val, 0.0) and np.isclose(old_val, 0.0):
                     drawing_reward += R_BAD_DRAW
-                    any_bad_paint = True
+                    any_repeat_correct_paint = True
 
-            if any_bad_paint:
+            if any_bad_paint or any_repeat_correct_paint:
                 if self.current_combo > 0: self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
-                self.combo_sustained_on_repeat = 0
 
-            if any_good_paint and self.use_dynamic_distance_map_reward:
-                self._update_dynamic_distance_map()
+            if any_bad_paint:
+                if self.combo_sustained_on_repeat > 0: self.episode_combo_sustained_on_repeat_log.append(
+                    self.combo_sustained_on_repeat)
+                self.combo_sustained_on_repeat = 0
 
         else:
             # Pen Up Logic
             if self.current_combo > 0: self.episode_combo_log.append(self.current_combo)
+            if self.combo_sustained_on_repeat > 0: self.episode_combo_sustained_on_repeat_log.append(
+                self.combo_sustained_on_repeat)
             self.current_combo = 0
             self.combo_sustained_on_repeat = 0
 
