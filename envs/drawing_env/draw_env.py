@@ -82,16 +82,24 @@ class DrawingAgentEnv(gym.Env):
         self.rect_min_height = config.get("rect_min_height", 5)
         self.rect_max_height = config.get("rect_max_height", 15)
 
-        # Data Loading
-        self.target_data = config.get("precalculated_data", None)
-        if self.target_data is None:
-            print("[Warning] No 'precalculated_data' found. Loading inside env...")
-            self.target_sketches_path = config.get("target_sketches_path", None)
-            self.specific_sketch_file = config.get("specific_sketch_file", None)
-            self.target_data = self._load_target_sketches()
-
-        if not self.target_data:
-            raise ValueError("No target data was loaded or provided!")
+        # Data Configs
+        self.target_sketches_path = config.get("target_sketches_path", None)
+        self.specific_sketch_file = config.get("specific_sketch_file", None)
+        self.sketch_file_list = []
+        if self.specific_sketch_file and os.path.exists(self.specific_sketch_file):
+            # Validation mode: single file
+            self.sketch_file_list = [self.specific_sketch_file]
+        elif self.target_sketches_path and os.path.exists(self.target_sketches_path):
+            # Training mode: list all files
+            self.sketch_file_list = [
+                os.path.join(self.target_sketches_path, f)
+                for f in os.listdir(self.target_sketches_path)
+                if f.lower().endswith(('.png', '.jpg', '.jpeg'))
+            ]
+            if not self.sketch_file_list:
+                raise ValueError(f"No image files found in {self.target_sketches_path}")
+        elif not self.use_triangles:
+            raise ValueError("No target sketch path or specific file provided!")
 
         self.step_debug_path = config.get("step_debug_path", None)
         self.episode_save_limit = config.get("episode_save_limit", 1000)
@@ -172,8 +180,10 @@ class DrawingAgentEnv(gym.Env):
                 y0 = self.np_random.integers(0, max_y0 + 1)
                 self.target_sketch[y0: y0 + rect_height, x0: x0 + rect_width] = 0.0
         else:
-            self.target_sketch = random.choice(self.target_data)
-
+            if not self.sketch_file_list:
+                raise ValueError("Sketch file list is empty!")
+            chosen_file = random.choice(self.sketch_file_list)
+            self.target_sketch = self._load_sketch_from_path(chosen_file)
         self.cursor = find_starting_point(self.target_sketch)
 
         # Initialize Metrics based on Target vs Empty Canvas (1.0)
