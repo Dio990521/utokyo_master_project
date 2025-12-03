@@ -1,13 +1,34 @@
 import random
 import numpy as np
-from scipy.ndimage import distance_transform_edt
+import matplotlib.pyplot as plt
 
+
+def visualize_obs(obs):
+    canvas = obs[0]
+    target = obs[1]
+    pen_mask = obs[2]
+
+    fig, axs = plt.subplots(1, 3, figsize=(12, 4))
+    axs[0].imshow(canvas, cmap='gray')
+    axs[0].set_title("Canvas")
+
+    axs[1].imshow(target, cmap='gray')
+    axs[1].set_title("Target Sketch")
+
+    axs[2].imshow(pen_mask, cmap='gray')
+    axs[2].set_title("Pen Position")
+
+    for ax in axs:
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.show()
 
 def calculate_f1_score(precision, recall):
     if precision + recall == 0: return 0.0
     return 2 * (precision * recall) / (precision + recall)
 
-def calculate_metrics(target, canvas, canvas_size):
+def calculate_metrics(target, canvas):
     # Tolerance for floating point comparison
     tol = 0.01
 

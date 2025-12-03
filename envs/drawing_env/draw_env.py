@@ -204,7 +204,6 @@ class DrawingAgentEnv(gym.Env):
 
         if self.render_mode == "human":
             self._init_pygame()
-
         return self._get_obs(), self._get_info()
 
     def step(self, action):
@@ -243,7 +242,7 @@ class DrawingAgentEnv(gym.Env):
                         reward_info['attempted_paint'].append((r, c))
 
         current_recall_black, current_recall_grey, current_recall_all, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics(
-            self.target_sketch, self.canvas, self.canvas_size
+            self.target_sketch, self.canvas
         )
 
         self.last_pixel_similarity = current_pixel_similarity
@@ -353,9 +352,9 @@ class DrawingAgentEnv(gym.Env):
                 else:
                     current_penalty_scale = 0.0
                     if self.penalty_scale_threshold > 0:
-                        if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                        if self.penalty_scale_threshold <= self.last_recall_all < 1.0:
                             current_penalty_scale = self.last_precision
-                        elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                        elif self.last_recall_all >= 1.0 or self.penalty_scale_threshold > 1.0:
                             current_penalty_scale = 1.0
                     drawing_reward += current_reward * current_penalty_scale
 
@@ -423,13 +422,10 @@ class DrawingAgentEnv(gym.Env):
             self._obs[ch_idx][:] = self.canvas
             ch_idx += 1
 
-        # 2. Target Sketch (Dynamic Remaining Target)
+        # 2. Target Sketch
         if self.use_target_sketch_obs:
-            remaining = np.where(
-                (np.isclose(self.target_sketch, 0.0)) & (np.isclose(self.canvas, 1.0)),
-                0.0, 1.0
-            ).astype(np.float32)
-            self._obs[ch_idx][:] = remaining
+            if self.current_step == 0:
+                self._obs[ch_idx] = self.target_sketch.astype(np.float32)
             ch_idx += 1
 
         # 3. Pen Mask
