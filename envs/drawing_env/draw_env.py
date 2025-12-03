@@ -16,14 +16,11 @@ from collections import deque
 
 
 def _decode_action(action):
-    """
-    Decodes a discrete action (0-18) into dx, dy, pen_state, and stop_action.
-    """
     is_pen_down = action >= 9
     sub_action = action % 9
     dx = (sub_action % 3) - 1
     dy = (sub_action // 3) - 1
-    return dx, dy, int(is_pen_down), 0
+    return dx, dy, int(is_pen_down), 0 # disable stop action
 
 
 class DrawingAgentEnv(gym.Env):
@@ -38,8 +35,6 @@ class DrawingAgentEnv(gym.Env):
 
         self.action_space = spaces.Discrete(18)
 
-        # Calculate observation channels
-        # Standard CNN input: Stack everything as channels
         num_obs_channels = (
                 1 +  # Pen Mask (Always included in logic below)
                 int(self.use_distance_map_obs) +
@@ -367,9 +362,9 @@ class DrawingAgentEnv(gym.Env):
                 self.combo_sustained_on_repeat += 1
                 if self.use_combo:
                     if self.combo_rate < 1.0:
-                        positive_reward_this_step *= (1 + self.combo_rate * self.current_combo)
+                        positive_reward_this_step *= (1 + self.combo_rate * self.combo_sustained_on_repeat)
                     else:
-                        positive_reward_this_step *= (self.combo_rate ** self.current_combo)
+                        positive_reward_this_step *= (self.combo_rate ** self.combo_sustained_on_repeat)
 
                 bonus_reward_part = positive_reward_this_step - base_reward_part
                 drawing_reward = positive_reward_this_step
@@ -414,6 +409,8 @@ class DrawingAgentEnv(gym.Env):
             # Pen Up
             if self.current_combo > 0:
                 self.episode_combo_log.append(self.current_combo)
+            if self.combo_sustained_on_repeat > 0:
+                self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
             self.current_combo = 0
             self.combo_sustained_on_repeat = 0
 
