@@ -226,12 +226,19 @@ class DrawingAgentEnv(gym.Env):
         if self.use_dynamic_distance_map_reward:
             self.last_distance = self.dynamic_distance_map[self.cursor[1], self.cursor[0]]
 
-        target_is_black = np.isclose(self.target_sketch, 0.0)
+        # Initialize Metrics based on Target vs Empty Canvas (1.0)
+        # At start, Canvas is all White (1.0)
         target_is_white = np.isclose(self.target_sketch, 1.0)
-        self._current_tp = 0
-        self._current_fp = 0
+        target_not_white = ~target_is_white
+
+        # FN: Target has ink (0.0 or 0.5), Canvas is White (1.0) -> Mismatch
+        self._current_fn = np.sum(target_not_white)
+        # TN: Target is White, Canvas is White -> Match
         self._current_tn = np.sum(target_is_white)
-        self._current_fn = np.sum(target_is_black)
+        # TP: Canvas has ink match? No, canvas is empty.
+        self._current_tp = 0
+        # FP: Canvas has ink wrong? No, canvas is empty.
+        self._current_fp = 0
 
         self.last_recall_white = 1.0 if self._current_tn > 0 else 0.0
 
@@ -420,15 +427,7 @@ class DrawingAgentEnv(gym.Env):
                 reward += self.navigation_reward
                 self.last_distance = current_distance
 
-        # F1 Score Reward (Delta)
-        if self.f1_scalar > 0:
-            delta_f1 = current_f1_score - self.last_f1_score
-            if delta_f1 >= 0:
-                reward += delta_f1 * self.f1_scalar
-            else:
-                reward += delta_f1 * (self.f1_scalar / 10)
-        else:
-            reward += drawing_reward
+        reward += drawing_reward
 
         # Terminal Reward
         if truncated or terminated:
