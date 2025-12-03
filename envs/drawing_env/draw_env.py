@@ -141,7 +141,8 @@ class DrawingAgentEnv(gym.Env):
         self.last_pixel_similarity = 0.0
         self.last_recall_black = 0.0
         self.last_recall_white = 0.0
-        self.last_precision_black = 0.0
+        self.last_recall_grey = 0.0
+        self.last_precision = 0.0
         self.last_f1_score = 0.0
 
         self.step_rewards = 0
@@ -254,6 +255,12 @@ class DrawingAgentEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
+        reward_info = {
+            'painted_pixels': [],  # (r, c, old_val, new_val)
+            'attempted_paint': [],  # (r, c) where pen was down but no value change (e.g. 0.0 -> 0.0)
+            'wrong_on_white': False
+        }
+
         correct_new_pixels = []
         repeated_correct_pixels = []
 
@@ -267,49 +274,36 @@ class DrawingAgentEnv(gym.Env):
             x_start = max(0, current_cursor[0] - brush_radius)
             x_end = min(self.canvas_size[0], current_cursor[0] + brush_radius + 1)
 
-            # Check pixels
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
-                    if np.isclose(self.canvas[r, c], 1.0):  # If canvas is white (newly painted)
-                        if np.isclose(self.target_sketch[r, c], 0.0):  # And target is black
-                            correct_new_pixels.append((r, c))
-                            self._current_tp += 1
-                            self._current_fn -= 1
-                        else:  # Target is white (wrong)
-                            self._current_fp += 1
-                            self._current_tn -= 1
-                    else:  # Canvas is already black
-                        if np.isclose(self.target_sketch[r, c], 0.0):
-                            repeated_correct_pixels.append((r, c))
+                    old_val = self.canvas[r, c]
+                    new_val = max(0.0, old_val - 0.5)
 
-            # Apply paint
-            for r in range(y_start, y_end):
-                for c in range(x_start, x_end):
-                    if np.isclose(self.canvas[r, c], 1.0):
+                    if not np.isclose(old_val, new_val):
+                        self.canvas[r, c] = new_val
                         self.episode_total_painted += 1
-                        self.canvas[r, c] = 0.0
+                        reward_info['painted_pixels'].append((r, c, old_val, new_val))
+                    else:
+                        reward_info['attempted_paint'].append((r, c))
 
-        # Metrics
-        current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity = calculate_metrics(
-            self._current_tp, self._current_fp, self._current_tn, self._current_fn, self.canvas.size
+        current_recall_black, current_recall_grey, current_recall_all, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics(
+            self.target_sketch, self.canvas, self.canvas_size
         )
 
         self.last_pixel_similarity = current_pixel_similarity
+        self.last_recall_grey = current_recall_grey
         self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
-        self.last_precision_black = current_precision_black
+        self.last_precision = current_precision
 
-        current_f1_score = calculate_f1_score(self.last_precision_black, self.last_recall_black)
+        current_f1_score = calculate_f1_score(self.last_precision, self.last_recall_black)
 
-        truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
+        truncated = self.current_step >= self.max_steps or (
+                    self.last_recall_black >= 0.99 and self.last_recall_grey >= 0.99)
 
-        # Reward Calculation
         reward = self._calculate_reward(
-            terminated, truncated,
             is_pen_down,
-            correct_new_pixels,
-            repeated_correct_pixels,
-            current_f1_score
+            reward_info,
         )
         self.last_f1_score = current_f1_score
 
@@ -347,77 +341,88 @@ class DrawingAgentEnv(gym.Env):
             self.is_pen_down = is_pen_down
             self.pen_was_down = self.is_pen_down
 
-    def _calculate_reward(self, terminated, truncated,
-                          is_pen_down, correct_new_pixels, repeated_new_pixels, current_f1_score):
+    def _calculate_reward(self, is_pen_down, reward_info):
         reward = 0.0 if not self.use_time_penalty else -0.001
+
+        # Specific Reward Values requested
+        R_GOOD = 0.1
+        R_WRONG_WHITE = -0.1
+        R_BAD_DRAW = -0.05  # Repeat Black or Grey Overshoot
+
+        base_reward = 0.0
+        bonus_reward = 0.0
         drawing_reward = 0.0
-        base_reward_part = 0.0
-        bonus_reward_part = 0.0
+
+        painted_pixels = reward_info['painted_pixels']
+        attempted_paint = reward_info['attempted_paint']
+
+        any_good_paint = False
+        any_bad_paint = False
+
         if is_pen_down:
-            num_correct = len(correct_new_pixels)
-            num_repeated = len(repeated_new_pixels)
-            self.episode_correctly_painted += num_correct
+            # Check Pixel Changes
+            for (r, c, old_val, new_val) in painted_pixels:
+                target_val = self.target_sketch[r, c]
+                current_reward = 0.0
+                # Condition 1: Good Paint (Approaching target, not overshooting)
+                if new_val >= target_val:
+                    # e.g. T=0.0, Old=0.5, New=0.0 -> OK (0>=0)
+                    # e.g. T=0.5, Old=1.0, New=0.5 -> OK (0.5>=0.5)
+                    current_reward = R_GOOD
+                    any_good_paint = True
 
-            if num_correct > 0:
-                # Correctly painted new pixels
-                positive_reward_this_step = 0.0
-                for r, c in correct_new_pixels:
-                    positive_reward_this_step += self.reward_map[r, c]
+                # Condition 3: Overshoot (Grey -> Black)
+                elif target_val > 0.0 and new_val < target_val:
+                    # e.g. T=0.5, Old=0.5, New=0.0 -> Overshoot (0 < 0.5)
+                    current_reward = R_BAD_DRAW
+                    any_bad_paint = True
 
-                base_reward_part = positive_reward_this_step
-                self.current_combo += 1
-                self.combo_sustained_on_repeat += 1
-                if self.use_combo:
-                    if self.combo_rate < 1.0:
-                        positive_reward_this_step *= (1 + self.combo_rate * self.combo_sustained_on_repeat)
-                    else:
-                        positive_reward_this_step *= (self.combo_rate ** self.combo_sustained_on_repeat)
+                # Condition 2: Wrong on White
+                elif np.isclose(target_val, 1.0):
+                    current_reward = R_WRONG_WHITE
+                    any_bad_paint = True
 
-                bonus_reward_part = positive_reward_this_step - base_reward_part
-                drawing_reward = positive_reward_this_step
-                self.correct_rewards += positive_reward_this_step
+                # Apply Combo to POSITIVE rewards only
+                if current_reward > 0:
+                    base_reward += current_reward
+                    self.current_combo += 1
+                    self.combo_sustained_on_repeat += 1
+                    # Calculate Bonus
+                    multiplier = (self.combo_rate ** self.combo_sustained_on_repeat) if self.combo_rate >= 1.0 else (
+                                1 + self.combo_rate * self.combo_sustained_on_repeat)
+                    total_pixel_reward = current_reward * multiplier
+                    bonus_reward += (total_pixel_reward - current_reward)
+                    drawing_reward += total_pixel_reward
+                else:
+                    # Penalty resets combo
+                    current_penalty_scale = 0.0
+                    if self.penalty_scale_threshold > 0:
+                        if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
+                            current_penalty_scale = self.last_precision
+                        elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                            current_penalty_scale = 1.0
+                    drawing_reward += current_reward * current_penalty_scale
 
-            elif num_correct == 0 and num_repeated > 0:
-                if self.current_combo > 0:
-                    self.episode_combo_log.append(self.current_combo)
-                self.current_combo = 0
-                self.combo_sustained_on_repeat += 1
-                current_penalty_scale = 0.0
-                if self.penalty_scale_threshold > 0:
-                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
-                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
-                        current_penalty_scale = 1.0
+            # Check No-Change Paints (Repeats)
+            for (r, c) in attempted_paint:
+                target_val = self.target_sketch[r, c]
+                old_val = self.canvas[r, c]
+                # Condition: Repeated Black
+                if np.isclose(target_val, 0.0) and np.isclose(old_val, 0.0):
+                    drawing_reward += R_BAD_DRAW
+                    any_bad_paint = True
 
-                negative_reward_this_step = self.reward_map_far_target * 0.5 * current_penalty_scale
-                drawing_reward = negative_reward_this_step
-            elif num_correct == 0 and num_repeated == 0:
-                # Penalty logic for drawing on background
-                if self.current_combo > 0:
-                    self.episode_combo_log.append(self.current_combo)
-                if self.combo_sustained_on_repeat > 0:
-                    self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
+            if any_bad_paint:
+                if self.current_combo > 0: self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
                 self.combo_sustained_on_repeat = 0
 
-                current_penalty_scale = 0.0
-                if self.penalty_scale_threshold > 0:
-                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
-                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
-                        current_penalty_scale = 1.0
-
-                negative_reward_this_step = self.reward_map_far_target * current_penalty_scale
-                drawing_reward = negative_reward_this_step
-
-            if num_correct > 0 and self.use_dynamic_distance_map_reward:
+            if any_good_paint and self.use_dynamic_distance_map_reward:
                 self._update_dynamic_distance_map()
+
         else:
-            # Pen Up
-            if self.current_combo > 0:
-                self.episode_combo_log.append(self.current_combo)
-            if self.combo_sustained_on_repeat > 0:
-                self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
+            # Pen Up Logic
+            if self.current_combo > 0: self.episode_combo_log.append(self.current_combo)
             self.current_combo = 0
             self.combo_sustained_on_repeat = 0
 
@@ -428,18 +433,31 @@ class DrawingAgentEnv(gym.Env):
                 self.last_distance = current_distance
 
         reward += drawing_reward
-
-        # Terminal Reward
-        if truncated or terminated:
-            # Only F1/Precision/Recall rewards here
-            reward += self.last_precision_black * self.similarity_weight
-            if np.isclose(self.last_recall_black, 1.0):
-                reward += self.recall_bonus
-
-        self.episode_base_reward += base_reward_part
-        self.episode_combo_bonus += bonus_reward_part
+        self.episode_base_reward += base_reward
+        self.episode_combo_bonus += bonus_reward
         self.step_rewards += reward
         return reward
+
+    def _get_info(self):
+        info_dict = {
+            "pixel_similarity": self.last_pixel_similarity,
+            "recall_black": self.last_recall_black,
+            "recall_grey": self.last_recall_grey,
+            "recall_white": self.last_recall_white,
+            "used_budgets": self.used_budgets,
+            "step_rewards": self.step_rewards,
+            "total_painted": self.episode_total_painted,
+            "correctly_painted": self.episode_correctly_painted,
+            "navigation_reward": self.navigation_reward,
+            "combo_count": self.current_combo,
+            "precision": self.last_precision,
+            "f1_score": self.last_f1_score,
+            "episode_combo_log": self.episode_combo_log,
+            "episode_base_reward": self.episode_base_reward,
+            "episode_combo_bonus": self.episode_combo_bonus,
+            "combo_sustained": self.episode_combo_sustained_on_repeat_log,
+        }
+        return info_dict
 
     def _update_dynamic_distance_map(self):
         self.dynamic_distance_map = calculate_dynamic_distance_map(self.target_sketch, self.canvas)
@@ -511,26 +529,6 @@ class DrawingAgentEnv(gym.Env):
             ch_idx += 1
 
         return self._obs
-
-    def _get_info(self):
-        info_dict = {
-            "pixel_similarity": self.last_pixel_similarity,
-            "recall_black": self.last_recall_black,
-            "recall_white": self.last_recall_white,
-            "used_budgets": self.used_budgets,
-            "step_rewards": self.step_rewards,
-            "total_painted": self.episode_total_painted,
-            "correctly_painted": self.episode_correctly_painted,
-            "navigation_reward": self.navigation_reward,
-            "combo_count": self.current_combo,
-            "precision": self.last_precision_black,
-            "f1_score": self.last_f1_score,
-            "episode_combo_log": self.episode_combo_log,
-            "episode_base_reward": self.episode_base_reward,
-            "episode_combo_bonus": self.episode_combo_bonus,
-            "combo_sustained": self.episode_combo_sustained_on_repeat_log,
-        }
-        return info_dict
 
     def _init_pygame(self):
         if self.window is None:
