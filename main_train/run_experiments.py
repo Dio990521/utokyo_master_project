@@ -42,7 +42,7 @@ test1 = {
             "brush_size": 1,
             "use_combo": True,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.5,
             "render_mode": None,
         }
 
@@ -54,7 +54,7 @@ test2 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.5,
             "render_mode": None,
         }
 
@@ -66,7 +66,7 @@ test3 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.4,
+            "penalty_scale_threshold": 1.5,
             "render_mode": None,
         }
 
@@ -136,45 +136,45 @@ test5 = {
         }
 
 experiments = [
-    {
-        "VERSION": "20251204_grey_threshold04_combo01",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 1,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test1,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 10000000,
-            "ENV_CONFIG": test1,
-        }
-    },
     # {
-    #     "VERSION": "20251204_grey_threshold04",
-    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "VERSION": "20251204_grey_threshold05_combo01",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test1,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test1,
+    #     }
+    # },
+    # {
+    #     "VERSION": "20251204_grey_threshold05",
+    #     "TOTAL_TIME_STEPS": 10000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
     #     "ENT_COEF": 0.01,
     #     "ENV_CONFIG": test2,
     #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 10000000,
+    #         "EVAL_FREQ": 20000000,
     #         "ENV_CONFIG": test2,
     #     }
     # },
-    # {
-    #     "VERSION": "20251204_grey_threshold14",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test3,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 10000000,
-    #         "ENV_CONFIG": test3,
-    #     }
-    # },
+    {
+        "VERSION": "20251204_grey_threshold15",
+        "TOTAL_TIME_STEPS": 10000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test3,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test3,
+        }
+    },
     # {
     #     "VERSION": "20251204_pen1x1_width3_threshold04_combo01",
     #     "TOTAL_TIME_STEPS": 2500000,

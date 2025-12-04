@@ -4,12 +4,12 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251204_pen1x1_width1_threshold04_combo01"
+VERSION = "20251204_grey_threshold05_combo01"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
-PLOT_COMBO_METRICS = True
+PLOT_COMBO_METRICS = False
 COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, block_similarity, block_reward, step_rewards
 TRAIN_WINDOW_SIZE = 100
 
