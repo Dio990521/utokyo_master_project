@@ -157,7 +157,7 @@ class DrawingAgentEnv(gym.Env):
         return sketches
 
     def _load_sketch_from_path(self, filepath):
-        sketch = Image.open(filepath).resize(self.canvas_size).convert('L')
+        sketch = Image.open(filepath).convert('L')
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
 

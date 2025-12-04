@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251204_grey_threshold05_combo01"
+VERSION = "20251130_pen1x1_width1_threshold04_attention_test"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
