@@ -124,6 +124,7 @@ def run_training(config: dict):
     env_config = config.get("ENV_CONFIG", {})
     cnn_padding = env_config.get("cnn_padding", True)
     validation_config = config.get("VALIDATION_CONFIG", None)
+    ENV_ID = config.get("ENV_ID", "DrawingEnv-v0")
 
     BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
     LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
@@ -140,7 +141,7 @@ def run_training(config: dict):
     os.makedirs(STEP_DEBUG_DIR, exist_ok=True)
 
     env = make_vec_env(
-        "DrawingEnv-v0",
+        ENV_ID,
         n_envs=NUM_ENVS,
         vec_env_cls=SubprocVecEnv,
         env_kwargs={"config": env_config}

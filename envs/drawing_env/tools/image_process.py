@@ -28,7 +28,21 @@ def calculate_f1_score(precision, recall):
     if precision + recall == 0: return 0.0
     return 2 * (precision * recall) / (precision + recall)
 
-def calculate_metrics(target, canvas):
+def calculate_metrics(tp, fp, tn, fn, canvas_size):
+    total_target_black = tp + fn
+    current_recall_black = (tp / total_target_black) if total_target_black > 0 else 0.0
+
+    total_target_white = tn + fp
+    current_recall_white = (tn / total_target_white) if total_target_white > 0 else 0.0
+
+    total_canvas_black = tp + fp
+    current_precision_black = (tp / total_canvas_black) if total_canvas_black > 0 else 0.0
+
+    current_pixel_similarity = (tp + tn) / canvas_size
+    return current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity
+
+
+def calculate_metrics_grey(target, canvas):
     # Tolerance for floating point comparison
     tol = 0.01
 

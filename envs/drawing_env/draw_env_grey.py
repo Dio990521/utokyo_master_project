@@ -15,12 +15,12 @@ def _decode_action(action):
     return dx, dy, int(is_pen_down), 0 # disable stop action
 
 
-class DrawingAgentEnv(gym.Env):
+class DrawingAgentGreyEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
     _episode_counter = 0
 
     def __init__(self, config=None):
-        super(DrawingAgentEnv, self).__init__()
+        super(DrawingAgentGreyEnv, self).__init__()
         self._init_config(config)
         self._init_state_variables()
         self.render_scale = 10
@@ -32,6 +32,7 @@ class DrawingAgentEnv(gym.Env):
                 int(self.use_budget_channel) +
                 int(self.use_canvas_obs) +
                 int(self.use_target_sketch_obs) +
+                int(self.use_difference_map_obs) +
                 int(self.use_stroke_trajectory_obs) +
                 int(self.use_combo_channel)
         )
@@ -62,6 +63,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
         self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
+        self.use_difference_map_obs = config.get("use_difference_map_obs", True)
 
         # Penalties & Rewards
         self.use_time_penalty = config.get("use_time_penalty", False)
@@ -163,8 +165,8 @@ class DrawingAgentEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
-        DrawingAgentEnv._episode_counter += 1
-        self.current_episode_num = DrawingAgentEnv._episode_counter
+        DrawingAgentGreyEnv._episode_counter += 1
+        self.current_episode_num = DrawingAgentGreyEnv._episode_counter
         self._init_state_variables()
         self.correct_rewards = 0
 
@@ -241,7 +243,7 @@ class DrawingAgentEnv(gym.Env):
                     else:
                         reward_info['attempted_paint'].append((r, c))
 
-        current_recall_black, current_recall_grey, current_recall_all, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics(
+        current_recall_black, current_recall_grey, current_recall_all, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics_grey(
             self.target_sketch, self.canvas
         )
 
@@ -428,7 +430,13 @@ class DrawingAgentEnv(gym.Env):
                 self._obs[ch_idx] = self.target_sketch.astype(np.float32)
             ch_idx += 1
 
-        # 3. Pen Mask
+        # 3. Difference Map
+        if self.use_difference_map_obs:
+            diff_map = np.clip(self.canvas - self.target_sketch, 0.0, 1.0)
+            self._obs[ch_idx][:] = diff_map
+            ch_idx += 1
+
+        # 4. Pen Mask
         pen_mask = self._obs[ch_idx]
         pen_mask.fill(0.0)
         y, x = self.cursor[1], self.cursor[0]
@@ -436,7 +444,7 @@ class DrawingAgentEnv(gym.Env):
             pen_mask[y, x] = 1.0
         ch_idx += 1
 
-        # 4. Budget
+        # 5. Budget
         if self.use_budget_channel:
             if self.dynamic_budget_channel:
                 budget_value = (max(0, self.stroke_budget - self.used_budgets) / self.stroke_budget
@@ -447,13 +455,13 @@ class DrawingAgentEnv(gym.Env):
                 self._obs[ch_idx] = budget_value
             ch_idx += 1  # Added explicit increment just in case logic continues
 
-        # 5. Combo
+        # 6. Combo
         if self.use_combo_channel:
             combo_value = min(self.current_combo / self.max_combo_normalization, 1.0)
             self._obs[ch_idx][:] = combo_value
             ch_idx += 1
 
-        # 6. Stroke Trajectory
+        # 7. Stroke Trajectory
         if self.use_stroke_trajectory_obs:
             traj_map = self._obs[ch_idx]
             traj_map.fill(0.0)

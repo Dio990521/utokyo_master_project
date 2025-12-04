@@ -1,6 +1,6 @@
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
-from envs.drawing_env.draw_env import DrawingAgentEnv
+from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
@@ -13,7 +13,7 @@ MAX_EPISODE_STEPS = 1000
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 
 def make_env():
-    return DrawingAgentEnv(
+    return DrawingAgentGreyEnv(
         config={
             "canvas_size": CANVAS_SIZE,
             "render": False,
@@ -24,7 +24,7 @@ def make_env():
     )
 
 #eval_env = DummyVecEnv([make_env])
-eval_env = DrawingAgentEnv(
+eval_env = DrawingAgentGreyEnv(
         config={
             "canvas_size": CANVAS_SIZE,
             "render": False,

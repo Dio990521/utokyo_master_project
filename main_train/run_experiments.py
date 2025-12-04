@@ -163,10 +163,11 @@ experiments = [
     #     }
     # },
     {
-        "VERSION": "20251204_grey_threshold15",
-        "TOTAL_TIME_STEPS": 10000000,
+        "VERSION": "test",
+        "ENV_ID": "DrawingGreyEnv-v0",
+        "TOTAL_TIME_STEPS": 4096,
         "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
+        "NUM_ENVS": 1,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
         "ENV_CONFIG": test3,
