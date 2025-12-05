@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251205_grey_threshold05_combo01_diff" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
+VERSION = "20251205_grey_threshold05_combo01" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_gray_test/"
 CANVAS_SIZE = (32, 32)
@@ -23,7 +23,7 @@ if ENV_ID == "DrawingGreyEnv-v0":
             "use_combo": False,
             "combo_rate": 1.1,
             "penalty_scale_threshold": 0.5,
-            "use_difference_map_obs": True,
+            "use_difference_map_obs": False,
             "reward_correct": 0.1,
             "reward_wrong": -0.01,
         }
