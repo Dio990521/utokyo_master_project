@@ -66,6 +66,8 @@ class DrawingAgentGreyEnv(gym.Env):
         self.use_difference_map_obs = config.get("use_difference_map_obs", True)
 
         # Penalties & Rewards
+        self.reward_correct = config.get("reward_correct", 0.1)
+        self.reward_wrong = config.get("reward_wrong", -0.01)
         self.use_time_penalty = config.get("use_time_penalty", False)
         self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
         self.mvg_penalty_window_size = self.max_steps // 5
@@ -303,9 +305,8 @@ class DrawingAgentGreyEnv(gym.Env):
         reward = 0.0 if not self.use_time_penalty else -0.001
 
         # Specific Reward Values requested
-        R_GOOD = 0.1
-        R_WRONG_WHITE = -0.1
-        R_BAD_DRAW = -0.05  # Repeat Black or Grey Overshoot
+        R_GOOD = self.reward_correct
+        R_BAD_DRAW = self.reward_wrong
 
         base_reward = 0.0
         bonus_reward = 0.0
@@ -329,15 +330,9 @@ class DrawingAgentGreyEnv(gym.Env):
                     current_reward = R_GOOD
                     self.episode_correctly_painted += 1
 
-                # Condition 3: Overshoot (Grey -> Black)
-                elif target_val > 0.0 and new_val < target_val:
-                    # e.g. T=0.5, Old=0.5, New=0.0 -> Overshoot (0 < 0.5)
+                # Condition 2: Overshoot (Grey -> Black) or (White -> Grey)
+                else:
                     current_reward = R_BAD_DRAW
-                    any_bad_paint = True
-
-                # Condition 2: Wrong on White
-                elif np.isclose(target_val, 1.0):
-                    current_reward = R_WRONG_WHITE
                     any_bad_paint = True
 
                 # Apply Combo to POSITIVE rewards only

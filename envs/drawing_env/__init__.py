@@ -17,7 +17,7 @@ register(
 
 register(
     id="DrawingGreyEnv-v0",
-    entry_point="envs.drawing_env.draw_env_grey:DrawingGreyAgentEnv",
+    entry_point="envs.drawing_env.draw_env_grey:DrawingAgentGreyEnv",
     kwargs={"config": {
         "canvas_size": [32, 32],
         "render": False,

@@ -1,30 +1,35 @@
 from stable_baselines3 import PPO
-from stable_baselines3.common.vec_env import DummyVecEnv
+from envs.drawing_env.draw_env import DrawingAgentEnv
 from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251203_pen3x3_width3_threshold04_combo01" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
+VERSION = "20251205_grey_threshold05_combo01_diff" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_width3_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_gray_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
+ENV_ID = "DrawingGreyEnv-v0" #DrawingEnv-v0
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
-
-def make_env():
-    return DrawingAgentGreyEnv(
+if ENV_ID == "DrawingGreyEnv-v0":
+    eval_env = DrawingAgentGreyEnv(
         config={
             "canvas_size": CANVAS_SIZE,
-            "render": False,
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
+            "brush_size": 1,
+            "use_combo": False,
+            "combo_rate": 1.1,
+            "penalty_scale_threshold": 0.5,
+            "use_difference_map_obs": True,
+            "reward_correct": 0.1,
+            "reward_wrong": -0.01,
         }
     )
-
-#eval_env = DummyVecEnv([make_env])
-eval_env = DrawingAgentGreyEnv(
+else:
+    eval_env = DrawingAgentEnv(
         config={
             "canvas_size": CANVAS_SIZE,
             "render": False,
@@ -32,7 +37,7 @@ eval_env = DrawingAgentGreyEnv(
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
             "use_mvg_penalty_compensation": False,
-            "brush_size": 3,
+            "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
             "use_stroke_trajectory_obs": False,
@@ -55,7 +60,6 @@ eval_env = DrawingAgentGreyEnv(
             "block_size": 8,
         }
     )
-
 model = PPO.load(model_path, env=eval_env)
 print("seed", model.seed)
 print(f"Model loaded from {model_path}")

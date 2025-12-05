@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251130_pen1x1_width1_threshold04_attention_test"
+VERSION = "20251205_grey_threshold05_combo01_diff"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
@@ -218,16 +218,17 @@ def plot_training_data():
         df = pd.read_csv(DATA_PATH)
         plt.figure(figsize=(15, 7))
         if COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["precision", "recall_black", "recall_grey", "recall_white"]
+            metrics_to_plot = ["precision", "recall_black", "recall_grey", "recall_all"]
             plot_styles = {"recall_grey": 'r-', "similarity": 'b-', "recall_black": 'b--', "recall_white": 'm:',
-                           "balanced_accuracy": 'c-.'}
+                           "recall_all": 'c-.'}
             default_style = 'k-'
             plot_labels = {
                 "pixel_similarity": f'Pixel Accuracy (MA {TRAIN_WINDOW_SIZE})',
                 "precision": f'Precision (MA {TRAIN_WINDOW_SIZE})',
                 "recall_black": f'Black Recall (MA {TRAIN_WINDOW_SIZE})',
                 "recall_grey": f'Grey Recall (MA {TRAIN_WINDOW_SIZE})',
-                "recall_white": f'White Recall (MA {TRAIN_WINDOW_SIZE})'
+                "recall_white": f'White Recall (MA {TRAIN_WINDOW_SIZE})',
+                "recall_all": f'Black+Grey Recall (MA {TRAIN_WINDOW_SIZE})'
             }
             available_metrics = [col for col in metrics_to_plot if col in df.columns]
             if not available_metrics:

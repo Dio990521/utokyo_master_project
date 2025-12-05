@@ -125,7 +125,7 @@ def run_training(config: dict):
     cnn_padding = env_config.get("cnn_padding", True)
     validation_config = config.get("VALIDATION_CONFIG", None)
     ENV_ID = config.get("ENV_ID", "DrawingEnv-v0")
-
+    print(f"Training on ENV_ID: {ENV_ID}")
     BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
     LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
     MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
