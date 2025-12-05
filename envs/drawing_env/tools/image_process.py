@@ -46,50 +46,28 @@ def calculate_metrics_grey(target, canvas):
     # Tolerance for floating point comparison
     tol = 0.01
 
-    # Black: 0.0, Grey: (0.0, 1.0), White: 1.0
-    is_target_black = target <= tol
+    is_target_ink = target < (1.0 - tol)
     is_target_white = target >= (1.0 - tol)
-    is_target_grey = (~is_target_black) & (~is_target_white)
+    is_canvas_ink = canvas < (1.0 - tol)
 
-    pixel_diff = np.abs(target - canvas)
-    is_match = pixel_diff <= tol
+    tp_ink = np.sum(is_target_ink & is_canvas_ink)
+    is_canvas_match_white = np.abs(target - canvas) <= tol
+    tn = np.sum(is_target_white & is_canvas_match_white)
 
-    # TP: Target is Ink (Black or Grey) AND Canvas Matches
-    # Correctly painted Black pixels
-    tp_black = np.sum(is_target_black & is_match)
-    total_target_black = np.sum(is_target_black)
-
-    # Correctly painted Grey pixels
-    tp_grey = np.sum(is_target_grey & is_match)
-    total_target_grey = np.sum(is_target_grey)
-
-    # Correctly left White pixels (TN)
-    tn = np.sum(is_target_white & is_match)
+    total_target_ink = np.sum(is_target_ink)
     total_target_white = np.sum(is_target_white)
 
-    # FP: Canvas has Ink (or darker value) where Target is White
-    # Or Canvas is darker than Target (Overshoot)
-    fp = np.sum(is_target_white & (canvas < (1.0 - tol)))
-
-    recall_black = (tp_black / total_target_black) if total_target_black > 0 else 1.0
-    recall_grey = (tp_grey / total_target_grey) if total_target_grey > 0 else 1.0
-    total_ink_target = total_target_black + total_target_grey
-    recall_all = ((tp_black + tp_grey) / total_ink_target) if total_ink_target > 0 else 1.0
+    recall_grey = (tp_ink / total_target_ink) if total_target_ink > 0 else 1.0
     recall_white = (tn / total_target_white) if total_target_white > 0 else 0.0
 
-    # Precision: (Correct Ink) / (Total Canvas Ink)
-    # Total Canvas Ink = Pixels < 1.0
-    is_canvas_ink = canvas < (1.0 - tol)
     total_canvas_ink = np.sum(is_canvas_ink)
+    precision = (tp_ink / total_canvas_ink) if total_canvas_ink > 0 else 0.0
 
-    # "Correct Ink" here means match on Black or Grey
-    tp_total = tp_black + tp_grey
-    precision = (tp_total / total_canvas_ink) if total_canvas_ink > 0 else 0.0
-
-    # Simple Pixel Similarity (1 - avg_diff)
+    pixel_diff = np.abs(target - canvas)
     current_pixel_similarity = 1.0 - np.mean(pixel_diff)
 
-    return recall_black, recall_grey, recall_all, recall_white, precision, current_pixel_similarity
+    return recall_grey, recall_white, precision, current_pixel_similarity
+
 
 def find_starting_point(sketch: np.ndarray):
     # Find any ink pixel (Black or Grey)

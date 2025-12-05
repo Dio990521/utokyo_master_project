@@ -147,6 +147,7 @@ class DrawingAgentGreyEnv(gym.Env):
 
         self.episode_base_reward = 0.0
         self.episode_combo_bonus = 0.0
+        self.episode_negative_reward = 0.0
 
     def _load_target_sketches(self):
         sketches = []
@@ -245,21 +246,21 @@ class DrawingAgentGreyEnv(gym.Env):
                     else:
                         reward_info['attempted_paint'].append((r, c))
 
-        current_recall_black, current_recall_grey, current_recall_all, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics_grey(
+        current_recall_grey, current_recall_white, current_precision, current_pixel_similarity = calculate_metrics_grey(
             self.target_sketch, self.canvas
         )
 
         self.last_pixel_similarity = current_pixel_similarity
         self.last_recall_grey = current_recall_grey
-        self.last_recall_black = current_recall_black
+        #self.last_recall_black = current_recall_black
         self.last_recall_white = current_recall_white
-        self.last_recall_all = current_recall_all
+        #self.last_recall_all = current_recall_all
         self.last_precision = current_precision
 
-        current_f1_score = calculate_f1_score(self.last_precision, self.last_recall_black)
+        current_f1_score = calculate_f1_score(self.last_precision, self.last_recall_grey)
 
         truncated = self.current_step >= self.max_steps or (
-                    self.last_recall_black >= 0.99 and self.last_recall_grey >= 0.99)
+                    self.last_recall_grey >= 1)
 
         reward = self._calculate_reward(
             is_pen_down,
@@ -349,10 +350,11 @@ class DrawingAgentGreyEnv(gym.Env):
                 else:
                     current_penalty_scale = 0.0
                     if self.penalty_scale_threshold > 0:
-                        if self.penalty_scale_threshold <= self.last_recall_all < 1.0:
+                        if self.penalty_scale_threshold <= self.last_recall_grey < 1.0:
                             current_penalty_scale = self.last_precision
-                        elif self.last_recall_all >= 1.0 or self.penalty_scale_threshold > 1.0:
+                        elif self.last_recall_grey >= 1.0 or self.penalty_scale_threshold > 1.0:
                             current_penalty_scale = 1.0
+                    self.episode_negative_reward += current_reward * current_penalty_scale
                     drawing_reward += current_reward * current_penalty_scale
 
             # Check No-Change Paints (Repeats)
@@ -361,7 +363,14 @@ class DrawingAgentGreyEnv(gym.Env):
                 old_val = self.canvas[r, c]
                 # Condition: Repeated Black
                 if np.isclose(target_val, 0.0) and np.isclose(old_val, 0.0):
-                    drawing_reward += R_BAD_DRAW
+                    current_penalty_scale = 0.0
+                    if self.penalty_scale_threshold > 0:
+                        if self.penalty_scale_threshold <= self.last_recall_grey < 1.0:
+                            current_penalty_scale = self.last_precision
+                        elif self.last_recall_grey >= 1.0 or self.penalty_scale_threshold > 1.0:
+                            current_penalty_scale = 1.0
+                    self.episode_negative_reward += R_BAD_DRAW * current_penalty_scale
+                    drawing_reward += R_BAD_DRAW * current_penalty_scale
                     any_repeat_correct_paint = True
 
             if any_bad_paint or any_repeat_correct_paint:
@@ -405,6 +414,7 @@ class DrawingAgentGreyEnv(gym.Env):
             "episode_base_reward": self.episode_base_reward,
             "episode_combo_bonus": self.episode_combo_bonus,
             "combo_sustained": self.episode_combo_sustained_on_repeat_log,
+            "negative_reward": self.episode_negative_reward
         }
         return info_dict
 

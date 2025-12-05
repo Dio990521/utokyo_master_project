@@ -35,6 +35,7 @@ class TrainingDataCallback(BaseCallback):
                         "episode_base_reward": info.get("episode_base_reward"),
                         "episode_combo_bonus": info.get("episode_combo_bonus"),
                         "combo_sustained": info.get("combo_sustained"),
+                        "negative_reward": info.get("negative_reward"),
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
@@ -97,6 +98,7 @@ class ValidationCallback(BaseCallback):
                     "episode_base_reward": info.get("episode_base_reward"),
                     "episode_combo_bonus": info.get("episode_combo_bonus"),
                     "combo_sustained": info.get("combo_sustained"),
+                    "negative_reward": info.get("negative_reward"),
                 })
                 eval_env.close()
             self.validation_data.extend(results)
