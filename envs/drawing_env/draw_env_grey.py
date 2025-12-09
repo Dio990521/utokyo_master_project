@@ -14,6 +14,15 @@ def _decode_action(action):
     dy = (sub_action // 3) - 1
     return dx, dy, int(is_pen_down), 0 # disable stop action
 
+def _decode_multi_discrete_action(action):
+    move_idx = action[0]
+    pen_idx = action[1]
+
+    dx = (move_idx % 3) - 1
+    dy = (move_idx // 3) - 1
+
+    is_pen_down = bool(pen_idx)
+    return dx, dy, is_pen_down, 0
 
 class DrawingAgentGreyEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
@@ -25,7 +34,10 @@ class DrawingAgentGreyEnv(gym.Env):
         self._init_state_variables()
         self.render_scale = 10
 
-        self.action_space = spaces.Discrete(18)
+        if self.use_multi_discrete:
+            self.action_space = spaces.MultiDiscrete([9, 2])
+        else:
+            self.action_space = spaces.Discrete(18)
 
         num_obs_channels = (
                 1 +  # Pen Mask (Always included in logic below)
@@ -63,7 +75,9 @@ class DrawingAgentGreyEnv(gym.Env):
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
         self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
-        self.use_difference_map_obs = config.get("use_difference_map_obs", True)
+        self.use_difference_map_obs = config.get("use_difference_map_obs", False)
+
+        self.use_multi_discrete = config.get("use_multi_discrete", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
@@ -74,8 +88,8 @@ class DrawingAgentGreyEnv(gym.Env):
         self.penalty_scale_threshold = config.get("penalty_scale_threshold", 0.9)
 
         self.similarity_weight = config.get("similarity_weight", 0.0)
-        self.recall_bonus = config.get("recall_bonus", 0.0)
-        self.f1_scalar = config.get("f1_scalar", 0.0)
+        self.use_distance_reward = config.get("use_distance_reward", False)
+        self.dist_scale = config.get("distance_reward_scale", 0.05)
 
         # Drawing Config
         self.brush_size = config.get("brush_size", 1)
@@ -207,13 +221,19 @@ class DrawingAgentGreyEnv(gym.Env):
 
         self.last_recall_white = 1.0 if self._current_tn > 0 else 0.0
 
+        if self.use_distance_reward:
+            self.last_min_dist = self._calc_min_dist_to_unfinished()
+
         if self.render_mode == "human":
             self._init_pygame()
         return self._get_obs(), self._get_info()
 
     def step(self, action):
         self.current_step += 1
-        dx, dy, is_pen_down, is_stop_action = _decode_action(action)
+        if self.use_multi_discrete:
+            dx, dy, is_pen_down, is_stop_action = _decode_multi_discrete_action(action)
+        else:
+            dx, dy, is_pen_down, is_stop_action = _decode_action(action)
 
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
@@ -262,10 +282,17 @@ class DrawingAgentGreyEnv(gym.Env):
         truncated = self.current_step >= self.max_steps or (
                     self.last_recall_grey >= 1)
 
+        dist_reward = 0.0
+        if self.use_distance_reward:
+            current_min_dist = self._calc_min_dist_to_unfinished()
+            dist_reward = (self.last_min_dist - current_min_dist) * self.dist_scale
+            self.last_min_dist = current_min_dist
+
         reward = self._calculate_reward(
             is_pen_down,
             reward_info,
         )
+        reward += dist_reward
         self.last_f1_score = current_f1_score
 
         if terminated or truncated:
@@ -282,6 +309,19 @@ class DrawingAgentGreyEnv(gym.Env):
             self.render()
 
         return observation, reward, terminated, truncated, info
+
+    def _calc_min_dist_to_unfinished(self):
+        unfinished_mask = (self.canvas - self.target_sketch) > 0.05
+        if not np.any(unfinished_mask):
+            return 0.0
+
+        target_indices = np.argwhere(unfinished_mask)
+        current_pos = np.array([self.cursor[1], self.cursor[0]])
+
+        # max(|dy|, |dx|)
+        diff = np.abs(target_indices - current_pos)
+        steps_needed = np.max(diff, axis=1)
+        return np.min(steps_needed)
 
     def _update_agent_state(self, dx, dy, is_pen_down, is_stop_action):
         if not is_stop_action:

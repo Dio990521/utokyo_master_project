@@ -4,12 +4,12 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251205_grey_threshold05_combo01" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
+VERSION = "20251206_black_threshold04" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_gray_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
-ENV_ID = "DrawingGreyEnv-v0" #DrawingEnv-v0
+ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 if ENV_ID == "DrawingGreyEnv-v0":

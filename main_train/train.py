@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
+from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor, CustomCordCnnExtractor
 
 
 class TrainingDataCallback(BaseCallback):
@@ -134,7 +134,7 @@ def run_training(config: dict):
     TRAINING_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "training_data.csv")
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
     model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
-
+    use_coord_conv = env_config.get("use_coord_conv", False)
     STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
     env_config["step_debug_path"] = STEP_DEBUG_DIR
 
@@ -152,10 +152,16 @@ def run_training(config: dict):
     # Standard CNN Policy
     print("[Training] Using CnnPolicy (Standard)")
     policy_type = "CnnPolicy"
-    policy_kwargs = dict(
-        features_extractor_class=CustomCnnExtractor,
-        features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
-    )
+    if use_coord_conv:
+        policy_kwargs = dict(
+        features_extractor_class=CustomCordCnnExtractor,
+        features_extractor_kwargs=dict(features_dim=128),
+        )
+    else:
+        policy_kwargs = dict(
+            features_extractor_class=CustomCnnExtractor,
+            features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
+        )
 
     if os.path.exists(model_path):
         print(f"Found existing model at {model_path}. Loading...")
