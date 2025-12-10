@@ -4,12 +4,12 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251206_black_threshold04" #20251122_pen3x3trans1x1_width3_threshold04_redo_2
+VERSION = "20251208_black_threshold04"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
-ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0
+ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 if ENV_ID == "DrawingGreyEnv-v0":
@@ -22,10 +22,14 @@ if ENV_ID == "DrawingGreyEnv-v0":
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.5,
+            "penalty_scale_threshold": 0.4,
             "use_difference_map_obs": False,
-            "reward_correct": 0.1,
-            "reward_wrong": -0.01,
+            "reward_correct": 1,
+            "reward_wrong": -0.1,
+            "use_multi_discrete": False,
+            "use_coord_conv": False,
+            "use_distance_reward": False,
+            "distance_reward_scale": 0.05,
         }
     )
 else:
@@ -40,24 +44,14 @@ else:
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "use_stroke_trajectory_obs": False,
-            "use_distance_map_obs": False,
-            "use_dynamic_distance_map_reward": False,
-            "navigation_reward_scale": 0.05,
-            "reward_map_on_target": 0.1,
-            "reward_map_near_target": -0.1,
-            "reward_map_far_target": -0.1,
-            "reward_map_near_distance": 2,
-            "penalty_scale_threshold": 0.8,
-            "use_budget_channel": False,
-            "dynamic_budget_channel": False,
-            "stroke_budget": 0,
-            "use_stroke_reward": False,
-            "r_stroke_hyper": 0,
-            "stroke_reward_scale": 1.0,
-            "similarity_weight": 0,
-            "block_reward_scale": 0.0,
-            "block_size": 8,
+            "penalty_scale_threshold": 0.4,
+            "use_difference_map_obs": False,
+            "reward_correct": 1,
+            "reward_wrong": -0.1,
+            "use_multi_discrete": False,
+            "use_coord_conv": False,
+            "use_distance_reward": False,
+            "distance_reward_scale": 0.05,
         }
     )
 model = PPO.load(model_path, env=eval_env)

@@ -35,38 +35,38 @@ def preload_all_data(sketch_path, env_config):
     return target_data_list
 
 test1 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_gray_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_gray_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.5,
+            "penalty_scale_threshold": 1.4,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.1,
-            "use_multi_discrete": True,
+            "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_distance_reward": True,
             "distance_reward_scale": 0.05,
         }
 
 test2 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_gray_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_gray_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.5,
+            "penalty_scale_threshold": 0.4,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.1,
-            "use_multi_discrete": True,
+            "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_distance_reward": True,
             "distance_reward_scale": 0.05,
@@ -121,8 +121,8 @@ test4 = {
 
 experiments = [
     {
-        "VERSION": "20251207_grey_threshold15_dist_reward",
-        "ENV_ID": "DrawingGreyEnv-v0",
+        "VERSION": "20251208_black_threshold14_dist_reward",
+        "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
@@ -135,8 +135,8 @@ experiments = [
         }
     },
     {
-        "VERSION": "20251207_grey_threshold05_dist_reward",
-        "ENV_ID": "DrawingGreyEnv-v0",
+        "VERSION": "20251208_black_threshold04_dist_reward",
+        "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,

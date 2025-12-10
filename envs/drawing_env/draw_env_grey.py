@@ -238,6 +238,11 @@ class DrawingAgentGreyEnv(gym.Env):
         self._update_agent_state(dx, dy, bool(is_pen_down), is_stop_action)
         terminated = is_stop_action
 
+        dist_reward = 0.0
+        if self.use_distance_reward:
+            dist_before_paint = self._calc_min_dist_to_unfinished()
+            dist_reward = (self.last_min_dist - dist_before_paint) * self.dist_scale
+
         reward_info = {
             'painted_pixels': [],  # (r, c, old_val, new_val)
             'attempted_paint': [],  # (r, c) where pen was down but no value change (e.g. 0.0 -> 0.0)
@@ -282,17 +287,17 @@ class DrawingAgentGreyEnv(gym.Env):
         truncated = self.current_step >= self.max_steps or (
                     self.last_recall_grey >= 1)
 
-        dist_reward = 0.0
-        if self.use_distance_reward:
-            current_min_dist = self._calc_min_dist_to_unfinished()
-            dist_reward = (self.last_min_dist - current_min_dist) * self.dist_scale
-            self.last_min_dist = current_min_dist
-
         reward = self._calculate_reward(
             is_pen_down,
             reward_info,
         )
-        reward += dist_reward
+
+        if self.use_distance_reward:
+            dist_after_paint = self._calc_min_dist_to_unfinished()
+
+            self.last_min_dist = dist_after_paint
+            reward += dist_reward
+
         self.last_f1_score = current_f1_score
 
         if terminated or truncated:
@@ -312,16 +317,15 @@ class DrawingAgentGreyEnv(gym.Env):
 
     def _calc_min_dist_to_unfinished(self):
         unfinished_mask = (self.canvas - self.target_sketch) > 0.05
+
         if not np.any(unfinished_mask):
             return 0.0
 
         target_indices = np.argwhere(unfinished_mask)
         current_pos = np.array([self.cursor[1], self.cursor[0]])
+        dists = np.linalg.norm(target_indices - current_pos, axis=1)
 
-        # max(|dy|, |dx|)
-        diff = np.abs(target_indices - current_pos)
-        steps_needed = np.max(diff, axis=1)
-        return np.min(steps_needed)
+        return np.min(dists)
 
     def _update_agent_state(self, dx, dy, is_pen_down, is_stop_action):
         if not is_stop_action:

@@ -4,13 +4,13 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251207_black_threshold14_dist_reward"
+VERSION = "20251208_black_threshold04_dist_reward"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
-COLUMN_TO_PLOT = "negative_reward"  # similarity, used_budgets, negative_reward, block_reward, episode_base_reward
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, negative_reward, block_reward, episode_base_reward
 TRAIN_WINDOW_SIZE = 100
 
 
