@@ -4,9 +4,9 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251208_black_threshold04"
+VERSION = "20251209_black_threshold04_jump"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_mix_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1000
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
@@ -30,6 +30,7 @@ if ENV_ID == "DrawingGreyEnv-v0":
             "use_coord_conv": False,
             "use_distance_reward": False,
             "distance_reward_scale": 0.05,
+            "use_jump": False
         }
     )
 else:
@@ -52,6 +53,7 @@ else:
             "use_coord_conv": False,
             "use_distance_reward": False,
             "distance_reward_scale": 0.05,
+            "use_jump": True
         }
     )
 model = PPO.load(model_path, env=eval_env)

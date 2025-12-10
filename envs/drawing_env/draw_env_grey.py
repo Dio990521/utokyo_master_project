@@ -545,14 +545,27 @@ class DrawingAgentGreyEnv(gym.Env):
                 self.close()
                 raise Exception("Pygame window closed by user.")
         self.window.fill((105, 105, 105))
+
         self._draw_surface(self.target_sketch, (0, 0))
-        self._draw_surface(self.canvas, ((self.canvas_size[0] + 10) * self.render_scale, 0))
+
+        right_panel_x_start = (self.canvas_size[1] + 10) * self.render_scale
+
+        self._draw_surface(self.canvas, (right_panel_x_start, 0))
+
         cursor_color = (255, 0, 0) if self.is_pen_down else (0, 0, 255)
+
         pygame.draw.circle(
             self.window, cursor_color,
-            (self.canvas_size[1] * self.render_scale + 10 * self.render_scale + self.cursor[0] * self.render_scale,
+            (right_panel_x_start + self.cursor[0] * self.render_scale,
              self.cursor[1] * self.render_scale), 1 * self.render_scale
         )
+
+        pygame.draw.circle(
+            self.window, cursor_color,
+            (self.cursor[0] * self.render_scale,
+             self.cursor[1] * self.render_scale), 1 * self.render_scale
+        )
+
         pygame.display.flip()
         self.clock.tick(self.metadata["render_fps"])
 

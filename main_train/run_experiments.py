@@ -43,7 +43,7 @@ test1 = {
             "use_combo": False,
             "combo_rate": 0.1,
             "penalty_scale_threshold": 1.4,
-            "render_mode": None,
+            "render_mode": "human",
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.1,
@@ -122,20 +122,20 @@ test4 = {
         }
 
 experiments = [
-    # {
-    #     "VERSION": "20251209_black_threshold14_jump",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
+    {
+        "VERSION": "test",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 1,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test1,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test1,
+        }
+    },
     # {
     #     "VERSION": "20251209_black_threshold04_jump",
     #     "ENV_ID": "DrawingEnv-v0",
