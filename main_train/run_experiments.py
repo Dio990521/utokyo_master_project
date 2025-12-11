@@ -42,16 +42,16 @@ test1 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.4,
-            "render_mode": "human",
+            "penalty_scale_threshold": 0.6,
+            "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.1,
+            "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 0.05,
-            "use_jump": True
+            "use_distance_reward": True,
+            "distance_reward_scale": 0.1,
+            "use_jump": False
         }
 
 test2 = {
@@ -62,16 +62,16 @@ test2 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 1.6,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.1,
+            "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 0.05,
-            "use_jump": True
+            "use_distance_reward": True,
+            "distance_reward_scale": 0.1,
+            "use_jump": False
 }
 
 test3 = {
@@ -123,11 +123,11 @@ test4 = {
 
 experiments = [
     {
-        "VERSION": "test",
+        "VERSION": "20251211_black_threshold06_dist_reward",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 1,
+        "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
         "ENV_CONFIG": test1,
@@ -136,20 +136,20 @@ experiments = [
             "ENV_CONFIG": test1,
         }
     },
-    # {
-    #     "VERSION": "20251209_black_threshold04_jump",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test2,
-    #     }
-    # },
+    {
+        "VERSION": "20251211_black_threshold16_dist_reward",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test2,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test2,
+        }
+    },
     # {
     #     "VERSION": "20251206_black_threshold14",
     #     "ENV_ID": "DrawingEnv-v0",
