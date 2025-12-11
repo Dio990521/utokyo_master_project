@@ -49,6 +49,7 @@ test1 = {
             "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
+            "use_skeleton_guidance": True,
             "use_distance_reward": True,
             "distance_reward_scale": 0.1,
             "use_jump": False
@@ -69,6 +70,7 @@ test2 = {
             "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
+            "use_skeleton_guidance": True,
             "use_distance_reward": True,
             "distance_reward_scale": 0.1,
             "use_jump": False
@@ -123,7 +125,7 @@ test4 = {
 
 experiments = [
     {
-        "VERSION": "20251211_black_threshold06_dist_reward",
+        "VERSION": "20251211_black_threshold06_endpoint_dist_reward",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
@@ -137,7 +139,7 @@ experiments = [
         }
     },
     {
-        "VERSION": "20251211_black_threshold16_dist_reward",
+        "VERSION": "20251211_black_threshold16_endpoint_dist_reward",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,

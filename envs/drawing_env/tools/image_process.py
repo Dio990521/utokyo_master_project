@@ -1,7 +1,44 @@
 import random
 import numpy as np
 import matplotlib.pyplot as plt
+import cv2
+from skimage.morphology import skeletonize
 
+
+def get_active_endpoints(target, canvas):
+    """
+    计算当前'未完成'线条的端点坐标。
+    返回: (y_coords, x_coords) 的 tuple，可以直接用于索引赋值
+    """
+    # 1. 计算差异 mask (1=未完成, 0=已完成/背景)
+    # 阈值 0.05 过滤掉微小误差
+    diff = (canvas - target) > 0.05
+
+    if not np.any(diff):
+        return None
+
+    # 2. 骨架化：提取未完成部分的中心线
+    # 32x32图像上这个操作非常快 (<1ms)
+    skeleton = skeletonize(diff).astype(np.uint8)
+
+    # 3. 寻找端点
+    # 使用卷积计算邻居数
+    kernel = np.array([[1, 1, 1],
+                       [1, 0, 1],
+                       [1, 1, 1]])
+
+    neighbors = cv2.filter2D(skeleton, -1, kernel, borderType=cv2.BORDER_CONSTANT)
+
+    # 端点定义：本身是骨架(1) 且 周围邻居数 <= 1
+    # (<=1 是为了包含孤立点的情况，防止死锁)
+    endpoints_mask = (skeleton == 1) & (neighbors <= 1)
+
+    # 如果没有端点（例如闭合圆环），退化为返回所有骨架点
+    # 这样 Agent 会被引导去圆环上的任意一点切入
+    if not np.any(endpoints_mask):
+        return np.where(skeleton == 1)
+
+    return np.where(endpoints_mask == 1)
 
 def visualize_obs(obs):
     canvas = obs[0]
