@@ -4,11 +4,11 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251209_black_threshold04_jump"
+VERSION = "20251211_black_threshold05_rook"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_mix_test/"
 CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 1000
+MAX_EPISODE_STEPS = 1024
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
@@ -22,14 +22,14 @@ if ENV_ID == "DrawingGreyEnv-v0":
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.6,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.1,
+            "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 0.05,
+            "use_distance_reward": True,
+            "distance_reward_scale": 0.1,
             "use_jump": False
         }
     )
@@ -45,15 +45,16 @@ else:
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.6,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.1,
+            "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_distance_reward": False,
-            "distance_reward_scale": 0.05,
-            "use_jump": True
+            "distance_reward_scale": 0.1,
+            "use_jump": False,
+            "use_rook_move": True,
         }
     )
 model = PPO.load(model_path, env=eval_env)

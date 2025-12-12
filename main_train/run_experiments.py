@@ -35,8 +35,30 @@ def preload_all_data(sketch_path, env_config):
     return target_data_list
 
 test1 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_test/",
+            "canvas_size": [32, 32],
+            "max_steps": 1024,
+            "brush_size": 1,
+            "use_combo": False,
+            "combo_rate": 0.1,
+            "penalty_scale_threshold": 0.6,
+            "render_mode": None,
+            "use_difference_map_obs": False,
+            "reward_correct": 1,
+            "reward_wrong": -0.2,
+            "use_multi_discrete": True,
+            "use_coord_conv": False,
+            "use_skeleton_guidance": False,
+            "use_distance_reward": True,
+            "distance_reward_scale": 0.1,
+            "use_jump": False,
+            "use_rook_move": False,
+        }
+
+test2 = {
+            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
@@ -47,33 +69,13 @@ test1 = {
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.5,
-            "use_multi_discrete": False,
+            "use_multi_discrete": True,
             "use_coord_conv": False,
-            "use_skeleton_guidance": True,
+            "use_skeleton_guidance": False,
             "use_distance_reward": True,
             "distance_reward_scale": 0.1,
-            "use_jump": False
-        }
-
-test2 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_test/",
-            "canvas_size": [32, 32],
-            "max_steps": 1024,
-            "brush_size": 1,
-            "use_combo": False,
-            "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.6,
-            "render_mode": None,
-            "use_difference_map_obs": False,
-            "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "use_multi_discrete": False,
-            "use_coord_conv": False,
-            "use_skeleton_guidance": True,
-            "use_distance_reward": True,
-            "distance_reward_scale": 0.1,
-            "use_jump": False
+            "use_jump": False,
+            "use_rook_move": False,
 }
 
 test3 = {
@@ -84,13 +86,18 @@ test3 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.4,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "use_difference_map_obs": False,
-            "reward_correct": 0.1,
-            "reward_wrong": -0.01,
-            "use_multi_discrete": False,
-            "use_coord_conv": False
+            "reward_correct": 1,
+            "reward_wrong": -1,
+            "use_multi_discrete": True,
+            "use_coord_conv": False,
+            "use_skeleton_guidance": False,
+            "use_distance_reward": True,
+            "distance_reward_scale": 0.1,
+            "use_jump": False,
+            "use_rook_move": False,
 }
 
 test4 = {
@@ -124,48 +131,48 @@ test4 = {
         }
 
 experiments = [
-    {
-        "VERSION": "20251211_black_threshold06_endpoint_dist_reward",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test1,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test1,
-        }
-    },
-    {
-        "VERSION": "20251211_black_threshold16_endpoint_dist_reward",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test2,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test2,
-        }
-    },
     # {
-    #     "VERSION": "20251206_black_threshold14",
+    #     "VERSION": "20251212_black_threshold06_dist_reward_wrong02",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 10000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
     #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test3,
+    #     "ENV_CONFIG": test1,
     #     "VALIDATION_CONFIG": {
     #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test3,
+    #         "ENV_CONFIG": test1,
     #     }
     # },
+    # {
+    #     "VERSION": "20251212_black_threshold06_dist_reward_wrong05",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test2,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test2,
+    #     }
+    # },
+    {
+        "VERSION": "20251212_black_threshold06_dist_reward_wrong1",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 10000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test3,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test3,
+        }
+    },
     # {
     #     "VERSION": "20251204_pen1x1_width3_threshold04_combo01",
     #     "TOTAL_TIME_STEPS": 2500000,
