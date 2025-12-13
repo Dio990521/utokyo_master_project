@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251213_black_threshold06_rook"
+VERSION = "20251213_black_threshold06_continuous_combo"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
@@ -54,7 +54,8 @@ else:
             "use_distance_reward": False,
             "distance_reward_scale": 0.1,
             "use_jump": False,
-            "use_rook_move": True,
+            "use_rook_move": False,
+            "use_continuous_action_space": True,
         }
     )
 model = PPO.load(model_path, env=eval_env)

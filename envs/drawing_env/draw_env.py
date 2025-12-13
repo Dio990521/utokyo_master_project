@@ -28,6 +28,7 @@ def _decode_action(action):
     return dx, dy, int(is_pen_down), 0, is_jump
 
 
+
 def _decode_multi_discrete_action(action):
     move_idx = action[0]
     pen_idx = action[1]
@@ -45,7 +46,7 @@ def _decode_multi_discrete_action(action):
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 2}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -56,9 +57,10 @@ class DrawingAgentEnv(gym.Env):
 
         self.use_jump = config.get("use_jump", False)
 
-        if self.use_multi_discrete:
-            move_dim = 10 if self.use_jump else 9
-            self.action_space = spaces.MultiDiscrete([move_dim, 2])
+        self.use_continuous_action_space = config.get("use_continuous_action_space", False)
+
+        if self.use_continuous_action_space:
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
         else:
             act_dim = 19 if self.use_jump else 18
             self.action_space = spaces.Discrete(act_dim)
@@ -216,6 +218,47 @@ class DrawingAgentEnv(gym.Env):
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
 
+    def _decode_continuous_action(self, action):
+        # Action shape: (3,) -> [x, y, pen]
+        # Range: [-1, 1]
+
+        # > 0 is Down, <= 0 is Up
+        is_pen_down = action[2] > 0
+
+        dx, dy = 0, 0
+        if is_pen_down:
+            threshold = 1 / 3
+
+            # X Axis
+            if action[0] > threshold:
+                dx = 1
+            elif action[0] < -threshold:
+                dx = -1
+            else:
+                dx = 0
+
+            # Y Axis
+            if action[1] > threshold:
+                dy = 1
+            elif action[1] < -threshold:
+                dy = -1
+            else:
+                dy = 0
+
+        else:
+            # [-1, 1] -> [0, W-1] 和 [0, H-1]
+            # (val + 1) / 2 -> [0, 1]
+
+            norm_x = (np.clip(action[0], -1.0, 1.0) + 1.0) / 2.0
+            norm_y = (np.clip(action[1], -1.0, 1.0) + 1.0) / 2.0
+
+            target_x = int(norm_x * (self.canvas_size[0] - 1))
+            target_y = int(norm_y * (self.canvas_size[1] - 1))
+            self.cursor[0] = target_x
+            self.cursor[1] = target_y
+
+        return dx, dy, is_pen_down
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         DrawingAgentEnv._episode_counter += 1
@@ -323,24 +366,25 @@ class DrawingAgentEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        if self.use_multi_discrete:
-            dx, dy, is_pen_down, is_stop_action, is_jump = _decode_multi_discrete_action(action)
+        if self.use_continuous_action_space:
+            dx, dy, is_pen_down = self._decode_continuous_action(action)
         else:
-            dx, dy, is_pen_down, is_stop_action, is_jump = _decode_action(action)
+            dx, dy, is_pen_down = _decode_action(action)
         # is_jump = True
         # is_pen_down = True
-        if self.use_jump and is_jump:
-            new_pos = self._find_nearest_target_pixel()
-            self.cursor[0] = np.clip(new_pos[0], 0, self.canvas_size[0] - 1)
-            self.cursor[1] = np.clip(new_pos[1], 0, self.canvas_size[1] - 1)
-            self.is_pen_down = bool(is_pen_down)
-            self.pen_was_down = False
-        else:
-            if not is_pen_down and self.use_rook_move:
-                self._perform_rook_move(dx, dy)
-            else:
-                self._update_agent_state(dx, dy, bool(is_pen_down), 0)
-        terminated = is_stop_action
+        # if self.use_jump and is_jump:
+        #     new_pos = self._find_nearest_target_pixel()
+        #     self.cursor[0] = np.clip(new_pos[0], 0, self.canvas_size[0] - 1)
+        #     self.cursor[1] = np.clip(new_pos[1], 0, self.canvas_size[1] - 1)
+        #     self.is_pen_down = bool(is_pen_down)
+        #     self.pen_was_down = False
+        # else:
+        #     if not is_pen_down and self.use_rook_move:
+        #         self._perform_rook_move(dx, dy)
+        #     else:
+        #         self._update_agent_state(dx, dy, bool(is_pen_down), 0)
+        terminated = False
+        self._update_agent_state(dx, dy, bool(is_pen_down), False)
 
         dist_reward = 0.0
         if self.use_distance_reward:
@@ -420,7 +464,7 @@ class DrawingAgentEnv(gym.Env):
 
         observation = self._get_obs()
         info = self._get_info()
-
+        print(reward)
         if self.render_mode == "human":
             self.render()
         return observation, reward, terminated, truncated, info

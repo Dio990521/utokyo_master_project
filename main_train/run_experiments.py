@@ -43,17 +43,18 @@ test1 = {
             "use_combo": False,
             "combo_rate": 0.1,
             "penalty_scale_threshold": 1.6,
-            "render_mode": None,
+            "render_mode": "human",
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.5,
             "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": True,
+            "use_distance_reward": False,
             "distance_reward_scale": 0.5,
             "use_jump": False,
             "use_rook_move": False,
+            "use_continuous_action_space": True
         }
 
 test2 = {
@@ -64,7 +65,7 @@ test2 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 1.6,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
@@ -72,10 +73,11 @@ test2 = {
             "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": True,
+            "use_distance_reward": False,
             "distance_reward_scale": 1,
             "use_jump": False,
             "use_rook_move": False,
+            "use_continuous_action_space": True
 }
 
 test3 = {
@@ -84,8 +86,8 @@ test3 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "use_combo": False,
-            "combo_rate": 0.1,
+            "use_combo": True,
+            "combo_rate": 0.2,
             "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "use_difference_map_obs": False,
@@ -94,10 +96,11 @@ test3 = {
             "use_multi_discrete": False,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": True,
+            "use_distance_reward": False,
             "distance_reward_scale": 1,
             "use_jump": False,
             "use_rook_move": False,
+            "use_continuous_action_space": True
 }
 
 test4 = {
@@ -131,22 +134,22 @@ test4 = {
         }
 
 experiments = [
+    {
+        "VERSION": "test",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 10000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 1,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test1,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test1,
+        }
+    },
     # {
-    #     "VERSION": "20251213_black_threshold16_dist_reward05",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 10000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251213_black_threshold06_dist_reward1",
+    #     "VERSION": "20251213_black_threshold06_continuous",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 10000000,
     #     "LEARNING_RATE": 0.0003,
@@ -159,20 +162,20 @@ experiments = [
     #         "ENV_CONFIG": test2,
     #     }
     # },
-    {
-        "VERSION": "20251212_black_threshold06_dist_reward1",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 10000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test3,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test3,
-        }
-    },
+    # {
+    #     "VERSION": "20251213_black_threshold06_continuous_combo",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test3,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test3,
+    #     }
+    # },
     # {
     #     "VERSION": "20251204_pen1x1_width3_threshold04_combo01",
     #     "TOTAL_TIME_STEPS": 2500000,
