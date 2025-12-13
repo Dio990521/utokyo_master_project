@@ -252,8 +252,8 @@ class DrawingAgentEnv(gym.Env):
             norm_x = (np.clip(jump_x_val, -1.0, 1.0) + 1.0) / 2.0
             norm_y = (np.clip(jump_y_val, -1.0, 1.0) + 1.0) / 2.0
 
-            target_x = int(norm_x * (self.canvas_size[0] - 1))
-            target_y = int(norm_y * (self.canvas_size[1] - 1))
+            target_x = int(norm_x * (self.canvas_size[1] - 1))
+            target_y = int(norm_y * (self.canvas_size[0] - 1))
 
             self.cursor[0] = target_x
             self.cursor[1] = target_y

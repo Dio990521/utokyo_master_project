@@ -5,7 +5,7 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
 
 class CustomCordCnnExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: spaces.Box, features_dim: int = 256):
+    def __init__(self, observation_space: spaces.Box, features_dim: int = 128):
         super().__init__(observation_space, features_dim)
 
         original_channels = observation_space.shape[0]
