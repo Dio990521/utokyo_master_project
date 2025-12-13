@@ -42,8 +42,8 @@ test1 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.6,
-            "render_mode": "human",
+            "penalty_scale_threshold": 0.6,
+            "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -0.5,
@@ -135,11 +135,11 @@ test4 = {
 
 experiments = [
     {
-        "VERSION": "test",
+        "VERSION": "20251213_black_threshold06_continuous2",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 10000000,
+        "TOTAL_TIME_STEPS": 4000000,
         "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 1,
+        "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
         "ENV_CONFIG": test1,

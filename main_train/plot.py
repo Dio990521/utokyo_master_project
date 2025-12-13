@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251213_black_threshold06_continuous_combo"
+VERSION = "20251213_black_threshold06_continuous2"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False

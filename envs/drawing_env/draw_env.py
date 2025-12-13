@@ -46,7 +46,7 @@ def _decode_multi_discrete_action(action):
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 2}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -60,7 +60,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_continuous_action_space = config.get("use_continuous_action_space", False)
 
         if self.use_continuous_action_space:
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(5,), dtype=np.float32)
         else:
             act_dim = 19 if self.use_jump else 18
             self.action_space = spaces.Discrete(act_dim)
@@ -219,41 +219,42 @@ class DrawingAgentEnv(gym.Env):
         return (sketch_array / 255.0).astype(np.float32)
 
     def _decode_continuous_action(self, action):
-        # Action shape: (3,) -> [x, y, pen]
-        # Range: [-1, 1]
-
-        # > 0 is Down, <= 0 is Up
-        is_pen_down = action[2] > 0
+        # Action shape: (5,) -> [draw_x, draw_y, jump_x, jump_y, pen]
+        is_pen_down = action[4] > 0
 
         dx, dy = 0, 0
-        if is_pen_down:
-            threshold = 1 / 3
 
+        if is_pen_down:
+            draw_x_val = action[0]
+            draw_y_val = action[1]
+
+            threshold = 0.33
             # X Axis
-            if action[0] > threshold:
+            if draw_x_val > threshold:
                 dx = 1
-            elif action[0] < -threshold:
+            elif draw_x_val < -threshold:
                 dx = -1
             else:
                 dx = 0
 
             # Y Axis
-            if action[1] > threshold:
+            if draw_y_val > threshold:
                 dy = 1
-            elif action[1] < -threshold:
+            elif draw_y_val < -threshold:
                 dy = -1
             else:
                 dy = 0
 
         else:
-            # [-1, 1] -> [0, W-1] 和 [0, H-1]
-            # (val + 1) / 2 -> [0, 1]
+            jump_x_val = action[2]
+            jump_y_val = action[3]
 
-            norm_x = (np.clip(action[0], -1.0, 1.0) + 1.0) / 2.0
-            norm_y = (np.clip(action[1], -1.0, 1.0) + 1.0) / 2.0
+            norm_x = (np.clip(jump_x_val, -1.0, 1.0) + 1.0) / 2.0
+            norm_y = (np.clip(jump_y_val, -1.0, 1.0) + 1.0) / 2.0
 
             target_x = int(norm_x * (self.canvas_size[0] - 1))
             target_y = int(norm_y * (self.canvas_size[1] - 1))
+
             self.cursor[0] = target_x
             self.cursor[1] = target_y
 
@@ -464,7 +465,6 @@ class DrawingAgentEnv(gym.Env):
 
         observation = self._get_obs()
         info = self._get_info()
-        print(reward)
         if self.render_mode == "human":
             self.render()
         return observation, reward, terminated, truncated, info
