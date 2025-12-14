@@ -12,20 +12,41 @@ from envs.drawing_env.tools.image_process import (
 from collections import deque
 
 
+# def _decode_action(action):
+#     # 0-8: Move + Pen Up
+#     # 9-17: Move + Pen Down
+#     # 18: Jump
+#     is_jump = False
+#     if action == 18:
+#         is_jump = True
+#         return 0, 0, 0, 0, is_jump
+#
+#     is_pen_down = action >= 9
+#     sub_action = action % 9
+#     dx = (sub_action % 3) - 1
+#     dy = (sub_action // 3) - 1
+#     return dx, dy, int(is_pen_down), 0, is_jump
+
+
 def _decode_action(action):
-    # 0-8: Move + Pen Up
-    # 9-17: Move + Pen Down
-    # 18: Jump
+    """
+    0-8: Move (dx, dy) + Pen Down (强制下笔)
+    9:   Jump (瞬移)
+    """
     is_jump = False
-    if action == 18:
+
+    # [修改点] 动作 9 是 Jump
+    if action == 9:
         is_jump = True
         return 0, 0, 0, 0, is_jump
 
-    is_pen_down = action >= 9
-    sub_action = action % 9
-    dx = (sub_action % 3) - 1
-    dy = (sub_action // 3) - 1
-    return dx, dy, int(is_pen_down), 0, is_jump
+    # [修改点] 动作 0-8 是画画 (Pen Down)
+    is_pen_down = 1  # 只要移动就是下笔
+
+    dx = (action % 3) - 1
+    dy = (action // 3) - 1
+
+    return dx, dy, is_pen_down, 0, is_jump
 
 
 
@@ -46,7 +67,7 @@ def _decode_multi_discrete_action(action):
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -59,11 +80,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.use_continuous_action_space = config.get("use_continuous_action_space", False)
 
-        if self.use_continuous_action_space:
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(5,), dtype=np.float32)
-        else:
-            act_dim = 19 if self.use_jump else 18
-            self.action_space = spaces.Discrete(act_dim)
+        self.action_space = spaces.Discrete(10)
 
         num_obs_channels = (
                 1 +  # Pen Mask (Always included in logic below)
@@ -218,47 +235,48 @@ class DrawingAgentEnv(gym.Env):
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
 
-    def _decode_continuous_action(self, action):
-        # Action shape: (5,) -> [draw_x, draw_y, jump_x, jump_y, pen]
-        is_pen_down = action[4] > 0
+    def _jump_to_random_ink_location(self):
+        unfinished_mask = (self.target_sketch < 0.5) & (self.canvas > 0.5)
+        target_indices = np.argwhere(unfinished_mask)
 
-        dx, dy = 0, 0
+        if len(target_indices) > 0:
+            idx = np.random.randint(0, len(target_indices))
+            y, x = target_indices[idx]
 
-        if is_pen_down:
-            draw_x_val = action[0]
-            draw_y_val = action[1]
-
-            threshold = 0.33
-            # X Axis
-            if draw_x_val > threshold:
-                dx = 1
-            elif draw_x_val < -threshold:
-                dx = -1
-            else:
-                dx = 0
-
-            # Y Axis
-            if draw_y_val > threshold:
-                dy = 1
-            elif draw_y_val < -threshold:
-                dy = -1
-            else:
-                dy = 0
-
+            self.cursor[0] = x
+            self.cursor[1] = y
         else:
-            jump_x_val = action[2]
-            jump_y_val = action[3]
+            # 如果 len == 0，说明画完了。
+            # 可以跳回原点，或者保持原地不动，等待 step 函数触发 done
+            pass
 
-            norm_x = (np.clip(jump_x_val, -1.0, 1.0) + 1.0) / 2.0
-            norm_y = (np.clip(jump_y_val, -1.0, 1.0) + 1.0) / 2.0
+    def _jump_to_random_endpoint(self):
+        """
+        策略：优先跳到未完成线条的【端点】。
+        如果找不到端点（例如闭合圆环），get_active_endpoints 会退化返回骨架上的任意点。
+        如果完全画完了，就跳回原点或随机点。
+        """
+        # 1. 调用 image_process.py 里的函数计算端点
+        # 返回值是 (y_coords, x_coords) 的 tuple，类似 np.where 的结果
+        endpoints = get_active_endpoints(self.target_sketch, self.canvas)
 
-            target_x = int(norm_x * (self.canvas_size[1] - 1))
-            target_y = int(norm_y * (self.canvas_size[0] - 1))
+        if endpoints is not None and len(endpoints[0]) > 0:
+            # endpoints[0] 是 y 坐标数组, endpoints[1] 是 x 坐标数组
+            num_points = len(endpoints[0])
 
-            self.cursor[0] = target_x
-            self.cursor[1] = target_y
+            # 2. 随机选一个端点索引
+            idx = np.random.randint(0, num_points)
 
-        return dx, dy, is_pen_down
+            y = endpoints[0][idx]
+            x = endpoints[1][idx]
+
+            # 3. 更新光标 (self.cursor 是 [x, y])
+            self.cursor[0] = x
+            self.cursor[1] = y
+        else:
+            # 如果没找到端点（说明可能画完了，或者全是白的），可以保持不动
+            # 或者为了鲁棒性，随机跳到一个未完成的墨迹点（兜底策略）
+            self._jump_to_random_ink_location()  # 复用之前的逻辑作为兜底
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -367,10 +385,9 @@ class DrawingAgentEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
-        if self.use_continuous_action_space:
-            dx, dy, is_pen_down = self._decode_continuous_action(action)
-        else:
-            dx, dy, is_pen_down = _decode_action(action)
+        dx, dy, is_pen_down, _, is_jump = _decode_action(action)
+        if is_jump:
+            self._jump_to_random_endpoint()
         # is_jump = True
         # is_pen_down = True
         # if self.use_jump and is_jump:
@@ -448,6 +465,9 @@ class DrawingAgentEnv(gym.Env):
             repeated_correct_pixels,
             current_f1_score
         )
+        if is_jump:
+            reward -= -0.1
+            self.episode_negative_reward -= -0.1
         self.last_f1_score = current_f1_score
 
         if self.use_distance_reward:
