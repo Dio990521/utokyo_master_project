@@ -45,7 +45,6 @@ def _decode_action(action):
 
     dx = (action % 3) - 1
     dy = (action // 3) - 1
-    print(dx, dy, is_pen_down, is_jump)
     return dx, dy, is_pen_down, 0, is_jump
 
 
@@ -217,6 +216,7 @@ class DrawingAgentEnv(gym.Env):
         self.episode_base_reward = 0.0
         self.episode_combo_bonus = 0.0
         self.episode_negative_reward = 0.0
+        self.episode_jump_count = 0
 
     def _load_target_sketches(self):
         sketches = []
@@ -388,6 +388,7 @@ class DrawingAgentEnv(gym.Env):
         dx, dy, is_pen_down, _, is_jump = _decode_action(action)
         if is_jump:
             self._jump_to_random_endpoint()
+            self.episode_jump_count += 1
         # is_jump = True
         # is_pen_down = True
         # if self.use_jump and is_jump:
@@ -684,7 +685,8 @@ class DrawingAgentEnv(gym.Env):
             "episode_base_reward": self.episode_base_reward,
             "episode_combo_bonus": self.episode_combo_bonus,
             "combo_sustained": self.episode_combo_sustained_on_repeat_log,
-            "negative_reward": self.episode_negative_reward
+            "negative_reward": self.episode_negative_reward,
+            "jump_count": self.episode_jump_count
         }
         return info_dict
 
