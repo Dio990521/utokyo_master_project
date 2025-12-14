@@ -54,7 +54,8 @@ test1 = {
             "distance_reward_scale": 0.5,
             "use_jump": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False
+            "use_continuous_action_space": False,
+            "use_stroke_trajectory_obs": True
         }
 
 test2 = {
@@ -77,7 +78,8 @@ test2 = {
             "distance_reward_scale": 1,
             "use_jump": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False
+            "use_continuous_action_space": False,
+            "use_stroke_trajectory_obs": True
 }
 
 test3 = {
@@ -100,7 +102,8 @@ test3 = {
             "distance_reward_scale": 1,
             "use_jump": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False
+            "use_continuous_action_space": False,
+            "use_stroke_trajectory_obs": True
 }
 
 test4 = {
@@ -135,7 +138,7 @@ test4 = {
 
 experiments = [
     # {
-    #     "VERSION": "20251214_black_threshold16_jump_endpoints",
+    #     "VERSION": "20251214_black_threshold16_jump_endpoints_traj",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
@@ -149,7 +152,7 @@ experiments = [
     #     }
     # },
     # {
-    #     "VERSION": "20251214_black_threshold06_jump_endpoints",
+    #     "VERSION": "20251214_black_threshold06_jump_endpoints_traj",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
@@ -163,7 +166,7 @@ experiments = [
     #     }
     # },
     {
-        "VERSION": "20251214_black_threshold06_jump_endpoints_combo",
+        "VERSION": "20251214_black_threshold06_combo_jump_endpoints_traj",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,

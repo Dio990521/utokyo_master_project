@@ -217,6 +217,7 @@ class DrawingAgentEnv(gym.Env):
         self.episode_combo_bonus = 0.0
         self.episode_negative_reward = 0.0
         self.episode_jump_count = 0
+        self.painted_pixels_since_last_jump = 0
 
     def _load_target_sketches(self):
         sketches = []
@@ -386,22 +387,17 @@ class DrawingAgentEnv(gym.Env):
     def step(self, action):
         self.current_step += 1
         dx, dy, is_pen_down, _, is_jump = _decode_action(action)
+        jump_penalty = 0.0
         if is_jump:
+            if self.painted_pixels_since_last_jump < 3:
+                jump_penalty = -2.0
+            else:
+                jump_penalty = -0.1
+
             self._jump_to_random_endpoint()
             self.episode_jump_count += 1
-        # is_jump = True
-        # is_pen_down = True
-        # if self.use_jump and is_jump:
-        #     new_pos = self._find_nearest_target_pixel()
-        #     self.cursor[0] = np.clip(new_pos[0], 0, self.canvas_size[0] - 1)
-        #     self.cursor[1] = np.clip(new_pos[1], 0, self.canvas_size[1] - 1)
-        #     self.is_pen_down = bool(is_pen_down)
-        #     self.pen_was_down = False
-        # else:
-        #     if not is_pen_down and self.use_rook_move:
-        #         self._perform_rook_move(dx, dy)
-        #     else:
-        #         self._update_agent_state(dx, dy, bool(is_pen_down), 0)
+            self.painted_pixels_since_last_jump = 0
+
         terminated = False
         self._update_agent_state(dx, dy, bool(is_pen_down), False)
 
@@ -413,6 +409,7 @@ class DrawingAgentEnv(gym.Env):
         repeated_correct_pixels = []
 
         if is_pen_down and not terminated:
+            valid_paint_count = 0
             current_cursor = self.cursor
             brush_radius = self.brush_size // 2
 
@@ -428,6 +425,7 @@ class DrawingAgentEnv(gym.Env):
                     if np.isclose(self.canvas[r, c], 1.0):  # If canvas is white (newly painted)
                         if np.isclose(self.target_sketch[r, c], 0.0):  # And target is black
                             correct_new_pixels.append((r, c))
+                            valid_paint_count += 1
                             self._current_tp += 1
                             self._current_fn -= 1
                         else:  # Target is white (wrong)
@@ -436,6 +434,8 @@ class DrawingAgentEnv(gym.Env):
                     else:  # Canvas is already black
                         if np.isclose(self.target_sketch[r, c], 0.0):
                             repeated_correct_pixels.append((r, c))
+
+            self.painted_pixels_since_last_jump += valid_paint_count
 
             # Apply paint
             for r in range(y_start, y_end):
@@ -466,9 +466,12 @@ class DrawingAgentEnv(gym.Env):
             repeated_correct_pixels,
             current_f1_score
         )
+
         if is_jump:
-            reward += -0.1
-            self.episode_negative_reward += -0.1
+            reward += jump_penalty
+            if jump_penalty < 0:
+                self.episode_negative_reward += jump_penalty
+
         self.last_f1_score = current_f1_score
 
         if self.use_distance_reward:
