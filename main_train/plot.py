@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251213_black_threshold06_rook"
+VERSION = "20251214_black_threshold06_jump_endpoints_combo"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False

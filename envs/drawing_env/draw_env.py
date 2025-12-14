@@ -45,7 +45,7 @@ def _decode_action(action):
 
     dx = (action % 3) - 1
     dy = (action // 3) - 1
-
+    print(dx, dy, is_pen_down, is_jump)
     return dx, dy, is_pen_down, 0, is_jump
 
 
@@ -67,7 +67,7 @@ def _decode_multi_discrete_action(action):
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -466,8 +466,8 @@ class DrawingAgentEnv(gym.Env):
             current_f1_score
         )
         if is_jump:
-            reward -= -0.1
-            self.episode_negative_reward -= -0.1
+            reward += -0.1
+            self.episode_negative_reward += -0.1
         self.last_f1_score = current_f1_score
 
         if self.use_distance_reward:
