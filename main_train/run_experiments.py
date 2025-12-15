@@ -50,7 +50,7 @@ test1 = {
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_jump_counter_obs": False,
+            "use_dist_val_obs": False,
         }
 
 test2 = {
@@ -69,7 +69,7 @@ test2 = {
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_jump_counter_obs": False,
+            "use_dist_val_obs": False,
 }
 
 test3 = {
@@ -88,7 +88,7 @@ test3 = {
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_jump_counter_obs": False,
+            "use_dist_val_obs": False,
 }
 
 test4 = {

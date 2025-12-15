@@ -65,7 +65,6 @@ class DrawingAgentEnv(gym.Env):
         self.use_simplified_action_space = config.get("use_simplified_action_space", False)
         self.use_jump = config.get("use_jump", False)
         self.use_jump_penalty =config.get("use_jump_penalty", False)
-        self.use_dist_val_obs = config.get("use_jump_counter_obs", self.use_jump_penalty)
 
         # Budget & Combo (Logic retained for rewards, channels removed)
         self.stroke_budget = config.get("stroke_budget", 1)
@@ -76,6 +75,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
         self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
+        self.use_dist_val_obs = config.get("use_dist_val_obs", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
