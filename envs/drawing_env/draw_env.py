@@ -256,11 +256,10 @@ class DrawingAgentEnv(gym.Env):
         jump_penalty = 0.0
         if is_jump:
             if self.use_jump_penalty:
-                base_penalty = -1.0
-
-                relief_per_pixel = 0.05
+                base_penalty = -5.0
+                relief_per_pixel = 0.02
                 relief = self.painted_pixels_since_last_jump * relief_per_pixel
-                jump_penalty = min(-0.05, base_penalty + relief)
+                jump_penalty = min(-0.1, base_penalty + relief)
 
             self._jump_to_random_endpoint()
             self.episode_jump_count += 1
@@ -402,7 +401,7 @@ class DrawingAgentEnv(gym.Env):
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
+                        current_penalty_scale = self.last_recall_black
                     elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                         current_penalty_scale = 1.0
 

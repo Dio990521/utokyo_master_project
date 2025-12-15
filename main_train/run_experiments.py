@@ -42,7 +42,7 @@ test1 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.8,
+            "penalty_scale_threshold": 1.6,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
@@ -50,7 +50,7 @@ test1 = {
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_jump_counter_obs": True,
+            "use_jump_counter_obs": False,
         }
 
 test2 = {
@@ -61,7 +61,7 @@ test2 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.8,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
@@ -69,7 +69,7 @@ test2 = {
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_jump_counter_obs": True,
+            "use_jump_counter_obs": False,
 }
 
 test3 = {
@@ -80,11 +80,11 @@ test3 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.8,
+            "penalty_scale_threshold": 1.6,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
-            "use_jump_penalty": True,
+            "use_jump_penalty": False,
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
@@ -123,7 +123,7 @@ test4 = {
 
 experiments = [
     # {
-    #     "VERSION": "20251216_black_threshold18_jump_endpoints_obs",
+    #     "VERSION": "20251216_black_threshold16_jump_endpoints",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
@@ -137,7 +137,7 @@ experiments = [
     #     }
     # },
     # {
-    #     "VERSION": "20251216_black_threshold08_jump_endpoints_obs",
+    #     "VERSION": "20251216_black_threshold06_jump_endpoints",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
@@ -151,7 +151,7 @@ experiments = [
     #     }
     # },
     {
-        "VERSION": "20251216_black_threshold08_jump_endpoints",
+        "VERSION": "20251216_black_threshold16_jump_endpoints_no_penalty",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,

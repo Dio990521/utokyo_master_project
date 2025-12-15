@@ -4,13 +4,13 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251216_black_threshold18_jump_endpoints_obs"
+VERSION = "20251216_black_threshold06_jump_endpoints"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
-COLUMN_TO_PLOT = "jump_count"  # similarity, used_budgets, negative_reward, jump_count, episode_base_reward
+COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, negative_reward, jump_count, episode_base_reward
 TRAIN_WINDOW_SIZE = 100
 
 
