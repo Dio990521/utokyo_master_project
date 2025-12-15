@@ -33,18 +33,24 @@ class DrawingAgentEnv(gym.Env):
                 n_actions += 1  # Action 18 is Jump
             self.action_space = spaces.Discrete(n_actions)
 
-        num_obs_channels = 1  # Pen Mask is always included in logic
+        self.num_obs_channels = 1  # Pen Mask is always included in logic
 
         if self.use_canvas_obs:
-            num_obs_channels += 1
+            self.num_obs_channels += 1
         if self.use_target_sketch_obs:
-            num_obs_channels += 1
+            self.num_obs_channels += 1
         if self.use_stroke_trajectory_obs:
-            num_obs_channels += 1
-
-        self.observation_space = spaces.Box(
-            low=0, high=1.0, shape=(num_obs_channels, *self.canvas_size), dtype=np.float32
+            self.num_obs_channels += 1
+        img_space = spaces.Box(
+            low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
         )
+        if self.use_jump_counter_obs:
+            self.observation_space = spaces.Dict({
+                "image": img_space,
+                "jump_counter": spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
+            })
+        else:
+            self.observation_space = img_space
 
         self.window = None
         self.clock = None
@@ -59,6 +65,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_simplified_action_space = config.get("use_simplified_action_space", False)
         self.use_jump = config.get("use_jump", False)
         self.use_jump_penalty =config.get("use_jump_penalty", False)
+        self.use_jump_counter_obs = config.get("use_jump_counter_obs", self.use_jump_penalty)
 
         # Budget & Combo (Logic retained for rewards, channels removed)
         self.stroke_budget = config.get("stroke_budget", 1)
@@ -436,24 +443,25 @@ class DrawingAgentEnv(gym.Env):
         return reward
 
     def _get_obs(self):
-        if not hasattr(self, "_obs"):
-            self._obs = np.zeros(self.observation_space.shape, dtype=np.float32)
+        if not hasattr(self, "_obs_img"):
+            self._obs_img = np.zeros((self.num_obs_channels, *self.canvas_size), dtype=np.float32)
 
         ch_idx = 0
 
-        # 1. Canvas
+        # Channel 1: Canvas
         if self.use_canvas_obs:
-            self._obs[ch_idx][:] = self.canvas
+            self._obs_img[ch_idx][:] = self.canvas
             ch_idx += 1
 
-        # 2. Target Sketch
+        # Channel 2: Target
         if self.use_target_sketch_obs:
             if self.current_step == 0:
-                self._obs[ch_idx] = self.target_sketch.astype(np.float32)
+                self._obs_img[ch_idx] = self.target_sketch.astype(np.float32)
+            self._obs_img[ch_idx] = self.target_sketch
             ch_idx += 1
 
-        # 3. Pen Mask
-        pen_layer = self._obs[ch_idx]
+        # Channel 3: Pen Mask (Always included)
+        pen_layer = self._obs_img[ch_idx]
         pen_layer.fill(0.0)
 
         if self.use_skeleton_guidance:
@@ -466,9 +474,9 @@ class DrawingAgentEnv(gym.Env):
             pen_layer[y, x] = 1.0
         ch_idx += 1
 
-        # 4. Stroke Trajectory
+        # Channel 4: Trajectory
         if self.use_stroke_trajectory_obs:
-            traj_map = self._obs[ch_idx]
+            traj_map = self._obs_img[ch_idx]
             traj_map.fill(0.0)
             brush_radius = self.brush_size // 2
             H, W = self.canvas_size[0], self.canvas_size[1]
@@ -480,7 +488,17 @@ class DrawingAgentEnv(gym.Env):
                 traj_map[y_start:y_end, x_start:x_end] = 1.0
             ch_idx += 1
 
-        return self._obs
+        if self.use_jump_counter_obs:
+            # image + scalar vector
+            norm_factor = 20.0
+            val = min(self.painted_pixels_since_last_jump / norm_factor, 1.0)
+
+            return {
+                "image": self._obs_img,
+                "jump_counter": np.array([val], dtype=np.float32)
+            }
+
+        return self._obs_img
 
     def _get_info(self):
         info_dict = {

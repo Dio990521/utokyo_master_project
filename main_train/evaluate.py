@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251215_black_threshold18_jump_endpoints"
+VERSION = "20251215_black_threshold08_jump_endpoints"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
@@ -44,7 +44,7 @@ else:
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.8,
+            "penalty_scale_threshold": 1.8,
             "use_difference_map_obs": False,
             "reward_correct": 1,
             "reward_wrong": -1,
