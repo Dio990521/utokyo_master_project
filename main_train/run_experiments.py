@@ -123,9 +123,9 @@ test4 = {
 
 experiments = [
     # {
-    #     "VERSION": "20251215_black_threshold18_jump_endpoints",
+    #     "VERSION": "20251216_black_threshold18_jump_endpoints_obs",
     #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 12000000,
+    #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
@@ -137,9 +137,9 @@ experiments = [
     #     }
     # },
     # {
-    #     "VERSION": "20251215_black_threshold08_jump_endpoints",
+    #     "VERSION": "20251216_black_threshold08_jump_endpoints_obs",
     #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 12000000,
+    #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
@@ -151,9 +151,9 @@ experiments = [
     #     }
     # },
     {
-        "VERSION": "20251215_black_threshold08_jump_endpoints_penalty",
+        "VERSION": "20251216_black_threshold08_jump_endpoints",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 12000000,
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
