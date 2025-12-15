@@ -47,7 +47,7 @@ class DrawingAgentEnv(gym.Env):
         if self.use_dist_val_obs:
             self.observation_space = spaces.Dict({
                 "image": img_space,
-                "jump_counter": spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
+                "dist_val": spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
             })
         else:
             self.observation_space = img_space
@@ -260,7 +260,7 @@ class DrawingAgentEnv(gym.Env):
             if dist <= 1.0:
                 jump_penalty = -2.0
             else:
-                jump_penalty = 0.1
+                jump_penalty = 0
 
             self._jump_to_random_endpoint()
             self.episode_jump_count += 1
