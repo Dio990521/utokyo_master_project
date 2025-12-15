@@ -44,7 +44,7 @@ class DrawingAgentEnv(gym.Env):
         img_space = spaces.Box(
             low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
         )
-        if self.use_jump_counter_obs:
+        if self.use_dist_val_obs:
             self.observation_space = spaces.Dict({
                 "image": img_space,
                 "jump_counter": spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
@@ -65,7 +65,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_simplified_action_space = config.get("use_simplified_action_space", False)
         self.use_jump = config.get("use_jump", False)
         self.use_jump_penalty =config.get("use_jump_penalty", False)
-        self.use_jump_counter_obs = config.get("use_jump_counter_obs", self.use_jump_penalty)
+        self.use_dist_val_obs = config.get("use_jump_counter_obs", self.use_jump_penalty)
 
         # Budget & Combo (Logic retained for rewards, channels removed)
         self.stroke_budget = config.get("stroke_budget", 1)
@@ -255,11 +255,12 @@ class DrawingAgentEnv(gym.Env):
 
         jump_penalty = 0.0
         if is_jump:
-            if self.use_jump_penalty:
-                base_penalty = -5.0
-                relief_per_pixel = 0.02
-                relief = self.painted_pixels_since_last_jump * relief_per_pixel
-                jump_penalty = min(-0.1, base_penalty + relief)
+            _, dist = self._find_nearest_target_pixel()
+
+            if dist <= 1.0:
+                jump_penalty = -2.0
+            else:
+                jump_penalty = 0.1
 
             self._jump_to_random_endpoint()
             self.episode_jump_count += 1
@@ -487,14 +488,14 @@ class DrawingAgentEnv(gym.Env):
                 traj_map[y_start:y_end, x_start:x_end] = 1.0
             ch_idx += 1
 
-        if self.use_jump_counter_obs:
+        if self.use_dist_val_obs:
             # image + scalar vector
-            norm_factor = 20.0
-            val = min(self.painted_pixels_since_last_jump / norm_factor, 1.0)
-
+            _, dist = self._find_nearest_target_pixel()
+            max_dist = np.linalg.norm(self.canvas_size)
+            dist_val = min(dist / max_dist, 1.0)
             return {
                 "image": self._obs_img,
-                "jump_counter": np.array([val], dtype=np.float32)
+                "dist_val": np.array([dist_val], dtype=np.float32)
             }
 
         return self._obs_img
