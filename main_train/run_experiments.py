@@ -42,20 +42,18 @@ test1 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.6,
+            "penalty_scale_threshold": 1.8,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "use_multi_discrete": False,
+            "reward_wrong": -1,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 0.5,
             "use_jump": False,
+            "use_jump_penalty": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False,
-            "use_stroke_trajectory_obs": True
+            "use_stroke_trajectory_obs": False,
+            "use_simplified_action_space": True
         }
 
 test2 = {
@@ -66,20 +64,18 @@ test2 = {
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.8,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "use_multi_discrete": False,
+            "reward_wrong": -1,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 1,
             "use_jump": False,
+            "use_jump_penalty": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False,
-            "use_stroke_trajectory_obs": True
+            "use_stroke_trajectory_obs": False,
+            "use_simplified_action_space": True
 }
 
 test3 = {
@@ -88,22 +84,20 @@ test3 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "use_combo": True,
-            "combo_rate": 0.2,
-            "penalty_scale_threshold": 0.6,
+            "use_combo": False,
+            "combo_rate": 0.1,
+            "penalty_scale_threshold": 0.8,
             "render_mode": None,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "use_multi_discrete": False,
+            "reward_wrong": -1,
             "use_coord_conv": False,
             "use_skeleton_guidance": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 1,
             "use_jump": False,
+            "use_jump_penalty": True,
             "use_rook_move": False,
-            "use_continuous_action_space": False,
-            "use_stroke_trajectory_obs": True
+            "use_stroke_trajectory_obs": False,
+            "use_simplified_action_space": True
 }
 
 test4 = {
@@ -138,9 +132,9 @@ test4 = {
 
 experiments = [
     # {
-    #     "VERSION": "20251214_black_threshold16_jump_endpoints_traj",
+    #     "VERSION": "20251215_black_threshold18_jump_endpoints",
     #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "TOTAL_TIME_STEPS": 12000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
@@ -152,9 +146,9 @@ experiments = [
     #     }
     # },
     # {
-    #     "VERSION": "20251214_black_threshold06_jump_endpoints_traj",
+    #     "VERSION": "20251215_black_threshold08_jump_endpoints",
     #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "TOTAL_TIME_STEPS": 12000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
@@ -166,9 +160,9 @@ experiments = [
     #     }
     # },
     {
-        "VERSION": "20251214_black_threshold06_combo_jump_endpoints_traj",
+        "VERSION": "20251215_black_threshold08_jump_endpoints_penalty",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
+        "TOTAL_TIME_STEPS": 12000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,

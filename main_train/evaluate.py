@@ -4,7 +4,7 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251214_black_threshold06_jump_endpoints"
+VERSION = "20251215_black_threshold18_jump_endpoints"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
@@ -41,21 +41,17 @@ else:
             "max_steps": MAX_EPISODE_STEPS,
             "render_mode": "human",
             "target_sketches_path": SKETCH_DATA_PATH,
-            "use_mvg_penalty_compensation": False,
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.8,
             "use_difference_map_obs": False,
             "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "use_multi_discrete": False,
+            "reward_wrong": -1,
             "use_coord_conv": False,
-            "use_distance_reward": False,
-            "distance_reward_scale": 0.1,
             "use_jump": False,
             "use_rook_move": False,
-            "use_continuous_action_space": False,
+            "use_simplified_action_space": True
         }
     )
 model = PPO.load(model_path, env=eval_env)
