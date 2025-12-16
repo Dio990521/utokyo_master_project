@@ -7,13 +7,13 @@ import random
 import pygame
 from envs.drawing_env.tools.image_process import (
     find_starting_point,
-    calculate_f1_score, calculate_metrics, get_active_endpoints
+    calculate_f1_score, calculate_metrics, get_active_endpoints, visualize_obs
 )
 from collections import deque
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -83,11 +83,7 @@ class DrawingAgentEnv(gym.Env):
         self.reward_wrong = config.get("reward_wrong", -0.01)
         self.reward_jump = config.get("reward_jump", 0.0)
         self.use_time_penalty = config.get("use_time_penalty", False)
-        self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
-        self.mvg_penalty_window_size = self.max_steps // 5
         self.penalty_scale_threshold = config.get("penalty_scale_threshold", 0.9)
-
-        self.use_skeleton_guidance = config.get("use_skeleton_guidance", False)
 
         # Drawing Config
         self.brush_size = config.get("brush_size", 1)
@@ -141,7 +137,6 @@ class DrawingAgentEnv(gym.Env):
         self.episode_total_painted = 0
         self.episode_correctly_painted = 0
 
-        self.penalty_history = deque(maxlen=self.mvg_penalty_window_size)
         self.current_mvg_penalty = 0.0
         self.current_episode_step_data = []
 
@@ -236,41 +231,49 @@ class DrawingAgentEnv(gym.Env):
         return self._get_obs(), self._get_info()
 
     def _find_nearest_target_pixel(self):
-        target_ink_mask = self.target_sketch < 0.5
-        canvas_ink_mask = self.canvas < 0.5
-        overlap_mask = target_ink_mask & canvas_ink_mask
-        remaining_target_mask = target_ink_mask & (~overlap_mask)
-        target_indices_yx = np.argwhere(remaining_target_mask)
+        unfinished = np.logical_and(
+            self.target_sketch < 0.5,
+            self.canvas > 0.5
+        )
 
-        if len(target_indices_yx) == 0:
-            return self.cursor, self.canvas_size[0]
+        unfinished_indices = np.argwhere(unfinished)
 
-        current_pos_yx = np.array([self.cursor[1], self.cursor[0]])
-        dists = np.linalg.norm(target_indices_yx - current_pos_yx, axis=1)
+        if len(unfinished_indices) == 0:
+            return self.cursor, 0.0
+
+        current_r, current_c = self.cursor[1], self.cursor[0]
+
+        dists = np.linalg.norm(
+            unfinished_indices - np.array([current_r, current_c]),
+            axis=1
+        )
+
         min_idx = np.argmin(dists)
-        nearest_pixel_yx = target_indices_yx[min_idx]
-        return [nearest_pixel_yx[1], nearest_pixel_yx[0]], np.min(dists)
+        target_r, target_c = unfinished_indices[min_idx]
+
+        return [target_c, target_r], dists[min_idx]
 
     def step(self, action):
         self.current_step += 1
         dx, dy, is_pen_down, _, is_jump = self._decode_action(action)
 
         jump_penalty = 0.0
-        if is_jump:
+        if self.use_jump and is_jump:
             nearest_pos, dist = self._find_nearest_target_pixel()
-            # if dist <= 1.5:
-            #     jump_penalty = -1.0
-            # else:
-            #     jump_penalty = self.reward_jump
+            if self.use_jump_penalty:
+                if dist <= 1.5:
+                    jump_penalty = -0.5
+                else:
+                    jump_penalty = self.reward_jump
 
-            self.cursor[0] = nearest_pos[0]
-            self.cursor[1] = nearest_pos[1]
+            self.cursor[0] = np.clip(nearest_pos[0], 0, self.canvas_size[0] - 1)
+            self.cursor[1] = np.clip(nearest_pos[1], 0, self.canvas_size[1] - 1)
+
             self.episode_jump_count += 1
             self.painted_pixels_since_last_jump = 0
-
+        else:
+            self._update_agent_state(dx, dy, bool(is_pen_down), False)
         terminated = False
-        self._update_agent_state(dx, dy, bool(is_pen_down), False)
-
         correct_new_pixels = []
         repeated_correct_pixels = []
 
@@ -404,7 +407,7 @@ class DrawingAgentEnv(gym.Env):
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_recall_black
+                        current_penalty_scale = self.last_precision_black
                     elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                         current_penalty_scale = 1.0
 
@@ -465,11 +468,6 @@ class DrawingAgentEnv(gym.Env):
         # Channel 3: Pen Mask (Always included)
         pen_layer = self._obs_img[ch_idx]
         pen_layer.fill(0.0)
-
-        if self.use_skeleton_guidance:
-            active_endpoints = get_active_endpoints(self.target_sketch, self.canvas)
-            if active_endpoints is not None:
-                pen_layer[active_endpoints] = 0.5
 
         y, x = self.cursor[1], self.cursor[0]
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:

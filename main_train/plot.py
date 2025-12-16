@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251217_black_threshold14_jump_near_reward01"
+VERSION = "20251209_black_threshold04_jump"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False

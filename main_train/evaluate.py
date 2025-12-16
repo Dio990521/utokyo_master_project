@@ -4,9 +4,9 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251217_black_threshold16_jump_endpoints"
+VERSION = "20251210_black_threshold04_jump"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_mix_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1024
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
@@ -30,7 +30,7 @@ if ENV_ID == "DrawingGreyEnv-v0":
             "use_coord_conv": False,
             "use_distance_reward": True,
             "distance_reward_scale": 0.1,
-            "use_jump": False
+            "use_jump": True
         }
     )
 else:
@@ -44,12 +44,14 @@ else:
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 1.8,
+            "penalty_scale_threshold": 0.4,
             "reward_correct": 1,
-            "reward_wrong": -1,
+            "reward_wrong": -0.5,
+            "repeat_scale": 0.5,
+            "reward_jump": 0.1,
+            "use_jump": True,
             "use_rook_move": False,
-            "use_stroke_trajectory_obs": False,
-            "use_simplified_action_space": True,
+            "use_simplified_action_space": False,
             "use_dist_val_obs": False,
         }
     )
@@ -66,7 +68,7 @@ for step in range(MAX_EPISODE_STEPS):
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
-    print("action", action, "reward", reward)
+    print("action", eval_env._decode_action(action), "reward", reward)
     episode_reward += reward
     if terminated or truncated:
         break
