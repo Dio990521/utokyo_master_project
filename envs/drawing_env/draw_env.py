@@ -258,8 +258,8 @@ class DrawingAgentEnv(gym.Env):
         jump_penalty = 0.0
         if is_jump:
             nearest_pos, dist = self._find_nearest_target_pixel()
-            if dist < 2.0:
-                jump_penalty = -2.0
+            if dist <= 1.5:
+                jump_penalty = -1.0
             else:
                 jump_penalty = self.reward_jump
 
