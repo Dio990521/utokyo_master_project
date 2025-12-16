@@ -70,6 +70,7 @@ class DrawingAgentEnv(gym.Env):
         self.stroke_budget = config.get("stroke_budget", 1)
         self.use_combo = config.get("use_combo", False)
         self.combo_rate = config.get("combo_rate", 1.1)
+        self.repeat_scale = config.get("repeat_scale", 1.0)
 
         # Obs Flags
         self.use_canvas_obs = config.get("use_canvas_obs", True)
@@ -80,6 +81,7 @@ class DrawingAgentEnv(gym.Env):
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
         self.reward_wrong = config.get("reward_wrong", -0.01)
+        self.reward_jump = config.get("reward_jump", 0.0)
         self.use_time_penalty = config.get("use_time_penalty", False)
         self.use_mvg_penalty_compensation = config.get("use_mvg_penalty_compensation", False)
         self.mvg_penalty_window_size = self.max_steps // 5
@@ -255,14 +257,14 @@ class DrawingAgentEnv(gym.Env):
 
         jump_penalty = 0.0
         if is_jump:
-            _, dist = self._find_nearest_target_pixel()
-
+            nearest_pos, dist = self._find_nearest_target_pixel()
             if dist < 2.0:
                 jump_penalty = -2.0
             else:
-                jump_penalty = 0
+                jump_penalty = self.reward_jump
 
-            self._jump_to_random_endpoint()
+            self.cursor[0] = nearest_pos[0]
+            self.cursor[1] = nearest_pos[1]
             self.episode_jump_count += 1
             self.painted_pixels_since_last_jump = 0
 
@@ -406,7 +408,7 @@ class DrawingAgentEnv(gym.Env):
                     elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                         current_penalty_scale = 1.0
 
-                negative_reward_this_step = self.reward_wrong * 0.5 * current_penalty_scale
+                negative_reward_this_step = self.reward_wrong * self.repeat_scale * current_penalty_scale
                 self.episode_negative_reward += negative_reward_this_step
                 drawing_reward = negative_reward_this_step
             elif num_correct == 0 and num_repeated == 0:
