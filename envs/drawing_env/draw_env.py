@@ -13,7 +13,7 @@ from collections import deque
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -257,7 +257,7 @@ class DrawingAgentEnv(gym.Env):
         if is_jump:
             _, dist = self._find_nearest_target_pixel()
 
-            if dist <= 1.0:
+            if dist < 2.0:
                 jump_penalty = -2.0
             else:
                 jump_penalty = 0

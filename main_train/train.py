@@ -137,7 +137,7 @@ def run_training(config: dict):
     TRAINING_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "training_data.csv")
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
     model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
-    use_jump_counter_obs = env_config.get("use_jump_counter_obs", False)
+    use_dist_val_obs = env_config.get("use_dist_val_obs", False)
     STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
     env_config["step_debug_path"] = STEP_DEBUG_DIR
 
@@ -153,7 +153,7 @@ def run_training(config: dict):
     )
 
     # Standard CNN Policy
-    if use_jump_counter_obs:
+    if use_dist_val_obs:
         print("[Training] Using MultiInputPolicy (Supports Dict Obs)")
         policy_type = "MultiInputPolicy"
     else:

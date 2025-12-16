@@ -46,11 +46,10 @@ test1 = {
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
-            "use_jump_penalty": True,
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_dist_val_obs": False,
+            "use_dist_val_obs": True,
         }
 
 test2 = {
@@ -65,11 +64,10 @@ test2 = {
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
-            "use_jump_penalty": True,
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
-            "use_dist_val_obs": False,
+            "use_dist_val_obs": True,
 }
 
 test3 = {
@@ -84,7 +82,6 @@ test3 = {
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -1,
-            "use_jump_penalty": False,
             "use_rook_move": False,
             "use_stroke_trajectory_obs": False,
             "use_simplified_action_space": True,
@@ -122,48 +119,48 @@ test4 = {
         }
 
 experiments = [
-    # {
-    #     "VERSION": "20251216_black_threshold16_jump_endpoints",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251216_black_threshold06_jump_endpoints",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test2,
-    #     }
-    # },
     {
-        "VERSION": "20251216_black_threshold16_jump_endpoints_no_penalty",
+        "VERSION": "20251217_black_threshold16_jump01_endpoints_dist",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
-        "ENV_CONFIG": test3,
+        "ENV_CONFIG": test1,
         "VALIDATION_CONFIG": {
             "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test3,
+            "ENV_CONFIG": test1,
         }
     },
+    {
+        "VERSION": "20251217_black_threshold06_jump01_endpoints_dist",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test2,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test2,
+        }
+    },
+    # {
+    #     "VERSION": "20251216_black_threshold16_jump_endpoints_no_penalty",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test3,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test3,
+    #     }
+    # },
     # {
     #     "VERSION": "20251204_pen1x1_width3_threshold04_combo01",
     #     "TOTAL_TIME_STEPS": 2500000,
