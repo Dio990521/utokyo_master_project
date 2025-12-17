@@ -1,17 +1,18 @@
+import numpy as np
 from stable_baselines3 import PPO
 from envs.drawing_env.draw_env import DrawingAgentEnv
 from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "20251210_black_threshold04_jump"
+VERSION = "20251217_black_threshold17_jump_trans_penalty" #20251210_black_threshold04_jump
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_mix_test/"
+SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 1024
+MAX_EPISODE_STEPS = 2048
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
 if ENV_ID == "DrawingGreyEnv-v0":
     eval_env = DrawingAgentGreyEnv(
         config={
@@ -55,6 +56,16 @@ else:
             "use_dist_val_obs": False,
         }
     )
+
+
+
+last_action = None
+jump_draw_combo_count = 0
+jump_count = 0
+
+ACTION_JUMP = 18
+ACTION_DRAW_IN_PLACE = 13
+
 model = PPO.load(model_path, env=eval_env)
 print("seed", model.seed)
 print(f"Model loaded from {model_path}")
@@ -65,13 +76,32 @@ episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
     action, _states = model.predict(obs, deterministic=False)
+
+    current_action = int(action)
+
+    if last_action == ACTION_JUMP and current_action == ACTION_DRAW_IN_PLACE:
+        jump_draw_combo_count += 1
+
+    if current_action == ACTION_JUMP:
+        jump_count += 1
+
+    last_action = current_action
+
     eval_env.render()
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
-    print("action", eval_env._decode_action(action), "reward", reward)
+    print("action", action, "reward", reward)
     episode_reward += reward
     if terminated or truncated:
         break
-print(info)
 
+print(info)
+if hasattr(eval_env, 'target_sketch'):
+    target_pixel_count = np.sum(eval_env.target_sketch < 0.5)
+    print(f"\n[Statistics] Target Image Pixel Count (Ink): {target_pixel_count}")
+    print(
+        f"  > Total 'Jump -> Draw-in-Place' Combos: {jump_draw_combo_count}, {jump_draw_combo_count / target_pixel_count * 100:.2f}%")
+
+else:
+    print("\n[Statistics] Warning: Could not find target_sketch in env.")
 eval_env.close()

@@ -84,6 +84,7 @@ class DrawingAgentEnv(gym.Env):
         self.reward_jump = config.get("reward_jump", 0.0)
         self.use_time_penalty = config.get("use_time_penalty", False)
         self.penalty_scale_threshold = config.get("penalty_scale_threshold", 0.9)
+        self.jump_penalty =config.get("jump_penalty", -0.5)
 
         # Drawing Config
         self.brush_size = config.get("brush_size", 1)
@@ -262,7 +263,7 @@ class DrawingAgentEnv(gym.Env):
             nearest_pos, dist = self._find_nearest_target_pixel()
             if self.use_jump_penalty:
                 if dist <= 1.5:
-                    jump_penalty = -0.5
+                    jump_penalty = self.jump_penalty
                 else:
                     jump_penalty = self.reward_jump
 
