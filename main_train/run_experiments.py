@@ -81,7 +81,7 @@ test3 = {
             "max_steps": 1024,
             "brush_size": 1,
             "penalty_scale_threshold": 0.6,
-            "render_mode": None,
+            "render_mode": "human",
             "reward_correct": 1,
             "reward_wrong": -0.25,
             "repeat_scale": 0,
@@ -95,48 +95,48 @@ test3 = {
 }
 
 experiments = [
-    {
-        "VERSION": "final_action1_obs1",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test1,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 5000000,
-            "ENV_CONFIG": test1,
-        }
-    },
-    {
-        "VERSION": "final_action1_obs2",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test2,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 5000000,
-            "ENV_CONFIG": test2,
-        }
-    },
     # {
-    #     "VERSION": "20251218_black_threshold17_jump_trans_penalty",
+    #     "VERSION": "final_action1_obs1",
     #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
     #     "NUM_ENVS": 16,
     #     "BATCH_BASE_SIZE": 512,
     #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test3,
+    #     "ENV_CONFIG": test1,
     #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test3,
+    #         "EVAL_FREQ": 5000000,
+    #         "ENV_CONFIG": test1,
     #     }
     # },
+    # {
+    #     "VERSION": "final_action1_obs2",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test2,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 5000000,
+    #         "ENV_CONFIG": test2,
+    #     }
+    # },
+    {
+        "VERSION": "test",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 10000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 1,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test3,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test3,
+        }
+    },
 ]
 if __name__ == '__main__':
     total_experiments = len(experiments)

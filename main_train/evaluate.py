@@ -6,7 +6,7 @@ import os
 from PIL import Image
 
 
-VERSION = "20251218_black_threshold04_jump_diff_obs" #20251210_black_threshold04_jump
+VERSION = "20251219_black_threshold04_jump_diff_obs_random_init" #20251210_black_threshold04_jump
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
