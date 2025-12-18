@@ -36,7 +36,8 @@ class TrainingDataCallback(BaseCallback):
                         "episode_combo_bonus": info.get("episode_combo_bonus"),
                         "combo_sustained": info.get("combo_sustained"),
                         "negative_reward": info.get("negative_reward"),
-                        "jump_count": info.get("jump_count", 0)
+                        "jump_count": info.get("jump_count", 0),
+                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0)
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
@@ -46,6 +47,7 @@ class TrainingDataCallback(BaseCallback):
                     self.logger.record("total_painted", info.get("total_painted"))
                     self.logger.record("correctly_painted", info.get("correctly_painted"))
                     self.logger.record("jump_count", info.get("jump_count", 0))
+                    self.logger.record("jump_draw_combo_count", info.get("jump_draw_combo_count", 0))
         return True
 
     def _on_training_end(self) -> None:
@@ -101,7 +103,8 @@ class ValidationCallback(BaseCallback):
                         "episode_combo_bonus": info.get("episode_combo_bonus"),
                         "combo_sustained": info.get("combo_sustained"),
                         "negative_reward": info.get("negative_reward"),
-                        "jump_count": info.get("jump_count", 0)
+                        "jump_count": info.get("jump_count", 0),
+                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0)
                 })
                 eval_env.close()
             self.validation_data.extend(results)

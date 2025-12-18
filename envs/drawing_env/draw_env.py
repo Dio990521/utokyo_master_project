@@ -150,6 +150,9 @@ class DrawingAgentEnv(gym.Env):
         self.episode_jump_count = 0
         self.painted_pixels_since_last_jump = 0
 
+        self.episode_jump_draw_combo_count = 0
+        self.last_raw_action = None
+
     def _decode_action(self, action):
         is_jump = False
         dx, dy = 0, 0
@@ -237,6 +240,22 @@ class DrawingAgentEnv(gym.Env):
 
     def step(self, action):
         self.current_step += 1
+
+        if self.use_simplified_action_space:
+            ACTION_JUMP = 9
+            ACTION_DRAW_IN_PLACE = 4  # (0,0) Draw
+        else:
+            ACTION_JUMP = 18
+            ACTION_DRAW_IN_PLACE = 13  # 9(Draw start) + 4(Center) = 13
+
+        current_action = int(action)
+
+        if self.use_jump and self.last_raw_action is not None:
+            if self.last_raw_action == ACTION_JUMP and current_action == ACTION_DRAW_IN_PLACE:
+                self.episode_jump_draw_combo_count += 1
+
+        self.last_raw_action = current_action
+
         dx, dy, is_pen_down, _, is_jump = self._decode_action(action)
 
         jump_penalty = 0.0
@@ -482,7 +501,8 @@ class DrawingAgentEnv(gym.Env):
             "episode_combo_bonus": self.episode_combo_bonus,
             "combo_sustained": self.episode_combo_sustained_on_repeat_log,
             "negative_reward": self.episode_negative_reward,
-            "jump_count": self.episode_jump_count
+            "jump_count": self.episode_jump_count,
+            "jump_draw_combo_count": self.episode_jump_draw_combo_count
         }
         return info_dict
 
