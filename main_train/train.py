@@ -87,28 +87,25 @@ class ValidationCallback(BaseCallback):
                     "step": self.num_timesteps,
                     "sketch": os.path.basename(sketch_file),
                     "pixel_similarity": info.get("pixel_similarity"),
-                    "recall_black": info.get("recall_black"),
-                    "recall_grey": info.get("recall_grey"),
-                    "recall_all": info.get("recall_all"),
-                    "recall_white": info.get("recall_white"),
-                    "used_budgets": info.get("used_budgets"),
-                    "total_painted": info.get("total_painted"),
-                    "correctly_painted": info.get("correctly_painted"),
-                    "precision": info.get("precision"),
-                    "f1_score": info.get("f1_score"),
-                    "episode_combo_log": info.get("episode_combo_log"),
-                    "episode_base_reward": info.get("episode_base_reward"),
-                    "episode_combo_bonus": info.get("episode_combo_bonus"),
-                    "combo_sustained": info.get("combo_sustained"),
-                    "negative_reward": info.get("negative_reward"),
-                    "jump_count": info.get("jump_count", 0)
+                        "recall_black": info.get("recall_black"),
+                        "recall_grey": info.get("recall_grey"),
+                        "recall_all": info.get("recall_all"),
+                        "recall_white": info.get("recall_white"),
+                        "used_budgets": info.get("used_budgets"),
+                        "total_painted": info.get("total_painted"),
+                        "correctly_painted": info.get("correctly_painted"),
+                        "precision": info.get("precision"),
+                        "f1_score": info.get("f1_score"),
+                        "episode_combo_log": info.get("episode_combo_log"),
+                        "episode_base_reward": info.get("episode_base_reward"),
+                        "episode_combo_bonus": info.get("episode_combo_bonus"),
+                        "combo_sustained": info.get("combo_sustained"),
+                        "negative_reward": info.get("negative_reward"),
+                        "jump_count": info.get("jump_count", 0)
                 })
                 eval_env.close()
             self.validation_data.extend(results)
-            avg_sim = np.mean([res["pixel_similarity"] for res in results])
-            self.logger.record("validation/avg_pixel_similarity", avg_sim)
             self.logger.dump(self.num_timesteps)
-            print(f"--- Validation Complete. Avg Similarity: {avg_sim:.4f} ---")
         return True
 
     def _on_training_end(self) -> None:

@@ -35,64 +35,58 @@ def preload_all_data(sketch_path, env_config):
     return target_data_list
 
 test1 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "use_combo": False,
-            "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "reward_correct": 1,
-            "reward_wrong": -0.2,
+            "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
-            "jump_penalty": -1,
-            "use_jump": True,
-            "use_jump_penalty": True,
-            "use_rook_move": False,
-            "use_simplified_action_space": False,
-            "use_dist_val_obs": False,
+            "jump_penalty": -0.25,
+            "use_jump": False,
+            "use_jump_penalty": False,
+            "use_difference_obs": False,
+            "use_canvas_obs": True,
+            "use_target_sketch_obs": True
         }
 
 test2 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "use_combo": False,
-            "combo_rate": 0.1,
-            "penalty_scale_threshold": 0.4,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "reward_correct": 1,
-            "reward_wrong": -0.2,
+            "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
-            "jump_penalty": -1,
-            "use_jump": True,
-            "use_jump_penalty": True,
-            "use_rook_move": False,
-            "use_simplified_action_space": False,
-            "use_dist_val_obs": False,
+            "jump_penalty": -0.25,
+            "use_jump": False,
+            "use_jump_penalty": False,
+            "use_difference_obs": True,
+            "use_canvas_obs": False,
+            "use_target_sketch_obs": False
 }
 
 test3 = {
-            "target_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_train/",
-            "val_sketches_path": "../envs/drawing_env/training/32x32_sketches_black_mix_test/",
+            "target_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_train/",
+            "val_sketches_path": "../envs/drawing_env/training/32x32_final_sketches_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "use_combo": False,
-            "combo_rate": 0.1,
-            "penalty_scale_threshold": 1.4,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "reward_correct": 1,
-            "reward_wrong": -1,
-            "repeat_scale": 0.5,
-            "reward_jump": 1,
-            "jump_penalty": -1,
+            "reward_wrong": -0.25,
+            "repeat_scale": 0,
+            "reward_jump": 0,
+            "jump_penalty": -0.25,
             "use_jump": True,
             "use_jump_penalty": True,
             "use_rook_move": False,
@@ -101,48 +95,48 @@ test3 = {
 }
 
 experiments = [
-    # {
-    #     "VERSION": "20251217_black_mix_threshold04_jump_reward01",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
-    # {
-    #     "VERSION": "20251218_black_mix_threshold04_jump_2",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test2,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test2,
-    #     }
-    # },
     {
-        "VERSION": "20251218_black_threshold17_jump_trans_penalty",
+        "VERSION": "final_action1_obs1",
         "ENV_ID": "DrawingEnv-v0",
         "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
         "ENT_COEF": 0.01,
-        "ENV_CONFIG": test3,
+        "ENV_CONFIG": test1,
         "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test3,
+            "EVAL_FREQ": 5000000,
+            "ENV_CONFIG": test1,
         }
     },
+    {
+        "VERSION": "final_action1_obs2",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test2,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 5000000,
+            "ENV_CONFIG": test2,
+        }
+    },
+    # {
+    #     "VERSION": "20251218_black_threshold17_jump_trans_penalty",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 10000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test3,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test3,
+    #     }
+    # },
 ]
 if __name__ == '__main__':
     total_experiments = len(experiments)

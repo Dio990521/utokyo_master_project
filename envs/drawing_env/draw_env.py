@@ -7,9 +7,8 @@ import random
 import pygame
 from envs.drawing_env.tools.image_process import (
     find_starting_point,
-    calculate_f1_score, calculate_metrics, get_active_endpoints, visualize_obs
+    calculate_f1_score, calculate_metrics
 )
-from collections import deque
 
 
 class DrawingAgentEnv(gym.Env):
@@ -41,6 +40,9 @@ class DrawingAgentEnv(gym.Env):
             self.num_obs_channels += 1
         if self.use_stroke_trajectory_obs:
             self.num_obs_channels += 1
+        if self.use_difference_obs:
+            self.num_obs_channels += 1
+
         img_space = spaces.Box(
             low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
         )
@@ -77,6 +79,7 @@ class DrawingAgentEnv(gym.Env):
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
         self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
         self.use_dist_val_obs = config.get("use_dist_val_obs", False)
+        self.use_difference_obs = config.get("use_difference_obs", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
@@ -179,28 +182,6 @@ class DrawingAgentEnv(gym.Env):
         sketch = Image.open(filepath).convert('L')
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
-
-    def _jump_to_random_endpoint(self):
-        endpoints = get_active_endpoints(self.target_sketch, self.canvas)
-        if endpoints is not None and len(endpoints[0]) > 0:
-            num_points = len(endpoints[0])
-            idx = np.random.randint(0, num_points)
-            y = endpoints[0][idx]
-            x = endpoints[1][idx]
-            self.cursor[0] = x
-            self.cursor[1] = y
-        else:
-            # Fallback to random ink location
-            self._jump_to_random_ink_location()
-
-    def _jump_to_random_ink_location(self):
-        unfinished_mask = (self.target_sketch < 0.5) & (self.canvas > 0.5)
-        target_indices = np.argwhere(unfinished_mask)
-        if len(target_indices) > 0:
-            idx = np.random.randint(0, len(target_indices))
-            y, x = target_indices[idx]
-            self.cursor[0] = x
-            self.cursor[1] = y
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -466,6 +447,13 @@ class DrawingAgentEnv(gym.Env):
             self._obs_img[ch_idx] = self.target_sketch
             ch_idx += 1
 
+        if self.use_difference_obs:
+            diff_map = self.canvas - self.target_sketch
+            diff_map = np.clip(diff_map, 0.0, 1.0)
+
+            self._obs_img[ch_idx][:] = diff_map
+            ch_idx += 1
+
         # Channel 3: Pen Mask (Always included)
         pen_layer = self._obs_img[ch_idx]
         pen_layer.fill(0.0)
@@ -474,30 +462,6 @@ class DrawingAgentEnv(gym.Env):
         if 0 <= y < self.canvas_size[0] and 0 <= x < self.canvas_size[1]:
             pen_layer[y, x] = 1.0
         ch_idx += 1
-
-        # Channel 4: Trajectory
-        if self.use_stroke_trajectory_obs:
-            traj_map = self._obs_img[ch_idx]
-            traj_map.fill(0.0)
-            brush_radius = self.brush_size // 2
-            H, W = self.canvas_size[0], self.canvas_size[1]
-            for cx, cy in self.current_stroke_trajectory:
-                y_start = max(0, cy - brush_radius)
-                y_end = min(H, cy + brush_radius + 1)
-                x_start = max(0, cx - brush_radius)
-                x_end = min(W, cx + brush_radius + 1)
-                traj_map[y_start:y_end, x_start:x_end] = 1.0
-            ch_idx += 1
-
-        if self.use_dist_val_obs:
-            # image + scalar vector
-            _, dist = self._find_nearest_target_pixel()
-            max_dist = np.linalg.norm(self.canvas_size)
-            dist_val = min(dist / max_dist, 1.0)
-            return {
-                "image": self._obs_img,
-                "dist_val": np.array([dist_val], dtype=np.float32)
-            }
 
         return self._obs_img
 

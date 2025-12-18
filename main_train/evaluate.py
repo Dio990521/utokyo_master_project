@@ -3,16 +3,18 @@ from stable_baselines3 import PPO
 from envs.drawing_env.draw_env import DrawingAgentEnv
 from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
+from PIL import Image
 
 
-VERSION = "20251217_black_threshold17_jump_trans_penalty" #20251210_black_threshold04_jump
+VERSION = "20251218_black_threshold04_jump_diff_obs" #20251210_black_threshold04_jump
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../envs/drawing_env/training/32x32_sketches_black_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 2048
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
 
-model_path = os.path.join(MODELS_DIR, "drawing_agent_final_new.zip")
+
+model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 if ENV_ID == "DrawingGreyEnv-v0":
     eval_env = DrawingAgentGreyEnv(
         config={
@@ -47,13 +49,18 @@ else:
             "combo_rate": 1.1,
             "penalty_scale_threshold": 0.4,
             "reward_correct": 1,
-            "reward_wrong": -0.5,
-            "repeat_scale": 0.5,
-            "reward_jump": 0.1,
+            "reward_wrong": -0.2,
+            "repeat_scale": 0,
+            "reward_jump": 0,
+            "jump_penalty": -0.2,
             "use_jump": True,
+            "use_jump_penalty": True,
             "use_rook_move": False,
             "use_simplified_action_space": False,
             "use_dist_val_obs": False,
+            "use_difference_obs": True,
+            "use_canvas_obs": False,
+            "use_target_sketch_obs": False
         }
     )
 
