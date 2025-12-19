@@ -21,6 +21,7 @@ class TrainingDataCallback(BaseCallback):
                 info = self.locals["infos"][i]
                 if "used_budgets" in info:
                     self.episode_data.append({
+                        "total_steps": self.num_timesteps,
                         "pixel_similarity": info.get("pixel_similarity"),
                         "recall_black": info.get("recall_black"),
                         "recall_grey": info.get("recall_grey"),

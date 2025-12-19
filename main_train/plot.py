@@ -194,6 +194,14 @@ def plot_training_data():
     try:
         df = pd.read_csv(DATA_PATH)
         plt.figure(figsize=(15, 7))
+
+        if "total_steps" in df.columns:
+            x_axis = df["total_steps"]
+            xlabel_text = "Total Training Steps"
+        else:
+            x_axis = df.index
+            xlabel_text = "Episode"
+
         if COLUMN_TO_PLOT == "similarity":
             metrics_to_plot = ["precision", "recall_black", "recall_grey", "recall_all"]
             plot_styles = {"recall_grey": 'r-', "similarity": 'b-', "recall_black": 'b--', "recall_white": 'm:',
@@ -210,7 +218,7 @@ def plot_training_data():
             available_metrics = [col for col in metrics_to_plot if col in df.columns]
             if not available_metrics:
                 print(f"Error: None of the specified similarity metrics ({metrics_to_plot}) found in {DATA_PATH}.")
-                plt.close();
+                plt.close()
                 return
             print(f"Plotting available similarity metrics: {available_metrics}")
             for col in available_metrics:
@@ -218,26 +226,32 @@ def plot_training_data():
                 last_val = metric_ma.iloc[-1]
                 print(f"Final {col} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
                 style = plot_styles.get(col, default_style)
-                plt.plot(df.index, metric_ma, style, label=plot_labels.get(col, col))
+
+                plt.plot(x_axis, metric_ma, style, label=plot_labels.get(col, col))
+
             plt.title(f"Training Performance: Similarity Metrics (Moving Average) - {VERSION}")
-            plt.xlabel("Episode")
+            plt.xlabel(xlabel_text)
             plt.ylabel("Metric Value (0-1)")
             plt.ylim(-0.05, 1.05)
+
         elif PLOT_PAINTED_PIXELS_TOGETHER:
             pass
         else:
             if COLUMN_TO_PLOT not in df.columns:
                 print(f"Error: Column '{COLUMN_TO_PLOT}' not found in training data.")
-                plt.close();
+                plt.close()
                 return
             data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
             last_val = data_to_plot.iloc[-1]
             label_text = COLUMN_TO_PLOT.replace('_', ' ').title()
             print(f"Final {label_text} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
-            plt.plot(df.index, data_to_plot, label=f'{label_text} (MA {TRAIN_WINDOW_SIZE})')
+
+            plt.plot(x_axis, data_to_plot, label=f'{label_text} (MA {TRAIN_WINDOW_SIZE})')
+
             plt.title(f"Training Performance: {label_text} (Moving Average) - {VERSION}")
-            plt.xlabel("Episode")
+            plt.xlabel(xlabel_text)
             plt.ylabel(label_text)
+
         plt.grid(True, which='both', linestyle='--', linewidth=0.5)
         plt.legend()
         plt.tight_layout()
@@ -245,8 +259,9 @@ def plot_training_data():
         plt.close()
     except Exception as e:
         print(f"Error plotting training data: {e}")
+        import traceback
+        traceback.print_exc()
         if 'plt' in locals() and plt.gcf().get_axes(): plt.close()
-
 
 if __name__ == '__main__':
     if PLOT_COMBO_METRICS:
