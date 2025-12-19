@@ -4,13 +4,13 @@ import os
 import numpy as np
 import ast
 
-VERSION = "20251218_black_threshold04_jump_diff_obs"
+VERSION = "final_action2_obs2"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
-COLUMN_TO_PLOT = "similarity"  # similarity, used_budgets, negative_reward, jump_count, episode_base_reward
+COLUMN_TO_PLOT = "jump_count"  # similarity, jump_draw_combo_count, negative_reward, jump_count, episode_base_reward
 TRAIN_WINDOW_SIZE = 100
 
 
@@ -31,9 +31,6 @@ def plot_combo_metrics(data_path, window_size=100):
         df = pd.read_csv(data_path)
         print(f"Loaded data with {len(df)} episodes.")
 
-        # ---------------------------------------------------------
-        # Plot 1: Reward Structure Analysis (Base vs Bonus)
-        # ---------------------------------------------------------
         if 'episode_base_reward' in df.columns and 'episode_combo_bonus' in df.columns:
             plt.figure(figsize=(15, 7))
 
@@ -57,17 +54,10 @@ def plot_combo_metrics(data_path, window_size=100):
         else:
             print("Skipping Reward Plot: Missing 'episode_base_reward' or 'episode_combo_bonus' columns.")
 
-        # ---------------------------------------------------------
-        # Data Pre-processing for Combo Plots
-        # ---------------------------------------------------------
         if 'episode_combo_log' in df.columns and 'combo_sustained' in df.columns:
-            # Parse lists once
             df['strict_list'] = df['episode_combo_log'].apply(safe_eval_list)
             df['sustained_list'] = df['combo_sustained'].apply(safe_eval_list)
 
-            # ---------------------------------------------------------
-            # Plot 2: Average Combo Length Comparison
-            # ---------------------------------------------------------
             plt.figure(figsize=(15, 7))
 
             df['avg_strict_len'] = df['strict_list'].apply(lambda x: np.mean(x) if len(x) > 0 else 0)
@@ -91,23 +81,13 @@ def plot_combo_metrics(data_path, window_size=100):
             plt.grid(True, linestyle='--', alpha=0.6)
             plt.tight_layout()
             plt.show()
-
-            # ---------------------------------------------------------
-            # Plot 3: Max Combo Length Comparison (NEW)
-            # ---------------------------------------------------------
             plt.figure(figsize=(15, 7))
 
-            # Calculate Max for each episode
             df['max_strict_len'] = df['strict_list'].apply(lambda x: np.max(x) if len(x) > 0 else 0)
             df['max_sustained_len'] = df['sustained_list'].apply(lambda x: np.max(x) if len(x) > 0 else 0)
 
-            # Calculate Rolling Mean
             strict_max_ma = df['max_strict_len'].rolling(window=window_size).mean()
             sustained_max_ma = df['max_sustained_len'].rolling(window=window_size).mean()
-
-            # Plotting
-            # Optional: Plot raw data transparently if you want to see variance
-            # plt.plot(df.index, df['max_sustained_len'], color='#2ca02c', alpha=0.1)
 
             plt.plot(df.index, sustained_max_ma, color='#9467bd', linewidth=2,
                      label=f'Sustained Combo (ki re nai) - Max Len MA{window_size}')
@@ -132,9 +112,6 @@ def plot_combo_metrics(data_path, window_size=100):
         print(f"An error occurred during plotting: {e}")
         import traceback
         traceback.print_exc()
-
-
-# ... (Keeping the other functions mostly the same for context) ...
 
 def plot_max_stroke_length(data_path, window_size=100):
     try:
@@ -247,7 +224,6 @@ def plot_training_data():
             plt.ylabel("Metric Value (0-1)")
             plt.ylim(-0.05, 1.05)
         elif PLOT_PAINTED_PIXELS_TOGETHER:
-            # ... (omitted for brevity, same as original) ...
             pass
         else:
             if COLUMN_TO_PLOT not in df.columns:
@@ -272,11 +248,6 @@ def plot_training_data():
         if 'plt' in locals() and plt.gcf().get_axes(): plt.close()
 
 
-def plot_validation_data():
-    # ... (omitted for brevity, same as original) ...
-    pass
-
-
 if __name__ == '__main__':
     if PLOT_COMBO_METRICS:
         plot_combo_metrics(os.path.join(f"../training_outputs/{VERSION}/", "training_data.csv"),
@@ -290,7 +261,7 @@ if __name__ == '__main__':
                            window_size=TRAIN_WINDOW_SIZE)
     elif PLOT_VALIDATION_DATA:
         print(f"Plotting VALIDATION data for version: {VERSION}")
-        plot_validation_data()
+        #plot_validation_data()
     else:
         if COLUMN_TO_PLOT == "similarity":
             print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
