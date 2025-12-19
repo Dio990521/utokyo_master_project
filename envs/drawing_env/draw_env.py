@@ -5,6 +5,7 @@ from PIL import Image
 import os
 import random
 import pygame
+from torchvision import transforms
 from envs.drawing_env.tools.image_process import (
     find_starting_point,
     calculate_f1_score, calculate_metrics
@@ -22,15 +23,9 @@ class DrawingAgentEnv(gym.Env):
         self.render_scale = 10
 
         # Action Space Setup
-        # simplified=True:  10 actions (0-8: Draw+Move, 9: Jump)
-        # simplified=False: 18 actions (0-8: Move, 9-17: Draw+Move) [+1 if Jump enabled]
-        if self.use_simplified_action_space:
-            self.action_space = spaces.Discrete(10)
-        else:
-            n_actions = 18
-            if self.use_jump:
-                n_actions += 1  # Action 18 is Jump
-            self.action_space = spaces.Discrete(n_actions)
+        # 18 actions (0-8: Move, 9-17: Draw+Move) [+1 if Jump enabled]
+        n_actions = 18 + int(self.use_jump)
+        self.action_space = spaces.Discrete(n_actions)
 
         self.num_obs_channels = 1  # Pen Mask is always included in logic
 
@@ -38,21 +33,12 @@ class DrawingAgentEnv(gym.Env):
             self.num_obs_channels += 1
         if self.use_target_sketch_obs:
             self.num_obs_channels += 1
-        if self.use_stroke_trajectory_obs:
-            self.num_obs_channels += 1
         if self.use_difference_obs:
             self.num_obs_channels += 1
 
-        img_space = spaces.Box(
+        self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
         )
-        if self.use_dist_val_obs:
-            self.observation_space = spaces.Dict({
-                "image": img_space,
-                "dist_val": spaces.Box(low=0, high=1.0, shape=(1,), dtype=np.float32)
-            })
-        else:
-            self.observation_space = img_space
 
         self.window = None
         self.clock = None
@@ -63,8 +49,15 @@ class DrawingAgentEnv(gym.Env):
         self.max_steps = config.get("max_steps", 1000)
         self.render_mode = config.get("render_mode", None)
 
+        self.aug_transform = transforms.Compose([
+            transforms.RandomAffine(
+                degrees=0,
+                translate=(0.2, 0.2),
+                fill=255
+            )
+        ])
+
         # Action Space Configuration
-        self.use_simplified_action_space = config.get("use_simplified_action_space", False)
         self.use_jump = config.get("use_jump", False)
         self.use_jump_penalty =config.get("use_jump_penalty", False)
 
@@ -77,15 +70,12 @@ class DrawingAgentEnv(gym.Env):
         # Obs Flags
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
-        self.use_stroke_trajectory_obs = config.get("use_stroke_trajectory_obs", False)
-        self.use_dist_val_obs = config.get("use_dist_val_obs", False)
         self.use_difference_obs = config.get("use_difference_obs", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
         self.reward_wrong = config.get("reward_wrong", -0.01)
         self.reward_jump = config.get("reward_jump", 0.0)
-        self.use_time_penalty = config.get("use_time_penalty", False)
         self.penalty_scale_threshold = config.get("penalty_scale_threshold", 0.9)
         self.jump_penalty =config.get("jump_penalty", -0.5)
 
@@ -107,8 +97,6 @@ class DrawingAgentEnv(gym.Env):
             if not self.sketch_file_list:
                 raise ValueError(f"No image files found in {self.target_sketches_path}")
 
-        self.step_debug_path = config.get("step_debug_path", None)
-        self.episode_save_limit = config.get("episode_save_limit", 1000)
         self.current_episode_num = 0
 
     def _init_state_variables(self):
@@ -122,7 +110,6 @@ class DrawingAgentEnv(gym.Env):
         self.combo_sustained_on_repeat = 0
         self.episode_combo_log = []
         self.episode_combo_sustained_on_repeat_log = []
-        self.current_stroke_trajectory = []
 
         self._current_tp = 0
         self._current_tn = 0
@@ -135,15 +122,11 @@ class DrawingAgentEnv(gym.Env):
         self.last_precision_black = 0.0
         self.last_f1_score = 0.0
 
-        self.step_rewards = 0
+        self.episode_return = 0
         self.target_sketch = None
         self.cursor = [0, 0]
         self.episode_total_painted = 0
         self.episode_correctly_painted = 0
-
-        self.current_mvg_penalty = 0.0
-        self.current_episode_step_data = []
-
         self.episode_base_reward = 0.0
         self.episode_combo_bonus = 0.0
         self.episode_negative_reward = 0.0
@@ -154,35 +137,28 @@ class DrawingAgentEnv(gym.Env):
         self.last_raw_action = None
 
     def _decode_action(self, action):
+        # 0-8:  Move (dx, dy) + Pen Up
+        # 9-17: Move (dx, dy) + Pen Down
+        # 18:   Jump (Only if use_jump=True)
         is_jump = False
         dx, dy = 0, 0
         is_pen_down = 0
-
-        if self.use_simplified_action_space:
-            # 0-8: Move (dx, dy) + Pen Down (Always Drawing)
-            # 9:   Jump
-            if action == 9:
-                is_jump = True
-            else:
-                is_pen_down = 1
-                dx = (action % 3) - 1
-                dy = (action // 3) - 1
+        if self.use_jump and action == 18:
+            is_jump = True
         else:
-            # 0-8:  Move (dx, dy) + Pen Up
-            # 9-17: Move (dx, dy) + Pen Down
-            # 18:   Jump (Only if use_jump=True)
-            if self.use_jump and action == 18:
-                is_jump = True
-            else:
-                is_pen_down = (action >= 9)
-                sub_action = action % 9
-                dx = (sub_action % 3) - 1
-                dy = (sub_action // 3) - 1
+            is_pen_down = (action >= 9)
+            sub_action = action % 9
+            dx = (sub_action % 3) - 1
+            dy = (sub_action // 3) - 1
 
-        return dx, dy, is_pen_down, 0, is_jump
+        return dx, dy, is_pen_down, is_jump
 
     def _load_sketch_from_path(self, filepath):
         sketch = Image.open(filepath).convert('L')
+        sketch = self.aug_transform(sketch)
+        target_size = (self.canvas_size[1], self.canvas_size[0])
+        if sketch.size != target_size:
+            sketch = sketch.resize(target_size)
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
 
@@ -241,12 +217,8 @@ class DrawingAgentEnv(gym.Env):
     def step(self, action):
         self.current_step += 1
 
-        if self.use_simplified_action_space:
-            ACTION_JUMP = 9
-            ACTION_DRAW_IN_PLACE = 4  # (0,0) Draw
-        else:
-            ACTION_JUMP = 18
-            ACTION_DRAW_IN_PLACE = 13  # 9(Draw start) + 4(Center) = 13
+        ACTION_JUMP = 18
+        ACTION_DRAW_IN_PLACE = 13  # 9(Draw start) + 4(Center) = 13
 
         current_action = int(action)
 
@@ -256,7 +228,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.last_raw_action = current_action
 
-        dx, dy, is_pen_down, _, is_jump = self._decode_action(action)
+        dx, dy, is_pen_down, is_jump = self._decode_action(action)
 
         jump_penalty = 0.0
         if self.use_jump and is_jump:
@@ -273,7 +245,8 @@ class DrawingAgentEnv(gym.Env):
             self.episode_jump_count += 1
             self.painted_pixels_since_last_jump = 0
         else:
-            self._update_agent_state(dx, dy, bool(is_pen_down), False)
+            self._update_agent_state(dx, dy, bool(is_pen_down))
+
         terminated = False
         correct_new_pixels = []
         repeated_correct_pixels = []
@@ -348,31 +321,23 @@ class DrawingAgentEnv(gym.Env):
 
         observation = self._get_obs()
         info = self._get_info()
+        self.episode_return += reward
         if self.render_mode == "human":
             self.render()
         return observation, reward, terminated, truncated, info
 
     def _update_agent_state(self, dx, dy, is_pen_down, is_stop_action):
-        if not is_stop_action:
-            self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
-            self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
+        self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
+        self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
-            if self.use_stroke_trajectory_obs:
-                if is_pen_down:
-                    if not self.pen_was_down:
-                        self.current_stroke_trajectory = []
-                    self.current_stroke_trajectory.append(tuple(self.cursor))
-                else:
-                    self.current_stroke_trajectory = []
+        if self.pen_was_down and not is_pen_down:
+            self.used_budgets = min(255, self.used_budgets + 1)
 
-            if self.pen_was_down and not is_pen_down:
-                self.used_budgets = min(255, self.used_budgets + 1)
-
-            self.is_pen_down = is_pen_down
-            self.pen_was_down = self.is_pen_down
+        self.is_pen_down = is_pen_down
+        self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, is_pen_down, correct_new_pixels, repeated_new_pixels):
-        reward = 0.0 if not self.use_time_penalty else -0.001
+        reward = 0.0
         drawing_reward = 0.0
         base_reward_part = 0.0
         bonus_reward_part = 0.0
@@ -445,7 +410,6 @@ class DrawingAgentEnv(gym.Env):
         reward += drawing_reward
         self.episode_base_reward += base_reward_part
         self.episode_combo_bonus += bonus_reward_part
-        self.step_rewards += reward
         return reward
 
     def _get_obs(self):
@@ -490,7 +454,7 @@ class DrawingAgentEnv(gym.Env):
             "recall_black": self.last_recall_black,
             "recall_white": self.last_recall_white,
             "used_budgets": self.used_budgets,
-            "step_rewards": self.step_rewards,
+            "episode_return": self.episode_return,
             "total_painted": self.episode_total_painted,
             "correctly_painted": self.episode_correctly_painted,
             "combo_count": self.current_combo,

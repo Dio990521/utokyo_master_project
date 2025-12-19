@@ -76,5 +76,3 @@ def find_starting_point(sketch: np.ndarray):
     random_index = random.randint(0, len(foreground_pixels) - 1)
     random_pixel_yx = foreground_pixels[random_index]
     return [random_pixel_yx[1], random_pixel_yx[0]]
-    #first_pixel_yx = foreground_pixels[0]
-    #return [first_pixel_yx[1], first_pixel_yx[0]]

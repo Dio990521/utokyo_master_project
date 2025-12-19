@@ -37,7 +37,8 @@ class TrainingDataCallback(BaseCallback):
                         "combo_sustained": info.get("combo_sustained"),
                         "negative_reward": info.get("negative_reward"),
                         "jump_count": info.get("jump_count", 0),
-                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0)
+                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0),
+                        "episode_return": info.get("episode_return"),
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
@@ -105,7 +106,8 @@ class ValidationCallback(BaseCallback):
                         "combo_sustained": info.get("combo_sustained"),
                         "negative_reward": info.get("negative_reward"),
                         "jump_count": info.get("jump_count", 0),
-                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0)
+                        "jump_draw_combo_count": info.get("jump_draw_combo_count", 0),
+                        "episode_return": info.get("episode_return"),
                 })
                 eval_env.close()
             self.validation_data.extend(results)
@@ -139,7 +141,6 @@ def run_training(config: dict):
     TRAINING_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "training_data.csv")
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
     model_path = os.path.join(MODELS_DIR, MODEL_NAME)
-    use_dist_val_obs = env_config.get("use_dist_val_obs", False)
     STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
     env_config["step_debug_path"] = STEP_DEBUG_DIR
 
@@ -154,14 +155,6 @@ def run_training(config: dict):
         env_kwargs={"config": env_config}
     )
 
-    # Standard CNN Policy
-    if use_dist_val_obs:
-        print("[Training] Using MultiInputPolicy (Supports Dict Obs)")
-        policy_type = "MultiInputPolicy"
-    else:
-        print("[Training] Using CnnPolicy (Standard)")
-        policy_type = "CnnPolicy"
-
     policy_kwargs = dict(
         features_extractor_class=CustomCnnExtractor,
         features_extractor_kwargs=dict(features_dim=128, padding=cnn_padding),
@@ -171,9 +164,9 @@ def run_training(config: dict):
         print(f"Found existing model at {model_path}. Loading...")
         model = PPO.load(model_path, env=env, tensorboard_log=LOG_DIR)
     else:
-        print(f"Creating new model with {policy_type}...")
+        print(f"Creating new model with CnnPolicy...")
         model = PPO(
-            policy_type,
+            "CnnPolicy",
             env,
             learning_rate=LEARNING_RATE,
             n_steps=2048,
@@ -199,7 +192,7 @@ def run_training(config: dict):
 
     model.learn(total_timesteps=TOTAL_TIME_STEPS, callback=callbacks, reset_num_timesteps=False)
 
-    save_name = "drawing_agent_final.zip" if not os.path.exists(model_path) else "drawing_agent_final_new.zip"
+    save_name = MODEL_NAME if not os.path.exists(model_path) else "new_" + MODEL_NAME
     model.save(os.path.join(MODELS_DIR, save_name))
     print(f"Model saved to {MODELS_DIR}")
     env.close()
