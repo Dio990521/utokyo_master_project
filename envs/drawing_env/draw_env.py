@@ -81,6 +81,7 @@ class DrawingAgentEnv(gym.Env):
 
         # Drawing Config
         self.brush_size = config.get("brush_size", 1)
+        self.use_augmentation = config.get("use_augmentation", True)
 
         # Data Configs
         self.target_sketches_path = config.get("target_sketches_path", None)
@@ -155,7 +156,8 @@ class DrawingAgentEnv(gym.Env):
 
     def _load_sketch_from_path(self, filepath):
         sketch = Image.open(filepath).convert('L')
-        sketch = self.aug_transform(sketch)
+        if self.use_augmentation:
+            sketch = self.aug_transform(sketch)
         target_size = (self.canvas_size[1], self.canvas_size[0])
         if sketch.size != target_size:
             sketch = sketch.resize(target_size)

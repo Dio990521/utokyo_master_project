@@ -79,7 +79,11 @@ class ValidationCallback(BaseCallback):
             print(f"\n--- Validation at step {self.num_timesteps} ---")
             results = []
             for sketch_file in self.val_sketch_files:
-                temp_config = {**self.eval_env_config, "specific_sketch_file": sketch_file}
+                temp_config = {
+                    **self.eval_env_config,
+                    "specific_sketch_file": sketch_file,
+                    "use_augmentation": False
+                }
                 eval_env = gym.make("DrawingEnv-v0", config=temp_config)
                 obs, _ = eval_env.reset()
                 done = False
