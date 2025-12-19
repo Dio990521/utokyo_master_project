@@ -52,11 +52,12 @@ class TrainingDataCallback(BaseCallback):
 
     def _on_training_end(self) -> None:
         if not self.episode_data:
-            print("[Callback] No training episode data collected.")
             return
         df = pd.DataFrame(self.episode_data)
-        df.to_csv(self.save_path, index_label="episode")
-        print(f"[Callback] Saved training data to {self.save_path}")
+
+        file_exists = os.path.isfile(self.save_path)
+        df.to_csv(self.save_path, mode='a', index_label="episode", header=not file_exists)
+        print(f"[Callback] Appended training data to {self.save_path}")
 
 
 class ValidationCallback(BaseCallback):
@@ -130,13 +131,14 @@ def run_training(config: dict):
     cnn_padding = env_config.get("cnn_padding", True)
     validation_config = config.get("VALIDATION_CONFIG", None)
     ENV_ID = config.get("ENV_ID", "DrawingEnv-v0")
+    MODEL_NAME = config.get("MODEL_NAME", "drawing_agent_final.zip")
     print(f"Training on ENV_ID: {ENV_ID}")
     BASE_OUTPUT_DIR = f"../training_outputs/{VERSION}/"
     LOG_DIR = os.path.join(BASE_OUTPUT_DIR, "logs/")
     MODELS_DIR = os.path.join(BASE_OUTPUT_DIR, "models/")
     TRAINING_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "training_data.csv")
     VALIDATION_DATA_PATH = os.path.join(BASE_OUTPUT_DIR, "validation_data.csv")
-    model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
+    model_path = os.path.join(MODELS_DIR, MODEL_NAME)
     use_dist_val_obs = env_config.get("use_dist_val_obs", False)
     STEP_DEBUG_DIR = os.path.join(BASE_OUTPUT_DIR, "step_debug/")
     env_config["step_debug_path"] = STEP_DEBUG_DIR

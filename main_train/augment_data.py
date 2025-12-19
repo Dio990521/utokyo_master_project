@@ -26,6 +26,7 @@ def create_augmented_validation_set(
             fill=255
         )
     ])
+    #redo the augment
 
     if not os.path.exists(val_dir):
         os.makedirs(val_dir)
