@@ -328,7 +328,7 @@ class DrawingAgentEnv(gym.Env):
             self.render()
         return observation, reward, terminated, truncated, info
 
-    def _update_agent_state(self, dx, dy, is_pen_down, is_stop_action):
+    def _update_agent_state(self, dx, dy, is_pen_down):
         self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
         self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
