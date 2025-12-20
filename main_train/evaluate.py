@@ -5,7 +5,7 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "final_action2_obs2"
+VERSION = "final2_obs1_action2"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../data/32x32_final_sketches_test/"
 CANVAS_SIZE = (32, 32)
@@ -56,7 +56,8 @@ else:
             "use_jump_penalty": True,
             "use_difference_obs": True,
             "use_canvas_obs": False,
-            "use_target_sketch_obs": False
+            "use_target_sketch_obs": False,
+            "use_augmentation": False
         }
     )
 
@@ -78,7 +79,7 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=False)
+    action, _states = model.predict(obs, deterministic=True)
 
     current_action = int(action)
 

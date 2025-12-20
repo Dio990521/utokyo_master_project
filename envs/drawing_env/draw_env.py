@@ -33,7 +33,7 @@ class DrawingAgentEnv(gym.Env):
             self.num_obs_channels += 1
         if self.use_target_sketch_obs:
             self.num_obs_channels += 1
-        if self.use_difference_obs:
+        if self.use_remaining_obs:
             self.num_obs_channels += 1
 
         self.observation_space = spaces.Box(
@@ -70,7 +70,7 @@ class DrawingAgentEnv(gym.Env):
         # Obs Flags
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
-        self.use_difference_obs = config.get("use_difference_obs", False)
+        self.use_remaining_obs = config.get("use_difference_obs", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)
@@ -111,6 +111,7 @@ class DrawingAgentEnv(gym.Env):
         self.combo_sustained_on_repeat = 0
         self.episode_combo_log = []
         self.episode_combo_sustained_on_repeat_log = []
+        self.target_pixel_count = 0
 
         self._current_tp = 0
         self._current_tn = 0
@@ -176,7 +177,7 @@ class DrawingAgentEnv(gym.Env):
             raise ValueError("Sketch file list is empty!")
         chosen_file = random.choice(self.sketch_file_list)
         self.target_sketch = self._load_sketch_from_path(chosen_file)
-
+        self.target_pixel_count = np.sum(self.target_sketch < 0.5)
         self.cursor = find_starting_point(self.target_sketch)
 
         target_is_black = np.isclose(self.target_sketch, 0.0)
@@ -420,26 +421,27 @@ class DrawingAgentEnv(gym.Env):
 
         ch_idx = 0
 
-        # Channel 1: Canvas
-        if self.use_canvas_obs:
-            self._obs_img[ch_idx][:] = self.canvas
-            ch_idx += 1
-
-        # Channel 2: Target
+        # Channel 1: Target
         if self.use_target_sketch_obs:
             if self.current_step == 0:
                 self._obs_img[ch_idx] = self.target_sketch.astype(np.float32)
             self._obs_img[ch_idx] = self.target_sketch
             ch_idx += 1
 
-        if self.use_difference_obs:
+        # Channel 2: Canvas
+        if self.use_canvas_obs:
+            self._obs_img[ch_idx][:] = self.canvas
+            ch_idx += 1
+
+        # Channel 3: Remaining Target
+        if self.use_remaining_obs:
             diff_map = self.canvas - self.target_sketch
             diff_map = np.clip(diff_map, 0.0, 1.0)
 
             self._obs_img[ch_idx][:] = diff_map
             ch_idx += 1
 
-        # Channel 3: Pen Mask (Always included)
+        # Channel 4: Pen Mask (Always included)
         pen_layer = self._obs_img[ch_idx]
         pen_layer.fill(0.0)
 
@@ -468,7 +470,8 @@ class DrawingAgentEnv(gym.Env):
             "combo_sustained": self.episode_combo_sustained_on_repeat_log,
             "negative_reward": self.episode_negative_reward,
             "jump_count": self.episode_jump_count,
-            "jump_draw_combo_count": self.episode_jump_draw_combo_count
+            "jump_draw_combo_count": self.episode_jump_draw_combo_count,
+            "target_pixel_count": self.target_pixel_count,
         }
         return info_dict
 

@@ -49,7 +49,12 @@ def plot_multi_comparison():
     print(f"--- Starting Comparison Plot for {COLUMN_TO_PLOT} ---")
 
     loaded_datasets = []
-    min_length = float('inf')
+
+    # 用于记录对齐的基准
+    min_episode_count = float('inf')  # 传统的 Episode 对齐
+    min_max_steps = float('inf')  # 新的 Step 对齐
+
+    use_step_axis = True  # 默认尝试使用 Step 轴
 
     for i, (version, label) in enumerate(EXPERIMENTS):
         data_path = os.path.join(BASE_OUTPUT_DIR, version, "training_data.csv")
@@ -65,8 +70,16 @@ def plot_multi_comparison():
                 print(f"[Warning] Column '{COLUMN_TO_PLOT}' not found in experiment: {version}")
                 continue
 
-            if len(df) < min_length:
-                min_length = len(df)
+            # 检查是否有 total_steps 列
+            if "total_steps" not in df.columns:
+                use_step_axis = False  # 只要有一个文件没有，就回退到 Episode 模式
+            else:
+                current_max_step = df["total_steps"].max()
+                if current_max_step < min_max_steps:
+                    min_max_steps = current_max_step
+
+            if len(df) < min_episode_count:
+                min_episode_count = len(df)
 
             loaded_datasets.append({
                 "df": df,
@@ -78,25 +91,46 @@ def plot_multi_comparison():
             print(f"[Error] Failed to process {version}: {e}")
 
     if loaded_datasets:
-        print(f"--- Aligning all plots to shortest duration: {min_length} episodes ---")
+        if use_step_axis:
+            print(f"--- Aligning all plots to shortest duration: {min_max_steps} Steps ---")
+            x_label = "Total Training Steps"
+        else:
+            print(f"--- Aligning all plots to shortest duration: {min_episode_count} Episodes ---")
+            x_label = "Episode"
 
         for item in loaded_datasets:
             df = item["df"]
             label = item["label"]
             color = item["color"]
 
-            if ENABLE_TRUNCATION:
-                df_active = df.iloc[:min_length].copy()
-            else:
-                df_active = df.copy()
+            # === 计算滑动平均 ===
+            # 注意：Rolling 仍然是基于 Window（Episode 数量）计算的，这是合理的。
+            # 我们只是改变了 X 轴的刻度。
+            data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
 
-            data_to_plot = df_active[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
+            # === 准备 X 轴数据 ===
+            if use_step_axis:
+                x_axis = df["total_steps"]
+            else:
+                x_axis = df.index
+
+            # === 截断对齐逻辑 (Truncation) ===
+            if ENABLE_TRUNCATION:
+                if use_step_axis:
+                    # Step 模式：保留 steps <= min_max_steps 的数据
+                    mask = x_axis <= min_max_steps
+                    x_axis = x_axis[mask]
+                    data_to_plot = data_to_plot[mask]
+                else:
+                    # Episode 模式：保留前 min_episode_count 行
+                    x_axis = x_axis[:min_episode_count]
+                    data_to_plot = data_to_plot.iloc[:min_episode_count]
 
             last_val = data_to_plot.dropna().iloc[-1] if not data_to_plot.dropna().empty else 0.0
             print(f"[{label}] Final {COLUMN_TO_PLOT} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
 
             plt.plot(
-                df_active.index,
+                x_axis,
                 data_to_plot,
                 label=f"{label} (Final: {last_val:.2f})",
                 linewidth=2.5,
@@ -106,7 +140,7 @@ def plot_multi_comparison():
 
         clean_name = COLUMN_TO_PLOT.replace('_', ' ').title()
         plt.title(TITLE_NAME, fontsize=16)
-        plt.xlabel("Episode", fontsize=12)
+        plt.xlabel(x_label, fontsize=12)  # 动态 Label
         plt.ylabel(NAME, fontsize=12)
 
         if COLUMN_TO_PLOT in ["pixel_similarity", "recall_black", "recall_grey", "recall_white", "precision",
@@ -119,7 +153,6 @@ def plot_multi_comparison():
         plt.show()
     else:
         print("\nNo valid data found to plot.")
-
 
 if __name__ == "__main__":
     plot_multi_comparison()

@@ -4,13 +4,13 @@ import os
 import numpy as np
 import ast
 
-VERSION = "final_action2_obs2"
+VERSION = "final2_obs1_action2"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
-COLUMN_TO_PLOT = "jump_count"  # similarity, jump_draw_combo_count, negative_reward, jump_count, episode_base_reward
+COLUMN_TO_PLOT = "target_pixel_count"  # similarity, jump_draw_combo_count, negative_reward, jump_count, target_pixel_count
 TRAIN_WINDOW_SIZE = 100
 
 

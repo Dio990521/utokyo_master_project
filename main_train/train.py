@@ -40,6 +40,7 @@ class TrainingDataCallback(BaseCallback):
                         "jump_count": info.get("jump_count", 0),
                         "jump_draw_combo_count": info.get("jump_draw_combo_count", 0),
                         "episode_return": info.get("episode_return"),
+                        "target_pixel_count": info.get("target_pixel_count", 0),
                     })
                     self.logger.record("precision", info.get("precision"))
                     self.logger.record("recall_black", info.get("recall_black"))
@@ -113,6 +114,7 @@ class ValidationCallback(BaseCallback):
                         "jump_count": info.get("jump_count", 0),
                         "jump_draw_combo_count": info.get("jump_draw_combo_count", 0),
                         "episode_return": info.get("episode_return"),
+                        "target_pixel_count": info.get("target_pixel_count", 0),
                 })
                 eval_env.close()
             self.validation_data.extend(results)
