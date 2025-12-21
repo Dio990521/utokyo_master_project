@@ -66,7 +66,7 @@ def create_augmented_validation_set(
             print(f"{filename}: generated {generated} unique augmentations")
 
 if __name__ == '__main__':
-    TRAIN_SKETCHES_DIR = "../data/32x32_final_sketches_test/"
+    TRAIN_SKETCHES_DIR = "../data/32x32_main_sketches_train/"
     VALIDATION_SKETCHES_DIR = "../data/32x32_final_sketches_train/"
 
     VERSIONS_PER_IMAGE = 25

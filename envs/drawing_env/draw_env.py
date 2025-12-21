@@ -29,12 +29,15 @@ class DrawingAgentEnv(gym.Env):
 
         self.num_obs_channels = 1  # Pen Mask is always included in logic
 
-        if self.use_canvas_obs:
-            self.num_obs_channels += 1
         if self.use_target_sketch_obs:
             self.num_obs_channels += 1
+            print("Using Target Sketch Obs")
+        if self.use_canvas_obs:
+            self.num_obs_channels += 1
+            print("Using Canvas Obs")
         if self.use_remaining_obs:
             self.num_obs_channels += 1
+            print("Using Remaining Target Obs")
 
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
@@ -70,7 +73,7 @@ class DrawingAgentEnv(gym.Env):
         # Obs Flags
         self.use_canvas_obs = config.get("use_canvas_obs", True)
         self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
-        self.use_remaining_obs = config.get("use_difference_obs", False)
+        self.use_remaining_obs = config.get("use_remaining_obs", False)
 
         # Penalties & Rewards
         self.reward_correct = config.get("reward_correct", 0.1)

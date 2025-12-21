@@ -35,12 +35,12 @@ def preload_all_data(sketch_path, env_config):
     return target_data_list
 
 test1 = {
-            "target_sketches_path": "../data/32x32_final_sketches_test/",
-            "val_sketches_path": "../data/32x32_final_sketches_test/",
+            "target_sketches_path": "../data/32x32_sketches_width1_test/",
+            "val_sketches_path": "../data/32x32_sketches_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "penalty_scale_threshold": 1.6,
+            "penalty_scale_threshold": 0.6,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -0.25,
@@ -49,14 +49,14 @@ test1 = {
             "jump_penalty": -0.25,
             "use_jump": True,
             "use_jump_penalty": True,
-            "use_difference_obs": True,
+            "use_remaining_obs": True,
             "use_canvas_obs": False,
             "use_target_sketch_obs": False
         }
 
 test2 = {
-            "target_sketches_path": "../data/32x32_final_sketches_test/",
-            "val_sketches_path": "../data/32x32_final_sketches_test/",
+            "target_sketches_path": "../data/32x32_sketches_width3_test/",
+            "val_sketches_path": "../data/32x32_sketches_width3_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
@@ -68,17 +68,17 @@ test2 = {
             "reward_jump": 0,
             "jump_penalty": -0.25,
             "use_jump": True,
-            "use_jump_penalty": False,
-            "use_difference_obs": True,
+            "use_jump_penalty": True,
+            "use_remaining_obs": True,
             "use_canvas_obs": False,
             "use_target_sketch_obs": False
 }
 
 test3 = {
-            "target_sketches_path": "../data/32x32_final_sketches_test/",
-            "val_sketches_path": "../data/32x32_final_sketches_test/",
-            "canvas_size": [32, 32],
-            "max_steps": 1024,
+            "target_sketches_path": "../data/16x16_sketches_test/",
+            "val_sketches_path": "../data/16x16_sketches_test/",
+            "canvas_size": [16, 16],
+            "max_steps": 256,
             "brush_size": 1,
             "penalty_scale_threshold": 0.6,
             "render_mode": None,
@@ -88,22 +88,40 @@ test3 = {
             "reward_jump": 0,
             "jump_penalty": -0.25,
             "use_jump": True,
-            "use_jump_penalty": False,
-            "use_difference_obs": True,
+            "use_jump_penalty": True,
+            "use_remaining_obs": True,
             "use_canvas_obs": False,
             "use_target_sketch_obs": False
 }
-
-#obs1 = [remaining_target, pen pos]
-#obs2 = [target, canvas, pen pos]
-#obs3 = [target, canvas, remaining_target, pen pos]
-#action1 = [dx, dy, pen up/down]
-#action2 = [dx, dy, pen up/down, jump]
+test4 = {
+            "target_sketches_path": "../data/8x8_sketches_test/",
+            "val_sketches_path": "../data/8x8_sketches_test/",
+            "canvas_size": [8, 8],
+            "max_steps": 64,
+            "brush_size": 1,
+            "penalty_scale_threshold": 0.6,
+            "render_mode": None,
+            "reward_correct": 1,
+            "reward_wrong": -0.25,
+            "repeat_scale": 0,
+            "reward_jump": 0,
+            "jump_penalty": -0.25,
+            "use_jump": True,
+            "use_jump_penalty": True,
+            "use_remaining_obs": True,
+            "use_canvas_obs": False,
+            "use_target_sketch_obs": False
+}
+#obs_r = [remaining_target, pen pos]
+#obs_tc = [target, canvas, pen pos]
+#obs_tcr = [target, canvas, remaining_target, pen pos]
+#action_j = [dx, dy, pen up/down, jump]
+#action = [dx, dy, pen up/down]
 experiments = [
     {
-        "VERSION": "final2_obs1_action2_no_threshold",
+        "VERSION": "final2_obs_r_action_j_32x32_width1",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 10000000,
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
@@ -115,9 +133,9 @@ experiments = [
         }
     },
     {
-        "VERSION": "final2_obs1_action2_no_jump_penalty",
+        "VERSION": "final2_obs_r_action_j_32x32_width3",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 10000000,
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
@@ -129,9 +147,9 @@ experiments = [
         }
     },
     {
-        "VERSION": "final2_obs2_action1",
+        "VERSION": "final2_obs_r_action_j_16x16",
         "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 10000000,
+        "TOTAL_TIME_STEPS": 5000000,
         "LEARNING_RATE": 0.0003,
         "NUM_ENVS": 16,
         "BATCH_BASE_SIZE": 512,
@@ -142,10 +160,21 @@ experiments = [
             "ENV_CONFIG": test3,
         }
     },
+    {
+        "VERSION": "final2_obs_r_action_j_8x8",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test4,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test4,
+        }
+    },
 ]
-#final2_obs2_action2
-#final2_obs3_action1
-#final2_obs3_action2
 if __name__ == '__main__':
     total_experiments = len(experiments)
     for i, config in enumerate(experiments):

@@ -7,7 +7,7 @@ import os
 
 VERSION = "final2_obs1_action2"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../data/32x32_final_sketches_test/"
+SKETCH_DATA_PATH = "../data/32x32_unseen_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 2048
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
@@ -54,7 +54,7 @@ else:
             "jump_penalty": -0.25,
             "use_jump": True,
             "use_jump_penalty": True,
-            "use_difference_obs": True,
+            "use_remaining_obs": True,
             "use_canvas_obs": False,
             "use_target_sketch_obs": False,
             "use_augmentation": False
