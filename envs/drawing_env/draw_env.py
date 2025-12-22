@@ -162,9 +162,6 @@ class DrawingAgentEnv(gym.Env):
         sketch = Image.open(filepath).convert('L')
         if self.use_augmentation:
             sketch = self.aug_transform(sketch)
-        target_size = (self.canvas_size[1], self.canvas_size[0])
-        if sketch.size != target_size:
-            sketch = sketch.resize(target_size)
         sketch_array = np.array(sketch)
         return (sketch_array / 255.0).astype(np.float32)
 
@@ -224,7 +221,7 @@ class DrawingAgentEnv(gym.Env):
         self.current_step += 1
 
         ACTION_JUMP = 18
-        ACTION_DRAW_IN_PLACE = 13  # 9(Draw start) + 4(Center) = 13
+        ACTION_DRAW_IN_PLACE = 13
 
         current_action = int(action)
 

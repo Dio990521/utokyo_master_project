@@ -4,13 +4,17 @@ import os
 import numpy as np
 import ast
 
-VERSION = "final2_obs1_action2"
+VERSION = "final2_obs_r_action_j"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
-COLUMN_TO_PLOT = "target_pixel_count"  # similarity, jump_draw_combo_count, negative_reward, jump_count, target_pixel_count
+
+# Options: "similarity", "jump_ratio", "jump_draw_combo_count", "negative_reward", "jump_count", "target_pixel_count"
+COLUMN_TO_PLOT = "jump_ratio"
+# ===============================
+
 TRAIN_WINDOW_SIZE = 100
 
 
@@ -113,6 +117,7 @@ def plot_combo_metrics(data_path, window_size=100):
         import traceback
         traceback.print_exc()
 
+
 def plot_max_stroke_length(data_path, window_size=100):
     try:
         df = pd.read_csv(data_path)
@@ -202,15 +207,38 @@ def plot_training_data():
             x_axis = df.index
             xlabel_text = "Episode"
 
-        if COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["precision", "recall_black", "recall_grey", "recall_all"]
+        if COLUMN_TO_PLOT == "jump_ratio":
+            required_cols = ['jump_draw_combo_count', 'target_pixel_count']
+            if not all(col in df.columns for col in required_cols):
+                print(f"Error: Missing columns {required_cols} in data. Cannot plot ratio.")
+                plt.close()
+                return
+
+            safe_pixel_count = df['target_pixel_count'].replace(0, 1)
+            ratio_series = df['jump_draw_combo_count'] / safe_pixel_count
+
+            data_to_plot = ratio_series.rolling(window=TRAIN_WINDOW_SIZE).mean()
+            last_val = data_to_plot.iloc[-1]
+
+            print(f"Final Jump/Pixel Ratio (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
+
+            plt.plot(x_axis, data_to_plot, color='green',
+                     linewidth=2)
+
+            plt.title(f"Ratio of [Jump & Draw In-Place] count to the number of target black pixels")
+            plt.xlabel(xlabel_text)
+            plt.ylabel("Ratio")
+            plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+        elif COLUMN_TO_PLOT == "similarity":
+            metrics_to_plot = ["precision", "recall_black"]
             plot_styles = {"recall_grey": 'r-', "similarity": 'b-', "recall_black": 'b--', "recall_white": 'm:',
                            "recall_all": 'c-.'}
             default_style = 'k-'
             plot_labels = {
                 "pixel_similarity": f'Pixel Accuracy (MA {TRAIN_WINDOW_SIZE})',
-                "precision": f'Precision (MA {TRAIN_WINDOW_SIZE})',
-                "recall_black": f'Black Recall (MA {TRAIN_WINDOW_SIZE})',
+                "precision": f'Precision',
+                "recall_black": f'Recall',
                 "recall_grey": f'Grey Recall (MA {TRAIN_WINDOW_SIZE})',
                 "recall_white": f'White Recall (MA {TRAIN_WINDOW_SIZE})',
                 "recall_all": f'Black+Grey Recall (MA {TRAIN_WINDOW_SIZE})'
@@ -229,7 +257,8 @@ def plot_training_data():
 
                 plt.plot(x_axis, metric_ma, style, label=plot_labels.get(col, col))
 
-            plt.title(f"Training Performance: Similarity Metrics (Moving Average) - {VERSION}")
+            plt.title(
+                f"Training Performance: Recall & Precision of Drawn Black Pixels (Moving Average Window Size {TRAIN_WINDOW_SIZE})")
             plt.xlabel(xlabel_text)
             plt.ylabel("Metric Value (0-1)")
             plt.ylim(-0.05, 1.05)
@@ -252,8 +281,9 @@ def plot_training_data():
             plt.xlabel(xlabel_text)
             plt.ylabel(label_text)
 
-        plt.grid(True, which='both', linestyle='--', linewidth=0.5)
-        plt.legend()
+        if COLUMN_TO_PLOT != "similarity":
+            plt.legend()
+
         plt.tight_layout()
         plt.show()
         plt.close()
@@ -262,6 +292,7 @@ def plot_training_data():
         import traceback
         traceback.print_exc()
         if 'plt' in locals() and plt.gcf().get_axes(): plt.close()
+
 
 if __name__ == '__main__':
     if PLOT_COMBO_METRICS:
@@ -276,10 +307,12 @@ if __name__ == '__main__':
                            window_size=TRAIN_WINDOW_SIZE)
     elif PLOT_VALIDATION_DATA:
         print(f"Plotting VALIDATION data for version: {VERSION}")
-        #plot_validation_data()
+        # plot_validation_data()
     else:
         if COLUMN_TO_PLOT == "similarity":
             print(f"Plotting TRAINING data (Multiple Similarity Metrics) for version: {VERSION}")
+        elif COLUMN_TO_PLOT == "jump_ratio":
+            print(f"Plotting TRAINING data (Jump/Pixel Ratio) for version: {VERSION}")
         else:
             print(f"Plotting TRAINING data (Metric: {COLUMN_TO_PLOT}) for version: {VERSION}")
         plot_training_data()

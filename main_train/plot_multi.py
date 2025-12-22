@@ -4,10 +4,9 @@ import os
 import numpy as np
 
 EXPERIMENTS = [
-    ("final_action2_obs2", "A2 + O2 enable jump penalty"),
-    ("final_action2_obs2_no_jump_penalty", "A2 + O2 disable jump penalty"),
-    #("final_action1_obs1_no_threshold", "A1 + O1"),
-    #("final_action1_obs2_no_threshold", "A1 + O2"),
+    ("final2_obs_r_action_j_32x32_width1", "canvas size 32x32"),
+    ("final2_obs_r_action_j_16x16", "canvas size 16x16"),
+    ("final2_obs_r_action_j_8x8", "canvas size 8x8"),
     #("final_action2_obs1_no_threshold", "A2 + O1"),
     #("final_action2_obs2_no_threshold", "A2 + O2"),
     #("final_action2_obs1_no_jump_penalty", "A2 + O1"),
@@ -16,19 +15,19 @@ EXPERIMENTS = [
     #("final_action2_obs3", "A2 + O3"),
 ]
 
-# precision, recall_black, recall_grey, pixel_similarity, f1_score, jump_draw_combo_count
-COLUMN_TO_PLOT = "precision"
+# precision, recall_black, recall_grey, pixel_similarity, f1_score, jump_draw_combo_count, jump_ratio
+COLUMN_TO_PLOT = "jump_ratio"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Penalty Threshold)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Jump Penalty)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination"
-#NAME = "Precision of Drawn Black Pixels (Disable Penalty Threshold)"
+#NAME = "Precision of Drawn Black Pixels"
 #NAME = "Precision of Drawn Black Pixels (Disable Jump Penalty)"
-NAME = "Precision of Drawn Black Pixels"
+NAME = "Ratio of [Jump & Draw In-Place] count to the number of target black pixels"
 
 TRAIN_WINDOW_SIZE = 100
 BASE_OUTPUT_DIR = "../training_outputs/"
 ENABLE_TRUNCATION = True
-TITLE_NAME = f"Comparison: {NAME} (Moving Average Window = {TRAIN_WINDOW_SIZE})"
+TITLE_NAME = f"Comparison: {NAME}"
 
 DISTINCT_COLORS = [
     '#000000',  # Black (黑色 - 用于强调)
@@ -50,11 +49,10 @@ def plot_multi_comparison():
 
     loaded_datasets = []
 
-    # 用于记录对齐的基准
-    min_episode_count = float('inf')  # 传统的 Episode 对齐
-    min_max_steps = float('inf')  # 新的 Step 对齐
+    min_episode_count = float('inf')
+    min_max_steps = float('inf')
 
-    use_step_axis = True  # 默认尝试使用 Step 轴
+    use_step_axis = True
 
     for i, (version, label) in enumerate(EXPERIMENTS):
         data_path = os.path.join(BASE_OUTPUT_DIR, version, "training_data.csv")
@@ -66,13 +64,17 @@ def plot_multi_comparison():
         try:
             df = pd.read_csv(data_path)
 
-            if COLUMN_TO_PLOT not in df.columns:
+            if COLUMN_TO_PLOT == "jump_ratio":
+                if "jump_draw_combo_count" not in df.columns or "target_pixel_count" not in df.columns:
+                    print(f"[Warning] Necessary columns for jump_ratio not found in experiment: {version}")
+                    continue
+            elif COLUMN_TO_PLOT not in df.columns:
                 print(f"[Warning] Column '{COLUMN_TO_PLOT}' not found in experiment: {version}")
                 continue
+            # =============================
 
-            # 检查是否有 total_steps 列
             if "total_steps" not in df.columns:
-                use_step_axis = False  # 只要有一个文件没有，就回退到 Episode 模式
+                use_step_axis = False
             else:
                 current_max_step = df["total_steps"].max()
                 if current_max_step < min_max_steps:
@@ -103,26 +105,24 @@ def plot_multi_comparison():
             label = item["label"]
             color = item["color"]
 
-            # === 计算滑动平均 ===
-            # 注意：Rolling 仍然是基于 Window（Episode 数量）计算的，这是合理的。
-            # 我们只是改变了 X 轴的刻度。
-            data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
+            if COLUMN_TO_PLOT == "jump_ratio":
+                safe_pixel_count = df['target_pixel_count'].replace(0, 1)
+                data_series = df['jump_draw_combo_count'] / safe_pixel_count
+            else:
+                data_series = df[COLUMN_TO_PLOT]
+            data_to_plot = data_series.rolling(window=TRAIN_WINDOW_SIZE).mean()
 
-            # === 准备 X 轴数据 ===
             if use_step_axis:
                 x_axis = df["total_steps"]
             else:
                 x_axis = df.index
 
-            # === 截断对齐逻辑 (Truncation) ===
             if ENABLE_TRUNCATION:
                 if use_step_axis:
-                    # Step 模式：保留 steps <= min_max_steps 的数据
                     mask = x_axis <= min_max_steps
                     x_axis = x_axis[mask]
                     data_to_plot = data_to_plot[mask]
                 else:
-                    # Episode 模式：保留前 min_episode_count 行
                     x_axis = x_axis[:min_episode_count]
                     data_to_plot = data_to_plot.iloc[:min_episode_count]
 
@@ -140,12 +140,13 @@ def plot_multi_comparison():
 
         clean_name = COLUMN_TO_PLOT.replace('_', ' ').title()
         plt.title(TITLE_NAME, fontsize=16)
-        plt.xlabel(x_label, fontsize=12)  # 动态 Label
+        plt.xlabel(x_label, fontsize=12)
         plt.ylabel(NAME, fontsize=12)
 
         if COLUMN_TO_PLOT in ["pixel_similarity", "recall_black", "recall_grey", "recall_white", "precision",
-                              "f1_score"]:
+                              "f1_score", "jump_ratio"]:
             plt.ylim(-0.05, 1.05)
+        # =================================================
 
         plt.grid(True, which='both', linestyle='--', alpha=0.6)
         plt.legend(fontsize=12, loc='best')
@@ -153,6 +154,7 @@ def plot_multi_comparison():
         plt.show()
     else:
         print("\nNo valid data found to plot.")
+
 
 if __name__ == "__main__":
     plot_multi_comparison()

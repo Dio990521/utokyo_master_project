@@ -5,11 +5,11 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "final2_obs1_action2"
+VERSION = "final2_obs_r_action_j_32x32_width1"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
 SKETCH_DATA_PATH = "../data/32x32_unseen_test/"
 CANVAS_SIZE = (32, 32)
-MAX_EPISODE_STEPS = 2048
+MAX_EPISODE_STEPS = 1024
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
 
 
@@ -79,7 +79,7 @@ eval_env.render()
 episode_reward = 0
 info = None
 for step in range(MAX_EPISODE_STEPS):
-    action, _states = model.predict(obs, deterministic=True)
+    action, _states = model.predict(obs, deterministic=False)
 
     current_action = int(action)
 
