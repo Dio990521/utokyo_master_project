@@ -62,6 +62,7 @@ class DrawingAgentEnv(gym.Env):
 
         # Action Space Configuration
         self.use_jump = config.get("use_jump", False)
+        self.jump_distance_threshold = config.get("jump_distance_threshold", 1.5)
         self.use_jump_penalty =config.get("use_jump_penalty", False)
 
         # Budget & Combo (Logic retained for rewards, channels removed)
@@ -237,7 +238,7 @@ class DrawingAgentEnv(gym.Env):
         if self.use_jump and is_jump:
             nearest_pos, dist = self._find_nearest_target_pixel()
             if self.use_jump_penalty:
-                if dist <= 1.5:
+                if dist <= self.jump_distance_threshold:
                     jump_penalty = self.jump_penalty
                 else:
                     jump_penalty = self.reward_jump
