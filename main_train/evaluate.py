@@ -5,9 +5,9 @@ from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
 
 
-VERSION = "final2_obs_r_action_j_32x32_width1"
+VERSION = "final4_obs_r_action_j_jump_05pt"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../data/32x32_unseen_test/"
+SKETCH_DATA_PATH = "../data/32x32_width1_test/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1024
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
@@ -51,7 +51,8 @@ else:
             "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
-            "jump_penalty": -0.25,
+            "jump_penalty": -0.5,
+            "jump_distance_threshold": 1.5,
             "use_jump": True,
             "use_jump_penalty": True,
             "use_remaining_obs": True,

@@ -4,7 +4,7 @@ import os
 import numpy as np
 import ast
 
-VERSION = "final2_obs_r_action_j"
+VERSION = "final4_obs_r_action_j"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
@@ -258,7 +258,7 @@ def plot_training_data():
                 plt.plot(x_axis, metric_ma, style, label=plot_labels.get(col, col))
 
             plt.title(
-                f"Training Performance: Recall & Precision of Drawn Black Pixels (Moving Average Window Size {TRAIN_WINDOW_SIZE})")
+                f"Training Performance: Recall & Precision of Drawn Black Pixels")
             plt.xlabel(xlabel_text)
             plt.ylabel("Metric Value (0-1)")
             plt.ylim(-0.05, 1.05)
@@ -281,9 +281,8 @@ def plot_training_data():
             plt.xlabel(xlabel_text)
             plt.ylabel(label_text)
 
-        if COLUMN_TO_PLOT != "similarity":
+        if COLUMN_TO_PLOT == "similarity":
             plt.legend()
-
         plt.tight_layout()
         plt.show()
         plt.close()

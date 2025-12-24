@@ -4,9 +4,9 @@ import os
 import numpy as np
 
 EXPERIMENTS = [
-    ("final2_obs_r_action_j_32x32_width1", "canvas size 32x32"),
-    ("final2_obs_r_action_j_16x16", "canvas size 16x16"),
-    ("final2_obs_r_action_j_8x8", "canvas size 8x8"),
+    ("final4_obs_r_action_j", "jump penalty -0.25"),
+    ("final4_obs_r_action_j_jump_05pt", "jump penalty -0.5"),
+    #("final4_obs_r_action_j_dist5", "jump dist threshold 5"),
     #("final_action2_obs1_no_threshold", "A2 + O1"),
     #("final_action2_obs2_no_threshold", "A2 + O2"),
     #("final_action2_obs1_no_jump_penalty", "A2 + O1"),
@@ -16,17 +16,17 @@ EXPERIMENTS = [
 ]
 
 # precision, recall_black, recall_grey, pixel_similarity, f1_score, jump_draw_combo_count, jump_ratio
-COLUMN_TO_PLOT = "jump_ratio"
+COLUMN_TO_PLOT = "f1_score"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Penalty Threshold)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Jump Penalty)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination"
-#NAME = "Precision of Drawn Black Pixels"
+NAME = "Precision of Drawn Black Pixels"
 #NAME = "Precision of Drawn Black Pixels (Disable Jump Penalty)"
 NAME = "Ratio of [Jump & Draw In-Place] count to the number of target black pixels"
 
 TRAIN_WINDOW_SIZE = 100
 BASE_OUTPUT_DIR = "../training_outputs/"
-ENABLE_TRUNCATION = True
+ENABLE_TRUNCATION = False
 TITLE_NAME = f"Comparison: {NAME}"
 
 DISTINCT_COLORS = [
