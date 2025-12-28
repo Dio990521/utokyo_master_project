@@ -10,7 +10,7 @@ Install the required dependencies using the provided requirements file:
 
 ```bash
 pip install -r requirements.txt
-
+```
 ### 2\. Training
 
 To train the agent from scratch using the default configuration:
