@@ -3,15 +3,17 @@ from stable_baselines3 import PPO
 from envs.drawing_env.draw_env import DrawingAgentEnv
 from envs.drawing_env.draw_env_grey import DrawingAgentGreyEnv
 import os
+import matplotlib.pyplot as plt
 
-
-VERSION = "final4_obs_r_action_j_jump_05pt"
+SAVE_DIR = "../figures/drawing_process_figs_3"
+VERSION = "final5_obs_r_action_j_09pt_continue"
 MODELS_DIR = f"../training_outputs/{VERSION}/models/"
-SKETCH_DATA_PATH = "../data/32x32_width1_test/"
+SKETCH_DATA_PATH = "../data/333/"
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1024
 ENV_ID = "DrawingEnv-v0" #DrawingEnv-v0, DrawingGreyEnv
-
+save_drawing = True
+#set initial position
 
 model_path = os.path.join(MODELS_DIR, "drawing_agent_final.zip")
 if ENV_ID == "DrawingGreyEnv-v0":
@@ -46,12 +48,12 @@ else:
             "brush_size": 1,
             "use_combo": False,
             "combo_rate": 1.1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.9,
             "reward_correct": 1,
             "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
-            "jump_penalty": -0.5,
+            "jump_penalty": -0.25,
             "jump_distance_threshold": 1.5,
             "use_jump": True,
             "use_jump_penalty": True,
@@ -96,8 +98,15 @@ for step in range(MAX_EPISODE_STEPS):
 
     obs, reward, terminated, truncated, info = eval_env.step(action)
     print("action", action, "reward", reward)
+    canvas_img = eval_env.canvas  # shape: (H, W)
+
+    if save_drawing and step % 10 == 0:
+        plt.imsave(os.path.join(SAVE_DIR, f"step_{step:03d}.png"), canvas_img, cmap="gray")
+
     episode_reward += reward
     if terminated or truncated:
+        if save_drawing:
+            plt.imsave(os.path.join(SAVE_DIR, f"step_result.png"), canvas_img, cmap="gray")
         break
 
 print(info)

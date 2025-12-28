@@ -4,19 +4,19 @@ import os
 import numpy as np
 
 EXPERIMENTS = [
-    ("final4_obs_r_action_j", "jump penalty -0.25"),
-    ("final4_obs_r_action_j_jump_05pt", "jump penalty -0.5"),
+
+    ("final5_obs_r_action_j_jump_nopt", "nopt"),
+    ("final5_obs_r_action_j_09pt", "0.25pt"),
+    #("final5_obs_r_action_j_dist3", "dist3"),
+    #("final5_obs_r_action_j_dist5", "dist5"),
+    ("final5_obs_r_action_j_jump_05pt", "jump_05pt"),
+    ("final5_obs_r_action_j_jump_075pt", "jump_075pt"),
+    #("final5_obs_r_action_j_1pt_2", "1"),
     #("final4_obs_r_action_j_dist5", "jump dist threshold 5"),
-    #("final_action2_obs1_no_threshold", "A2 + O1"),
-    #("final_action2_obs2_no_threshold", "A2 + O2"),
-    #("final_action2_obs1_no_jump_penalty", "A2 + O1"),
-    #("final_action2_obs2_no_jump_penalty", "A2 + O2"),
-    #("final_action1_obs3", "A1 + O3"),
-    #("final_action2_obs3", "A2 + O3"),
 ]
 
 # precision, recall_black, recall_grey, pixel_similarity, f1_score, jump_draw_combo_count, jump_ratio
-COLUMN_TO_PLOT = "f1_score"
+COLUMN_TO_PLOT = "jump_ratio"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Penalty Threshold)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination (Disable Jump Penalty)"
 #NAME = "Count of [Jump + Draw In-Place] Action Combination"
@@ -139,7 +139,6 @@ def plot_multi_comparison():
             )
 
         clean_name = COLUMN_TO_PLOT.replace('_', ' ').title()
-        plt.title(TITLE_NAME, fontsize=16)
         plt.xlabel(x_label, fontsize=12)
         plt.ylabel(NAME, fontsize=12)
 

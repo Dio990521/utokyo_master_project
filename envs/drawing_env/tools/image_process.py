@@ -69,10 +69,48 @@ def calculate_metrics_grey(target, canvas):
     return recall_grey, recall_white, precision, current_pixel_similarity
 
 
+# def find_starting_point(sketch: np.ndarray):
+#     # Find any ink pixel (Black or Grey)
+#     foreground_pixels = np.argwhere(sketch < 0.99)
+#     if len(foreground_pixels) == 0: return [0, 0]
+# #     #print([foreground_pixels[0][1], foreground_pixels[0][0]])
+#     return [3, 4]
+# #     return [foreground_pixels[0][1], foreground_pixels[0][0]]
+#     #random_index = random.randint(0, len(foreground_pixels) - 1)
+#     #random_pixel_yx = foreground_pixels[random_index]
+#     #return [random_pixel_yx[1], random_pixel_yx[0]]
+
 def find_starting_point(sketch: np.ndarray):
-    # Find any ink pixel (Black or Grey)
-    foreground_pixels = np.argwhere(sketch < 0.99)
-    if len(foreground_pixels) == 0: return [0, 0]
-    random_index = random.randint(0, len(foreground_pixels) - 1)
-    random_pixel_yx = foreground_pixels[random_index]
-    return [random_pixel_yx[1], random_pixel_yx[0]]
+    h, w = sketch.shape
+    black = sketch < 0.99
+
+    endpoints = []
+
+    for y in range(h):
+        for x in range(w):
+            if not black[y, x]:
+                continue
+
+            # count black neighbors in 8-neighborhood
+            neighbor_count = 0
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w:
+                        if black[ny, nx]:
+                            neighbor_count += 1
+
+            if neighbor_count == 1:
+                endpoints.append((x, y))
+
+    if len(endpoints) > 0:
+        return list(random.choice(endpoints))
+
+    foreground_pixels = np.argwhere(black)
+    if len(foreground_pixels) == 0:
+        return [0, 0]
+
+    y, x = foreground_pixels[0]
+    return [x, y]

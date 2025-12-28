@@ -40,7 +40,7 @@ test1 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.9,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -0.25,
@@ -61,7 +61,7 @@ test2 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "penalty_scale_threshold": 0.3,
+            "penalty_scale_threshold": 0.9,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -0.25,
@@ -69,8 +69,8 @@ test2 = {
             "reward_jump": 0,
             "jump_penalty": -0.25,
             "jump_distance_threshold": 1.5,
-            "use_jump": True,
-            "use_jump_penalty": True,
+            "use_jump": False,
+            "use_jump_penalty": False,
             "use_remaining_obs": True,
             "use_canvas_obs": False,
             "use_target_sketch_obs": False
@@ -82,19 +82,19 @@ test3 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.9,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
             "jump_penalty": -0.25,
-            "jump_distance_threshold": 3,
+            "jump_distance_threshold": 1.5,
             "use_jump": True,
             "use_jump_penalty": True,
-            "use_remaining_obs": True,
-            "use_canvas_obs": False,
-            "use_target_sketch_obs": False
+            "use_remaining_obs": False,
+            "use_canvas_obs": True,
+            "use_target_sketch_obs": True
 }
 test4 = {
             "target_sketches_path": "../data/32x32_width1_train_2/",
@@ -102,19 +102,19 @@ test4 = {
             "canvas_size": [32, 32],
             "max_steps": 1024,
             "brush_size": 1,
-            "penalty_scale_threshold": 0.6,
+            "penalty_scale_threshold": 0.9,
             "render_mode": None,
             "reward_correct": 1,
             "reward_wrong": -0.25,
             "repeat_scale": 0,
             "reward_jump": 0,
             "jump_penalty": -0.25,
-            "jump_distance_threshold": 5,
+            "jump_distance_threshold": 1.5,
             "use_jump": True,
             "use_jump_penalty": True,
             "use_remaining_obs": True,
-            "use_canvas_obs": False,
-            "use_target_sketch_obs": False
+            "use_canvas_obs": True,
+            "use_target_sketch_obs": True
 }
 #obs_r = [remaining_target, pen pos]
 #obs_tc = [target, canvas, pen pos]
@@ -122,22 +122,22 @@ test4 = {
 #action_j = [dx, dy, pen up/down, jump]
 #action = [dx, dy, pen up/down]
 experiments = [
+    {
+        "VERSION": "final5_obs_r_action_j_09pt_continue",
+        "ENV_ID": "DrawingEnv-v0",
+        "TOTAL_TIME_STEPS": 5000000,
+        "LEARNING_RATE": 0.0003,
+        "NUM_ENVS": 16,
+        "BATCH_BASE_SIZE": 512,
+        "ENT_COEF": 0.01,
+        "ENV_CONFIG": test1,
+        "VALIDATION_CONFIG": {
+            "EVAL_FREQ": 20000000,
+            "ENV_CONFIG": test1,
+        }
+    },
     # {
-    #     "VERSION": "final4_obs_r_action_j",
-    #     "ENV_ID": "DrawingEnv-v0",
-    #     "TOTAL_TIME_STEPS": 5000000,
-    #     "LEARNING_RATE": 0.0003,
-    #     "NUM_ENVS": 16,
-    #     "BATCH_BASE_SIZE": 512,
-    #     "ENT_COEF": 0.01,
-    #     "ENV_CONFIG": test1,
-    #     "VALIDATION_CONFIG": {
-    #         "EVAL_FREQ": 20000000,
-    #         "ENV_CONFIG": test1,
-    #     }
-    # },
-    # {
-    #     "VERSION": "final4_obs_r_action_j_03pt",
+    #     "VERSION": "final5_obs_r_action",
     #     "ENV_ID": "DrawingEnv-v0",
     #     "TOTAL_TIME_STEPS": 5000000,
     #     "LEARNING_RATE": 0.0003,
@@ -150,34 +150,40 @@ experiments = [
     #         "ENV_CONFIG": test2,
     #     }
     # },
-    {
-        "VERSION": "final4_obs_r_action_j_dist3",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test3,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test3,
-        }
-    },
-    {
-        "VERSION": "final4_obs_r_action_j_dist5",
-        "ENV_ID": "DrawingEnv-v0",
-        "TOTAL_TIME_STEPS": 5000000,
-        "LEARNING_RATE": 0.0003,
-        "NUM_ENVS": 16,
-        "BATCH_BASE_SIZE": 512,
-        "ENT_COEF": 0.01,
-        "ENV_CONFIG": test4,
-        "VALIDATION_CONFIG": {
-            "EVAL_FREQ": 20000000,
-            "ENV_CONFIG": test4,
-        }
-    },
+    # {
+    #     "VERSION": "final5_obs_tc_action_j",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test3,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test3,
+    #     }
+    # },
+    # {
+    #     "VERSION": "final5_obs_tcr_action_j",
+    #     "ENV_ID": "DrawingEnv-v0",
+    #     "TOTAL_TIME_STEPS": 5000000,
+    #     "LEARNING_RATE": 0.0003,
+    #     "NUM_ENVS": 16,
+    #     "BATCH_BASE_SIZE": 512,
+    #     "ENT_COEF": 0.01,
+    #     "ENV_CONFIG": test4,
+    #     "VALIDATION_CONFIG": {
+    #         "EVAL_FREQ": 20000000,
+    #         "ENV_CONFIG": test4,
+    #     }
+    # },
+    #"final5_obs_r_action_j_no_jump_pt"
+    #"final5_obs_r_action_j_jump_05pt"
+    #"final5_obs_r_action_j_jump_075pt"
+#"final5_obs_r_action"
+    #final5_obs_tc_action_j
+    #final5_obs_tcr_action_j
 ]
 
 if __name__ == '__main__':

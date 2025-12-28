@@ -4,17 +4,27 @@ import os
 import numpy as np
 import ast
 
-VERSION = "final4_obs_r_action_j"
+VERSION = "final5_obs_r_action_j_1pt_2"
 PLOT_VALIDATION_DATA = False
 PLOT_PAINTED_PIXELS_TOGETHER = False
 PLOT_MAX_STROKE_LENGTH = False
 PLOT_AVG_STROKE_LENGTH = False
 PLOT_COMBO_METRICS = False
 
-# Options: "similarity", "jump_ratio", "jump_draw_combo_count", "negative_reward", "jump_count", "target_pixel_count"
+# Options: "similarity", "jump_ratio", "jump_draw_combo_count", "episode_return", "jump_count", "target_pixel_count"
 COLUMN_TO_PLOT = "jump_ratio"
 # ===============================
-
+plt.rcParams.update({
+    "font.size": 16,          # 全局默认字体
+    "axes.labelsize": 18,     # x/y 轴标题
+    "axes.titlesize": 18,     # 图标题（如果你用）
+    "legend.fontsize": 14,   # 图例
+    "xtick.labelsize": 14,   # x 轴刻度
+    "ytick.labelsize": 14,   # y 轴刻度
+    "lines.linewidth": 1.5,  # 线更粗一点，放大时更清晰
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42
+})
 TRAIN_WINDOW_SIZE = 100
 
 
@@ -225,18 +235,17 @@ def plot_training_data():
             plt.plot(x_axis, data_to_plot, color='green',
                      linewidth=2)
 
-            plt.title(f"Ratio of [Jump & Draw In-Place] count to the number of target black pixels")
             plt.xlabel(xlabel_text)
-            plt.ylabel("Ratio")
+            plt.ylabel("Jump Dependency Ratio")
             plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 
         elif COLUMN_TO_PLOT == "similarity":
-            metrics_to_plot = ["precision", "recall_black"]
-            plot_styles = {"recall_grey": 'r-', "similarity": 'b-', "recall_black": 'b--', "recall_white": 'm:',
+            metrics_to_plot = ["precision", "recall_black", "f1_score"]
+            plot_styles = {"f1_score": 'r:', "similarity": 'b-', "recall_black": 'b--', "recall_white": 'm:',
                            "recall_all": 'c-.'}
             default_style = 'k-'
             plot_labels = {
-                "pixel_similarity": f'Pixel Accuracy (MA {TRAIN_WINDOW_SIZE})',
+                "f1_score": f'F1-Score',
                 "precision": f'Precision',
                 "recall_black": f'Recall',
                 "recall_grey": f'Grey Recall (MA {TRAIN_WINDOW_SIZE})',
@@ -254,13 +263,13 @@ def plot_training_data():
                 last_val = metric_ma.iloc[-1]
                 print(f"Final {col} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
                 style = plot_styles.get(col, default_style)
-
                 plt.plot(x_axis, metric_ma, style, label=plot_labels.get(col, col))
 
-            plt.title(
-                f"Training Performance: Recall & Precision of Drawn Black Pixels")
+            #plt.title(
+            #    f"Training Performance: Recall & Precision of Drawn Black Pixels")
             plt.xlabel(xlabel_text)
-            plt.ylabel("Metric Value (0-1)")
+            plt.ylabel("Metric Value")
+            plt.grid(True, which='both', linestyle='--', linewidth=0.5)
             plt.ylim(-0.05, 1.05)
 
         elif PLOT_PAINTED_PIXELS_TOGETHER:
@@ -270,20 +279,21 @@ def plot_training_data():
                 print(f"Error: Column '{COLUMN_TO_PLOT}' not found in training data.")
                 plt.close()
                 return
+
             data_to_plot = df[COLUMN_TO_PLOT].rolling(window=TRAIN_WINDOW_SIZE).mean()
             last_val = data_to_plot.iloc[-1]
             label_text = COLUMN_TO_PLOT.replace('_', ' ').title()
             print(f"Final {label_text} (MA {TRAIN_WINDOW_SIZE}): {last_val:.4f}")
-
             plt.plot(x_axis, data_to_plot, label=f'{label_text} (MA {TRAIN_WINDOW_SIZE})')
+            plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-            plt.title(f"Training Performance: {label_text} (Moving Average) - {VERSION}")
             plt.xlabel(xlabel_text)
             plt.ylabel(label_text)
 
         if COLUMN_TO_PLOT == "similarity":
             plt.legend()
         plt.tight_layout()
+        plt.savefig("../figures/final5/figure.pdf", bbox_inches="tight")
         plt.show()
         plt.close()
     except Exception as e:

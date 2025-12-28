@@ -13,7 +13,7 @@ from envs.drawing_env.tools.image_process import (
 
 
 class DrawingAgentEnv(gym.Env):
-    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 120}
     _episode_counter = 0
 
     def __init__(self, config=None):
@@ -377,7 +377,7 @@ class DrawingAgentEnv(gym.Env):
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
+                        current_penalty_scale = self.last_recall_black
                     elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
                         current_penalty_scale = 1.0
 
@@ -394,9 +394,9 @@ class DrawingAgentEnv(gym.Env):
 
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
-                    if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
-                        current_penalty_scale = self.last_precision_black
-                    elif self.last_recall_black >= 1.0 or self.penalty_scale_threshold > 1.0:
+                    if self.penalty_scale_threshold <= self.last_recall_black <= 1.0:
+                        current_penalty_scale = self.last_recall_black
+                    elif self.penalty_scale_threshold > 1.0:
                         current_penalty_scale = 1.0
 
                 negative_reward_this_step = self.reward_wrong * current_penalty_scale
