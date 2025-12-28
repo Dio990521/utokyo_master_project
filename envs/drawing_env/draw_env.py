@@ -13,6 +13,10 @@ from envs.drawing_env.tools.image_process import (
 
 
 class DrawingAgentEnv(gym.Env):
+    """
+    A custom Reinforcement Learning environment for a drawing agent.
+    The agent learns to recreate a target sketch by moving a pen and drawing pixels.
+    """
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 120}
     _episode_counter = 0
 
@@ -22,12 +26,16 @@ class DrawingAgentEnv(gym.Env):
         self._init_state_variables()
         self.render_scale = 10
 
-        # Action Space Setup
-        # 18 actions (0-8: Move, 9-17: Draw+Move) [+1 if Jump enabled]
+        # --- Action Space Setup ---
+        # Actions 0-8: Move (3x3 grid) with Pen UP
+        # Actions 9-17: Move (3x3 grid) with Pen DOWN
+        # Action 18: Jump to nearest unfinished pixel (if enabled)
         n_actions = 18 + int(self.use_jump)
         self.action_space = spaces.Discrete(n_actions)
 
-        self.num_obs_channels = 1  # Pen Mask is always included in logic
+        # --- Observation Space Setup ---
+        # Dynamically stack channels based on configuration
+        self.num_obs_channels = 1  # Channel 0: Pen Mask (Location)
 
         if self.use_target_sketch_obs:
             self.num_obs_channels += 1
@@ -39,6 +47,7 @@ class DrawingAgentEnv(gym.Env):
             self.num_obs_channels += 1
             print("Using Remaining Target Obs")
 
+        # Shape: (Channels, Height, Width)
         self.observation_space = spaces.Box(
             low=0, high=1.0, shape=(self.num_obs_channels, *self.canvas_size), dtype=np.float32
         )
@@ -47,11 +56,13 @@ class DrawingAgentEnv(gym.Env):
         self.clock = None
 
     def _init_config(self, config):
+        """Initialize configuration parameters from input dictionary or defaults."""
         config = config or {}
         self.canvas_size = config.get("canvas_size", [32, 32])
         self.max_steps = config.get("max_steps", 1000)
         self.render_mode = config.get("render_mode", None)
 
+        # Data augmentation for target sketches
         self.aug_transform = transforms.Compose([
             transforms.RandomAffine(
                 degrees=0,
@@ -60,37 +71,39 @@ class DrawingAgentEnv(gym.Env):
             )
         ])
 
-        # Action Space Configuration
+        # Action Logic Configuration
         self.use_jump = config.get("use_jump", False)
         self.jump_distance_threshold = config.get("jump_distance_threshold", 1.5)
-        self.use_jump_penalty =config.get("use_jump_penalty", False)
+        self.use_jump_penalty = config.get("use_jump_penalty", False)
 
-        # Budget & Combo (Logic retained for rewards, channels removed)
+        # Reward & Combo Logic
         self.stroke_budget = config.get("stroke_budget", 1)
         self.use_combo = config.get("use_combo", False)
         self.combo_rate = config.get("combo_rate", 1.1)
         self.repeat_scale = config.get("repeat_scale", 1.0)
 
-        # Obs Flags
-        self.use_canvas_obs = config.get("use_canvas_obs", True)
-        self.use_target_sketch_obs = config.get("use_target_sketch_obs", True)
-        self.use_remaining_obs = config.get("use_remaining_obs", False)
+        # Observation Flags
+        self.use_canvas_obs = config.get("use_canvas_obs", False)
+        self.use_target_sketch_obs = config.get("use_target_sketch_obs", False)
+        self.use_remaining_obs = config.get("use_remaining_obs", True)
 
-        # Penalties & Rewards
+        # Reward Values
         self.reward_correct = config.get("reward_correct", 0.1)
         self.reward_wrong = config.get("reward_wrong", -0.01)
         self.reward_jump = config.get("reward_jump", 0.0)
         self.penalty_scale_threshold = config.get("penalty_scale_threshold", 0.9)
-        self.jump_penalty =config.get("jump_penalty", -0.5)
+        self.jump_penalty = config.get("jump_penalty", -0.5)
 
-        # Drawing Config
+        # Tool Config
         self.brush_size = config.get("brush_size", 1)
         self.use_augmentation = config.get("use_augmentation", True)
 
-        # Data Configs
+        # Dataset Loading
         self.target_sketches_path = config.get("target_sketches_path", None)
         self.specific_sketch_file = config.get("specific_sketch_file", None)
         self.sketch_file_list = []
+
+        # Determine if loading a specific file or a directory
         if self.specific_sketch_file and os.path.exists(self.specific_sketch_file):
             self.sketch_file_list = [self.specific_sketch_file]
         elif self.target_sketches_path and os.path.exists(self.target_sketches_path):
@@ -105,18 +118,23 @@ class DrawingAgentEnv(gym.Env):
         self.current_episode_num = 0
 
     def _init_state_variables(self):
+        """Reset internal state variables for a new episode."""
         self.current_step = 0
+        # Canvas initialized to White (1.0)
         self.canvas = np.full(self.canvas_size, 1.0, dtype=np.float32)
         self.used_budgets = 0
         self.is_pen_down = False
         self.pen_was_down = False
         self.episode_end = False
+
+        # Combo tracking
         self.current_combo = 0
         self.combo_sustained_on_repeat = 0
         self.episode_combo_log = []
         self.episode_combo_sustained_on_repeat_log = []
-        self.target_pixel_count = 0
 
+        # Metrics
+        self.target_pixel_count = 0
         self._current_tp = 0
         self._current_tn = 0
         self._current_fp = 0
@@ -128,6 +146,7 @@ class DrawingAgentEnv(gym.Env):
         self.last_precision_black = 0.0
         self.last_f1_score = 0.0
 
+        # Episode Accumulators
         self.episode_return = 0
         self.target_sketch = None
         self.cursor = [0, 0]
@@ -143,6 +162,10 @@ class DrawingAgentEnv(gym.Env):
         self.last_raw_action = None
 
     def _decode_action(self, action):
+        """
+        Decodes discrete action into semantic components.
+        Returns: (dx, dy, is_pen_down, is_jump)
+        """
         # 0-8:  Move (dx, dy) + Pen Up
         # 9-17: Move (dx, dy) + Pen Down
         # 18:   Jump (Only if use_jump=True)
@@ -154,12 +177,14 @@ class DrawingAgentEnv(gym.Env):
         else:
             is_pen_down = (action >= 9)
             sub_action = action % 9
+            # Map 0-8 to (-1, -1) through (1, 1)
             dx = (sub_action % 3) - 1
             dy = (sub_action // 3) - 1
 
         return dx, dy, is_pen_down, is_jump
 
     def _load_sketch_from_path(self, filepath):
+        """Loads, converts to grayscale, augments, and normalizes the target image."""
         sketch = Image.open(filepath).convert('L')
         if self.use_augmentation:
             sketch = self.aug_transform(sketch)
@@ -167,17 +192,20 @@ class DrawingAgentEnv(gym.Env):
         return (sketch_array / 255.0).astype(np.float32)
 
     def reset(self, seed=None, options=None):
+        """Resets the environment to start a new episode."""
         super().reset(seed=seed)
         DrawingAgentEnv._episode_counter += 1
         self.current_episode_num = DrawingAgentEnv._episode_counter
         self._init_state_variables()
         self.correct_rewards = 0
 
-        # Load Target
+        # Select and load a random target sketch
         if not self.sketch_file_list:
             raise ValueError("Sketch file list is empty!")
         chosen_file = random.choice(self.sketch_file_list)
         self.target_sketch = self._load_sketch_from_path(chosen_file)
+
+        # Calculate initial target stats (Black < 0.5)
         self.target_pixel_count = np.sum(self.target_sketch < 0.5)
         self.cursor = find_starting_point(self.target_sketch)
 
@@ -196,6 +224,7 @@ class DrawingAgentEnv(gym.Env):
         return self._get_obs(), self._get_info()
 
     def _find_nearest_target_pixel(self):
+        """Finds the closest unpainted 'black' pixel in the target sketch."""
         unfinished = np.logical_and(
             self.target_sketch < 0.5,
             self.canvas > 0.5
@@ -219,6 +248,10 @@ class DrawingAgentEnv(gym.Env):
         return [target_c, target_r], dists[min_idx]
 
     def step(self, action):
+        """
+        Executes one time step within the environment.
+        Handles movement, painting, reward calculation, and metric updates.
+        """
         self.current_step += 1
 
         ACTION_JUMP = 18
@@ -226,6 +259,7 @@ class DrawingAgentEnv(gym.Env):
 
         current_action = int(action)
 
+        # Track "Jump -> Draw" combo pattern
         if self.use_jump and self.last_raw_action is not None:
             if self.last_raw_action == ACTION_JUMP and current_action == ACTION_DRAW_IN_PLACE:
                 self.episode_jump_draw_combo_count += 1
@@ -234,62 +268,69 @@ class DrawingAgentEnv(gym.Env):
 
         dx, dy, is_pen_down, is_jump = self._decode_action(action)
 
+        # --- JUMP LOGIC ---
         jump_penalty = 0.0
         if self.use_jump and is_jump:
             nearest_pos, dist = self._find_nearest_target_pixel()
+            # Apply penalty if jump is too short (discourage useless jumps)
             if self.use_jump_penalty:
                 if dist <= self.jump_distance_threshold:
                     jump_penalty = self.jump_penalty
                 else:
                     jump_penalty = self.reward_jump
 
+            # Teleport cursor
             self.cursor[0] = np.clip(nearest_pos[0], 0, self.canvas_size[0] - 1)
             self.cursor[1] = np.clip(nearest_pos[1], 0, self.canvas_size[1] - 1)
 
             self.episode_jump_count += 1
             self.painted_pixels_since_last_jump = 0
         else:
+            # Standard Move
             self._update_agent_state(dx, dy, bool(is_pen_down))
 
         terminated = False
         correct_new_pixels = []
         repeated_correct_pixels = []
 
+        # --- PAINTING LOGIC ---
         if is_pen_down and not terminated:
             valid_paint_count = 0
             current_cursor = self.cursor
             brush_radius = self.brush_size // 2
 
+            # Define brush area
             y_start = max(0, current_cursor[1] - brush_radius)
             y_end = min(self.canvas_size[1], current_cursor[1] + brush_radius + 1)
             x_start = max(0, current_cursor[0] - brush_radius)
             x_end = min(self.canvas_size[0], current_cursor[0] + brush_radius + 1)
 
-            # Check pixels
+            # Analyze pixels under brush
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
-                    if np.isclose(self.canvas[r, c], 1.0):
-                        if np.isclose(self.target_sketch[r, c], 0.0):
+                    if np.isclose(self.canvas[r, c], 1.0):  # Canvas is currently white
+                        if np.isclose(self.target_sketch[r, c], 0.0):  # Target is black (Correct)
                             correct_new_pixels.append((r, c))
                             valid_paint_count += 1
                             self._current_tp += 1
                             self._current_fn -= 1
-                        else:
+                        else:  # Target is white (Wrong)
                             self._current_fp += 1
                             self._current_tn -= 1
-                    else:
+                    else:  # Pixel already painted
                         if np.isclose(self.target_sketch[r, c], 0.0):
                             repeated_correct_pixels.append((r, c))
 
             self.painted_pixels_since_last_jump += valid_paint_count
 
-            # Apply paint
+            # Apply paint to canvas (Set to 0.0/Black)
             for r in range(y_start, y_end):
                 for c in range(x_start, x_end):
                     if np.isclose(self.canvas[r, c], 1.0):
                         self.episode_total_painted += 1
                         self.canvas[r, c] = 0.0
 
+        # Update metrics
         current_recall_black, current_recall_white, current_precision_black, current_pixel_similarity = calculate_metrics(
             self._current_tp, self._current_fp, self._current_tn, self._current_fn, self.canvas.size
         )
@@ -301,14 +342,17 @@ class DrawingAgentEnv(gym.Env):
 
         current_f1_score = calculate_f1_score(self.last_precision_black, self.last_recall_black)
 
+        # Check termination conditions
         truncated = self.current_step >= self.max_steps or np.isclose(self.last_recall_black, 1.0)
 
+        # Calculate Reward
         reward = self._calculate_reward(
             is_pen_down,
             correct_new_pixels,
             repeated_correct_pixels,
         )
 
+        # Add jump penalty if applicable
         if is_jump:
             reward += jump_penalty
             if jump_penalty < 0:
@@ -316,6 +360,7 @@ class DrawingAgentEnv(gym.Env):
 
         self.last_f1_score = current_f1_score
 
+        # Finalize episode logs
         if terminated or truncated:
             if self.current_combo > 0:
                 self.episode_combo_log.append(self.current_combo)
@@ -326,14 +371,18 @@ class DrawingAgentEnv(gym.Env):
         observation = self._get_obs()
         info = self._get_info()
         self.episode_return += reward
+
         if self.render_mode == "human":
             self.render()
+
         return observation, reward, terminated, truncated, info
 
     def _update_agent_state(self, dx, dy, is_pen_down):
+        """Updates cursor position and pen state."""
         self.cursor[0] = np.clip(self.cursor[0] + dx, 0, self.canvas_size[0] - 1)
         self.cursor[1] = np.clip(self.cursor[1] + dy, 0, self.canvas_size[1] - 1)
 
+        # Count budget usage (pen strokes)
         if self.pen_was_down and not is_pen_down:
             self.used_budgets = min(255, self.used_budgets + 1)
 
@@ -341,6 +390,10 @@ class DrawingAgentEnv(gym.Env):
         self.pen_was_down = self.is_pen_down
 
     def _calculate_reward(self, is_pen_down, correct_new_pixels, repeated_new_pixels):
+        """
+        Calculates reward based on drawing accuracy and combo mechanics.
+        Rewards continuous correct strokes; penalizes mistakes and redundant painting.
+        """
         reward = 0.0
         drawing_reward = 0.0
         base_reward_part = 0.0
@@ -352,12 +405,14 @@ class DrawingAgentEnv(gym.Env):
             self.episode_correctly_painted += num_correct
 
             if num_correct > 0:
+                # --- Reward for New Correct Pixels ---
                 positive_reward_this_step = num_correct * self.reward_correct
 
                 base_reward_part = positive_reward_this_step
                 self.current_combo += 1
                 self.combo_sustained_on_repeat += 1
 
+                # Apply Combo Multiplier
                 if self.use_combo:
                     if self.combo_rate < 1.0:
                         positive_reward_this_step *= (1 + self.combo_rate * self.combo_sustained_on_repeat)
@@ -369,11 +424,13 @@ class DrawingAgentEnv(gym.Env):
                 self.correct_rewards += positive_reward_this_step
 
             elif num_correct == 0 and num_repeated > 0:
+                # --- Penalty for Repeating (Redrawing already black pixels) ---
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
                 self.current_combo = 0
-                self.combo_sustained_on_repeat += 1
+                self.combo_sustained_on_repeat += 1  # Sustain the underlying stroke count
 
+                # Scale penalty based on progress (threshold)
                 current_penalty_scale = 0.0
                 if self.penalty_scale_threshold > 0:
                     if self.penalty_scale_threshold <= self.last_recall_black < 1.0:
@@ -384,11 +441,15 @@ class DrawingAgentEnv(gym.Env):
                 negative_reward_this_step = self.reward_wrong * self.repeat_scale * current_penalty_scale
                 self.episode_negative_reward += negative_reward_this_step
                 drawing_reward = negative_reward_this_step
+
             elif num_correct == 0 and num_repeated == 0:
+                # --- Penalty for Wrong Pixels (Drawing on White) ---
                 if self.current_combo > 0:
                     self.episode_combo_log.append(self.current_combo)
                 if self.combo_sustained_on_repeat > 0:
                     self.episode_combo_sustained_on_repeat_log.append(self.combo_sustained_on_repeat)
+
+                # Reset combos
                 self.current_combo = 0
                 self.combo_sustained_on_repeat = 0
 
@@ -403,7 +464,7 @@ class DrawingAgentEnv(gym.Env):
                 self.episode_negative_reward += negative_reward_this_step
                 drawing_reward = negative_reward_this_step
         else:
-            # Pen Up
+            # --- Pen Up: Reset Combos ---
             if self.current_combo > 0:
                 self.episode_combo_log.append(self.current_combo)
             if self.combo_sustained_on_repeat > 0:
@@ -417,32 +478,35 @@ class DrawingAgentEnv(gym.Env):
         return reward
 
     def _get_obs(self):
+        """
+        Constructs the observation tensor.
+        Stack: [Target Sketch, Canvas, Difference, Pen Mask] (depending on config)
+        """
         if not hasattr(self, "_obs_img"):
             self._obs_img = np.zeros((self.num_obs_channels, *self.canvas_size), dtype=np.float32)
 
         ch_idx = 0
 
-        # Channel 1: Target
+        # Channel: Target Sketch
         if self.use_target_sketch_obs:
             if self.current_step == 0:
                 self._obs_img[ch_idx] = self.target_sketch.astype(np.float32)
             self._obs_img[ch_idx] = self.target_sketch
             ch_idx += 1
 
-        # Channel 2: Canvas
+        # Channel: Current Canvas
         if self.use_canvas_obs:
             self._obs_img[ch_idx][:] = self.canvas
             ch_idx += 1
 
-        # Channel 3: Remaining Target
+        # Channel: Remaining Target (Difference)
         if self.use_remaining_obs:
             diff_map = self.canvas - self.target_sketch
             diff_map = np.clip(diff_map, 0.0, 1.0)
-
             self._obs_img[ch_idx][:] = diff_map
             ch_idx += 1
 
-        # Channel 4: Pen Mask (Always included)
+        # Channel: Pen Position Mask (Always included)
         pen_layer = self._obs_img[ch_idx]
         pen_layer.fill(0.0)
 
@@ -454,6 +518,7 @@ class DrawingAgentEnv(gym.Env):
         return self._obs_img
 
     def _get_info(self):
+        """Returns dictionary of metrics for logging/debugging."""
         info_dict = {
             "pixel_similarity": self.last_pixel_similarity,
             "recall_black": self.last_recall_black,
@@ -477,6 +542,7 @@ class DrawingAgentEnv(gym.Env):
         return info_dict
 
     def _init_pygame(self):
+        """Initializes the Pygame window for rendering."""
         if self.window is None:
             pygame.init()
             pygame.display.init()
@@ -488,19 +554,27 @@ class DrawingAgentEnv(gym.Env):
             self.clock = pygame.time.Clock()
 
     def render(self):
+        """Renders the current environment state (Target vs Canvas) using Pygame."""
         if self.render_mode != "human": return
         if self.window is None or self.clock is None: self._init_pygame()
+
+        # Handle window close event
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.close()
                 raise Exception("Pygame window closed by user.")
-        self.window.fill((105, 105, 105))
 
+        self.window.fill((105, 105, 105))  # Grey background
+
+        # Draw Target Sketch (Left)
         self._draw_surface(self.target_sketch, (0, 0))
+
+        # Draw Canvas (Right)
         right_panel_x_start = (self.canvas_size[1] + 10) * self.render_scale
         self._draw_surface(self.canvas, (right_panel_x_start, 0))
 
-        cursor_color = (255, 0, 0) if self.is_pen_down else (0, 0, 255)
+        # Draw Cursor on both panels
+        cursor_color = (255, 0, 0) if self.is_pen_down else (0, 0, 255)  # Red=Down, Blue=Up
 
         pygame.draw.circle(
             self.window, cursor_color,
@@ -518,6 +592,7 @@ class DrawingAgentEnv(gym.Env):
         self.clock.tick(self.metadata["render_fps"])
 
     def _draw_surface(self, array, position):
+        """Helper to draw a numpy array onto the Pygame surface."""
         array_rgb = np.stack([(array.T * 255)] * 3, axis=-1).astype(np.uint8)
         surface = pygame.surfarray.make_surface(array_rgb)
         scaled_surface = pygame.transform.scale(
@@ -526,6 +601,7 @@ class DrawingAgentEnv(gym.Env):
         self.window.blit(scaled_surface, position)
 
     def close(self):
+        """Closes the rendering window."""
         if self.window is not None:
             pygame.display.quit()
             pygame.quit()
