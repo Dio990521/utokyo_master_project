@@ -1,0 +1,12 @@
+gymnasium==1.1.1
+matplotlib==3.10.1
+numpy==2.2.5
+opencv_python==4.11.0.86
+pandas==2.2.3
+pillow==11.2.1
+pygame==2.6.1
+stable_baselines3==2.6.0
+torch==2.8.0
+torchvision==0.23.0
+tornado==6.5.4
+tqdm==4.67.1
