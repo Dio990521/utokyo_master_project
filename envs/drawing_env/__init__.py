@@ -6,23 +6,7 @@ register(
     kwargs={"config": {
         "canvas_size": [32, 32],
         "render": False,
-        "max_steps": 1000,
-        "stroke_budget": 1,
-        "render_mode": None,
-        "mode": "training",
-        "target_sketches_path": "../envs/drawing_env/training/sketches/",
-        }
-    }
-)
-
-register(
-    id="DrawingGreyEnv-v0",
-    entry_point="envs.drawing_env.draw_env_grey:DrawingAgentGreyEnv",
-    kwargs={"config": {
-        "canvas_size": [32, 32],
-        "render": False,
-        "max_steps": 1000,
-        "stroke_budget": 1,
+        "max_steps": 1024,
         "render_mode": None,
         "mode": "training",
         "target_sketches_path": "../envs/drawing_env/training/sketches/",
