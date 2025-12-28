@@ -1,26 +1,29 @@
 import os
 import sys
 import pandas as pd
-import numpy as np
 from stable_baselines3 import PPO
 from tqdm import tqdm
+from envs.drawing_env.draw_env import DrawingAgentEnv
 
+# Add parent directory to path to allow importing local modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-from envs.drawing_env.draw_env import DrawingAgentEnv
-from envs.drawing_env.tools.custom_cnn import CustomCnnExtractor
-
-VERSION = "final5_obs_tcr_action_j"
+# ==========================================
+# 1. CONFIGURATION & PATHS
+# ==========================================
+VERSION = "final5_obs_tcr_action_j_09pt"
 MODEL_PATH = f"../training_outputs/{VERSION}/models/drawing_agent_final.zip"
 TEST_DATA_PATH = "../data/32x32_width1_test/"
 OUTPUT_CSV = f"../training_outputs/{VERSION}/evaluation_results.csv"
 
+# Evaluation Parameters
 CANVAS_SIZE = (32, 32)
 MAX_EPISODE_STEPS = 1024
-EVAL_TIMES = 20
-USE_AUGMENTATION = False
+EVAL_TIMES = 20  # Number of times to evaluate each image
+USE_AUGMENTATION = False  # Test time augmentation
 BRUSH_SIZE = 1
 
+# Default Environment Configuration
 ENV_CONFIG_TEMPLATE = {
     "canvas_size": CANVAS_SIZE,
     "render": False,
@@ -29,7 +32,7 @@ ENV_CONFIG_TEMPLATE = {
     "brush_size": BRUSH_SIZE,
     "use_combo": False,
     "combo_rate": 1.1,
-    "penalty_scale_threshold": 0.6,
+    "penalty_scale_threshold": 0.9,
     "reward_correct": 1,
     "reward_wrong": -0.25,
     "repeat_scale": 0,
@@ -38,13 +41,22 @@ ENV_CONFIG_TEMPLATE = {
     "use_jump": True,
     "use_jump_penalty": True,
     "use_remaining_obs": True,
-    "use_canvas_obs": True,
-    "use_target_sketch_obs": True,
+    "use_canvas_obs": False,
+    "use_target_sketch_obs": False,
     "use_augmentation": USE_AUGMENTATION
 }
 
 
+# ==========================================
+# 2. EVALUATION LOGIC
+# ==========================================
 def evaluate_all_images():
+    """
+    Evaluates the trained model on all images in the test directory.
+    Runs multiple episodes per image and saves metrics to CSV.
+    """
+
+    # --- Path Validation ---
     if not os.path.exists(MODEL_PATH):
         print(f"Error: Model not found at {MODEL_PATH}")
         return
@@ -52,6 +64,7 @@ def evaluate_all_images():
         print(f"Error: Test data path not found at {TEST_DATA_PATH}")
         return
 
+    # --- Load Images ---
     image_files = [f for f in os.listdir(TEST_DATA_PATH) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     if not image_files:
         print("No image files found in test directory.")
@@ -62,27 +75,34 @@ def evaluate_all_images():
 
     results = []
 
+    # --- Load Model ---
+    # Initialize a dummy env just to load the model structure
     dummy_env = DrawingAgentEnv(config=ENV_CONFIG_TEMPLATE)
     model = PPO.load(MODEL_PATH, env=dummy_env)
     print(f"Model loaded successfully.")
 
+    # --- Evaluation Loop ---
     for img_file in tqdm(image_files, desc="Evaluating Images"):
         img_path = os.path.join(TEST_DATA_PATH, img_file)
 
+        # Update config for current specific image
         current_config = ENV_CONFIG_TEMPLATE.copy()
         current_config["specific_sketch_file"] = img_path
 
         eval_env = DrawingAgentEnv(config=current_config)
 
+        # Run multiple episodes for statistics
         for i in range(EVAL_TIMES):
             obs, _ = eval_env.reset()
             done = False
             truncated = False
 
+            # Execute Episode
             while not (done or truncated):
                 action, _ = model.predict(obs, deterministic=False)
                 obs, reward, done, truncated, info = eval_env.step(action)
 
+            # Calculate "Jump to Draw" Ratio
             target_pixel_count = info.get("target_pixel_count", 1)
             jump_draw_combo_count = info.get("jump_draw_combo_count", 0)
 
@@ -90,6 +110,7 @@ def evaluate_all_images():
             if target_pixel_count > 0:
                 jump_ratio = jump_draw_combo_count / target_pixel_count
 
+            # Store metrics
             results.append({
                 "image_name": img_file,
                 "eval_idx": i + 1,
@@ -108,6 +129,7 @@ def evaluate_all_images():
 
         eval_env.close()
 
+    # --- Summary & Save ---
     df = pd.DataFrame(results)
 
     print("\n=== Evaluation Summary ===")
