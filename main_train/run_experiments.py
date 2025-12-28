@@ -5,35 +5,6 @@ import numpy as np
 from PIL import Image
 
 
-def _load_sketch_from_path(filepath, canvas_size):
-    sketch = Image.open(filepath).resize(canvas_size).convert('L')
-    sketch_array = np.array(sketch)
-    return (sketch_array / 255.0).astype(np.float32)
-
-def preload_all_data(sketch_path, env_config):
-    target_data_list = []
-    empty_canvas = np.full(env_config["canvas_size"], 1.0, dtype=np.float32)
-    canvas_size = env_config["canvas_size"]
-
-    print(f"--- [Pre-loader] Starting pre-calculation for {sketch_path} ---")
-
-    if not os.path.exists(sketch_path):
-        raise ValueError(f"Sketch path not found: {sketch_path}")
-
-    file_list = [f for f in os.listdir(sketch_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    print(f"--- [Pre-loader] Found {len(file_list)} images. Starting map calculations... ---")
-
-    for i, filename in enumerate(file_list):
-        filepath = os.path.join(sketch_path, filename)
-        sketch_array = _load_sketch_from_path(filepath, canvas_size)
-        target_data_list.append(sketch_array)
-
-        if (i + 1) % 500 == 0 or i == len(file_list) - 1:
-            print(f"  ...processed {i + 1}/{len(file_list)} images")
-
-    print(f"--- [Pre-loader] Pre-calculation complete. Total data loaded: {len(target_data_list)} ---")
-    return target_data_list
-
 test1 = {
             "target_sketches_path": "../data/32x32_width1_train_2/",
             "val_sketches_path": "../data/32x32_width1_test/",
@@ -178,13 +149,12 @@ experiments = [
     #         "ENV_CONFIG": test4,
     #     }
     # },
-    #"final5_obs_r_action_j_no_jump_pt"
-    #"final5_obs_r_action_j_jump_05pt"
-    #"final5_obs_r_action_j_jump_075pt"
-#"final5_obs_r_action"
-    #final5_obs_tc_action_j
-    #final5_obs_tcr_action_j
 ]
+
+def _load_sketch_from_path(filepath, canvas_size):
+    sketch = Image.open(filepath).resize(canvas_size).convert('L')
+    sketch_array = np.array(sketch)
+    return (sketch_array / 255.0).astype(np.float32)
 
 if __name__ == '__main__':
     total_experiments = len(experiments)
