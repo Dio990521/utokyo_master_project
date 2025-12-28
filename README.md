@@ -35,3 +35,13 @@ You can also evaluate trained models for test dataset:
 python evaluate_batch.py
 ```
 *You can modify hyperparameters directly in `evaluate.py` or `evaluate_batch.py`.*
+
+You can plot results:
+```bash
+python plot.py
+```
+or plot multiple results for comparison:
+```bash
+python plot_multi.py
+```
+*You can modify hyperparameters directly in `plot.py` or `plot_multi.py`.*
