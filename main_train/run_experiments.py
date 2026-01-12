@@ -6,7 +6,7 @@ from PIL import Image
 
 
 test1 = {
-            "target_sketches_path": "../data/32x32_width1_train_2/",
+            "target_sketches_path": "../data/32x32_width1_train/",
             "val_sketches_path": "../data/32x32_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
@@ -27,7 +27,7 @@ test1 = {
         }
 
 test2 = {
-            "target_sketches_path": "../data/32x32_width1_train_2/",
+            "target_sketches_path": "../data/32x32_width1_train/",
             "val_sketches_path": "../data/32x32_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
@@ -48,7 +48,7 @@ test2 = {
 }
 
 test3 = {
-            "target_sketches_path": "../data/32x32_width1_train_2/",
+            "target_sketches_path": "../data/32x32_width1_train/",
             "val_sketches_path": "../data/32x32_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
@@ -68,7 +68,7 @@ test3 = {
             "use_target_sketch_obs": True
 }
 test4 = {
-            "target_sketches_path": "../data/32x32_width1_train_2/",
+            "target_sketches_path": "../data/32x32_width1_train/",
             "val_sketches_path": "../data/32x32_width1_test/",
             "canvas_size": [32, 32],
             "max_steps": 1024,
